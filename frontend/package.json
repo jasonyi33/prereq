@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx server/index.ts",
-    "postinstall": "node scripts/install-rtms.mjs || true",
-    "build": "next build",
+    "build": "node scripts/install-rtms.mjs; next build",
     "start": "tsx server/index.ts",
     "lint": "eslint",
     "test": "npx vitest run"
