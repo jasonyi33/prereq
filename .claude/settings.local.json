@@ -12,7 +12,12 @@
       "Bash(git stash:*)",
       "Bash(ls:*)",
       "WebSearch",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(npx next build:*)"
     ]
   }
 }
