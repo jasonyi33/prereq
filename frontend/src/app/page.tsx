@@ -225,29 +225,28 @@ export default function LandingPage() {
             </TabButton>
           </div>
 
+          {/* Role toggle — shown for both login and signup */}
+          <div className="flex gap-1 mb-5 bg-slate-100 p-1 rounded-full">
+            <TabButton active={roleToggle === "student"} onClick={() => setRoleToggle("student")}>
+              Student
+            </TabButton>
+            <TabButton active={roleToggle === "teacher"} onClick={() => setRoleToggle("teacher")}>
+              Professor
+            </TabButton>
+          </div>
+
           <form onSubmit={handleAuth} className="space-y-4">
             {mode === "signup" && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                  />
-                </div>
-                {/* Role toggle */}
-                <div className="flex gap-1 bg-slate-100 p-1 rounded-full">
-                  <TabButton active={roleToggle === "student"} onClick={() => setRoleToggle("student")}>
-                    Student
-                  </TabButton>
-                  <TabButton active={roleToggle === "teacher"} onClick={() => setRoleToggle("teacher")}>
-                    Teacher
-                  </TabButton>
-                </div>
-              </>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1.5">Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                />
+              </div>
             )}
 
             <div>
@@ -256,7 +255,7 @@ export default function LandingPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@stanford.edu"
+                placeholder={roleToggle === "teacher" ? "professor@stanford.edu" : "student@stanford.edu"}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                 required
               />
@@ -277,14 +276,63 @@ export default function LandingPage() {
             {error && <p className="text-sm text-red-500">{error}</p>}
 
             <GradientButton type="submit" disabled={submitting}>
-              {submitting ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
+              {submitting
+                ? "Please wait..."
+                : mode === "login"
+                  ? `Sign In as ${roleToggle === "teacher" ? "Professor" : "Student"}`
+                  : "Create Account"}
             </GradientButton>
           </form>
+
+          {/* Demo quick-access divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Demo Access</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          {/* Demo buttons for quick access without auth */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                router.push("/professor/dashboard");
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Professor
+            </button>
+            <button
+              onClick={() => {
+                localStorage.setItem("studentId", "student-sam");
+                document.cookie = "studentId=student-sam;path=/";
+                router.push("/student/student-sam");
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5" />
+              </svg>
+              Student
+            </button>
+          </div>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-8">
-          Personalized knowledge graphs for every student
-        </p>
+        <button
+          onClick={() => setShowAuth(false)}
+          className="flex items-center justify-center gap-1 mx-auto mt-6 text-sm text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
       </div>
       <style jsx>{`
         @keyframes fadeInUp {
