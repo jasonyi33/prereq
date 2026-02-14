@@ -78,7 +78,7 @@ export default function ProfessorDashboard() {
   useEffect(() => {
     if (!courseId) return;
     flaskApi
-      .get(`/api/courses/${courseId}/students/summary?limit=30`)
+      .get(`/api/courses/${courseId}/students/summary`)
       .then((summaries: StudentSummary[]) => {
         setStudents(summaries);
       })

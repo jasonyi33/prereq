@@ -32,21 +32,21 @@ def get_students(course_id):
 @students.route('/api/courses/<course_id>/students/summary', methods=['GET'])
 @optional_auth
 def get_students_summary(course_id):
-    """Return students with mastery distributions computed server-side (2 queries total)."""
-    limit = request.args.get('limit', 30, type=int)
-
-    students_data = supabase.table('students').select('id, name').eq('course_id', course_id).limit(limit).execute().data
+    """Return all students with mastery distributions computed server-side."""
+    students_data = supabase.table('students').select('id, name').eq('course_id', course_id).limit(500).execute().data
     if not students_data:
         return jsonify([]), 200
 
     student_ids = [s['id'] for s in students_data]
 
-    # Fetch all mastery records for these students in one query (max ~30*33 = 990 rows)
-    all_mastery = supabase.table('student_mastery').select('student_id, confidence').in_('student_id', student_ids).execute().data
-
+    # Batch mastery queries in groups of 50 to stay under Supabase row/URL limits
     by_student = {}
-    for m in all_mastery:
-        by_student.setdefault(m['student_id'], []).append(m['confidence'])
+    batch_size = 50
+    for i in range(0, len(student_ids), batch_size):
+        batch_ids = student_ids[i:i + batch_size]
+        rows = supabase.table('student_mastery').select('student_id, confidence').in_('student_id', batch_ids).limit(2000).execute().data
+        for m in rows:
+            by_student.setdefault(m['student_id'], []).append(m['confidence'])
 
     result = []
     for s in students_data:
