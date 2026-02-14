@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from ..db import supabase
-from ..services.generate_content import generate_learning_page, generate_practice_quiz
+from ..services.generate_content import generate_learning_page, generate_practice_quiz, get_further_reading
 from datetime import datetime
 
 pages = Blueprint('pages', __name__)
@@ -82,7 +82,6 @@ def generate_page(student_id):
     )
 
     # Get further reading links
-    from src.services.generate_content import get_further_reading
     further_reading = get_further_reading(
         concept['label'],
         concept.get('description', '')
