@@ -34,9 +34,9 @@ let currentTimeout: ReturnType<typeof setTimeout> | null = null;
 let running = false;
 
 export function startSimulator(lectureId: string, courseId: string): void {
+  // Stop any existing simulator before starting a new one
   if (running) {
-    console.log("[Simulator] Already running, ignoring start request");
-    return;
+    stopSimulator();
   }
   running = true;
   console.log(`[Simulator] Starting demo transcript for lecture ${lectureId}`);
@@ -52,7 +52,8 @@ export function startSimulator(lectureId: string, courseId: string): void {
       return;
     }
 
-    const text = TRANSCRIPT_CHUNKS[chunkIndex];
+    const currentChunk = chunkIndex;
+    const text = TRANSCRIPT_CHUNKS[currentChunk];
     const timestamp = timestampSec;
 
     fetch(`${baseUrl}/api/lectures/${lectureId}/transcript`, {
@@ -65,10 +66,10 @@ export function startSimulator(lectureId: string, courseId: string): void {
       }),
     })
       .then((res) => {
-        if (!res.ok) console.warn(`[Simulator] Chunk ${chunkIndex} failed: ${res.status}`);
+        if (!res.ok) console.warn(`[Simulator] Chunk ${currentChunk} failed: ${res.status}`);
       })
       .catch((err) => {
-        console.warn(`[Simulator] Chunk ${chunkIndex} error:`, err.message);
+        console.warn(`[Simulator] Chunk ${currentChunk} error:`, err.message);
       });
 
     chunkIndex++;
