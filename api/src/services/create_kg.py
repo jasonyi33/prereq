@@ -44,6 +44,7 @@ Create a DAG where:
 2. Each edge = "A is a prerequisite for B" (A must be learned before B)
 3. Nodes should follow temporal/conceptual dependencies
 4. ~20-30 nodes total (cover all major topics, but group related subtopics)
+5. Write a short extended explanation for each node (< 1 sentence)
 
 NODE SELECTION GUIDELINES:
 - Include: Major algorithms (Linear Regression, Logistic Regression, Neural Networks, SVM, K-Means, PCA, etc.)
@@ -67,8 +68,8 @@ TEMPORAL ORDERING:
 Return ONLY valid JSON with this exact structure:
 {
   "nodes": {
-    "linear_reg": "Linear Regression & Normal Equations",
-    "gradient_descent": "Gradient Descent Optimization",
+    "linear_reg": "Statistical method for modeling relationships between variables using linear equations",
+    "gradient_descent": "Iterative optimization algorithm that minimizes functions by moving in the direction of steepest descent"
     ...
   },
   "edges": [

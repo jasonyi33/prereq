@@ -86,7 +86,8 @@ Return ONLY valid JSON with this structure:
 
 Requirements:
 - Exactly 5 questions
-- Mix difficulty: 2 easy, 2 medium, 1 challenging
+- Mix difficulty: 1 easy, 2 medium, 1 hard, 1 challenging
+- Mix the answer choices (not all same letters)
 - Test conceptual understanding, not just recall
 - Explanations should teach, not just state correctness
 - Options should be roughly same length

@@ -54,8 +54,21 @@ def generate_page(student_id):
 
     # Get past quiz mistakes
     past_mistakes = []
-    responses_resp = supabase.table('quiz_responses').select('quiz_questions(question_text, explanation)').eq(
-        'is_correct', False).execute()
+    responses_resp = supabase.table('quiz_responses') \
+        .select('misconception, quiz_questions!inner(question_text)') \
+        .eq('is_correct', False) \
+        .in_('quiz_id',
+             supabase.table('practice_quizzes') \
+             .select('id') \
+             .eq('student_id', student_id) \
+             .eq('concept_id', concept_id) \
+             .execute().data
+             ) \
+        .limit(10) \
+        .execute()
+
+    if responses_resp.data:
+        past_mistakes = [r['misconception'] for r in responses_resp.data if r.get('misconception')]
 
     if responses_resp.data:
         past_mistakes = [r['quiz_questions']['explanation'] for r in responses_resp.data if r.get('quiz_questions')]
@@ -131,11 +144,21 @@ def generate_quiz(page_id):
 
     # Get past mistakes
     past_mistakes = []
-    responses_resp = supabase.table('quiz_responses').select('quiz_questions(question_text, explanation)').eq(
-        'is_correct', False).execute()
+    responses_resp = supabase.table('quiz_responses') \
+        .select('misconception, quiz_questions!inner(question_text)') \
+        .eq('is_correct', False) \
+        .in_('quiz_id',
+             supabase.table('practice_quizzes') \
+             .select('id') \
+             .eq('student_id', student_id) \
+             .eq('concept_id', concept_id) \
+             .execute().data
+             ) \
+        .limit(10) \
+        .execute()
 
     if responses_resp.data:
-        past_mistakes = [r['quiz_questions']['explanation'] for r in responses_resp.data if r.get('quiz_questions')]
+        past_mistakes = [r['misconception'] for r in responses_resp.data if r.get('misconception')]
 
     # Generate quiz using Claude
     result = generate_practice_quiz(
@@ -217,12 +240,18 @@ def submit_quiz(quiz_id):
         if is_correct:
             correct_count += 1
 
+        # Generate misconception for wrong answers
+        misconception = None
+        if not is_correct and selected:
+            misconception = f"Chose '{question['options'][ord(selected) - 65]}' instead of correct answer. {question['explanation']}"
+
         # Save response
         supabase.table('quiz_responses').insert({
             'quiz_id': quiz_id,
             'question_id': question_id,
             'selected_answer': selected,
-            'is_correct': is_correct
+            'is_correct': is_correct,
+            'misconception': misconception
         }).execute()
 
     # Calculate score
