@@ -10,6 +10,7 @@ export default function LandingPage() {
   const router = useRouter();
   const { user, role, profile, courses, enrollments, loading, signIn, signUp, signOut } = useAuth();
 
+  const [showAuth, setShowAuth] = useState(false);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [roleToggle, setRoleToggle] = useState<"student" | "teacher">("student");
   const [email, setEmail] = useState("");
@@ -154,11 +155,63 @@ export default function LandingPage() {
     );
   }
 
-  // --- Unauthenticated: Login / Signup ---
+  // --- Unauthenticated ---
+
+  // Splash screen: logo + "Get Started"
+  if (!showAuth) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <StarsBackground />
+        <div className="relative z-10 flex flex-col items-center px-6">
+          <div
+            className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500 to-green-500 shadow-2xl shadow-blue-500/30 mb-8 animate-[fadeInScale_0.6s_ease-out]"
+          >
+            <span className="text-white font-bold text-4xl">P</span>
+          </div>
+          <h1
+            className="text-6xl font-bold text-slate-800 tracking-tight mb-4 animate-[fadeInUp_0.6s_ease-out_0.15s_both]"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            Prereq
+          </h1>
+          <p className="text-lg text-slate-500 tracking-tight mb-12 animate-[fadeInUp_0.6s_ease-out_0.3s_both]">
+            Live classroom companion
+          </p>
+          <button
+            onClick={() => setShowAuth(true)}
+            className="group relative overflow-hidden px-10 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold text-base shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.03] active:scale-[0.97] transition-all duration-300 animate-[fadeInUp_0.6s_ease-out_0.45s_both]"
+          >
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <span className="relative flex items-center gap-2">
+              Get Started
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </span>
+          </button>
+          <p className="text-center text-xs text-slate-400 mt-16 animate-[fadeInUp_0.6s_ease-out_0.6s_both]">
+            Personalized knowledge graphs for every student
+          </p>
+        </div>
+        <style jsx>{`
+          @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+          }
+          @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Login / Signup form
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <StarsBackground />
-      <div className="relative z-10 w-full max-w-md px-6">
+      <div className="relative z-10 w-full max-w-md px-6 animate-[fadeInUp_0.4s_ease-out]">
         <Header />
 
         <div className="rounded-2xl bg-white/70 border border-slate-200/80 backdrop-blur-xl p-8 shadow-xl shadow-slate-200/50">
@@ -233,6 +286,12 @@ export default function LandingPage() {
           Personalized knowledge graphs for every student
         </p>
       </div>
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
