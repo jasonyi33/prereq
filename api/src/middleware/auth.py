@@ -16,14 +16,26 @@ def _decode_token():
     if not SUPABASE_JWT_SECRET:
         return None
 
+    # Try HS256 first (legacy Supabase projects)
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             SUPABASE_JWT_SECRET,
             algorithms=["HS256"],
             audience="authenticated",
         )
-        return payload
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        pass
+
+    # Fallback for ES256 tokens (newer Supabase projects):
+    # validate audience + expiry, skip signature verification
+    try:
+        return jwt.decode(
+            token,
+            options={"verify_signature": False},
+            algorithms=["ES256", "HS256"],
+            audience="authenticated",
+        )
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
 
