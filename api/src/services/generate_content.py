@@ -2,6 +2,11 @@ import anthropic
 import os
 import json
 
+import anthropic
+import os
+import json
+import sys
+
 
 def generate_learning_page(concept_label: str, concept_description: str,
                            past_mistakes: list, current_confidence: float) -> dict:
@@ -43,8 +48,20 @@ Requirements:
             messages=[{"role": "user", "content": prompt}]
         )
 
+        # Check if message has content
+        if not message.content or len(message.content) == 0:
+            print(f"[ERROR] Empty response from Claude API", file=sys.stderr)
+            sys.stderr.flush()
+            raise ValueError("Claude returned empty response")
+
         response_text = message.content[0].text.strip()
-        print(f"[DEBUG] Claude response: {response_text[:200]}...")  # Log first 200 chars
+
+        print(f"[DEBUG] Response length: {len(response_text)}", file=sys.stderr)
+        print(f"[DEBUG] Response preview: {response_text[:500]}", file=sys.stderr)
+        sys.stderr.flush()
+
+        if not response_text:
+            raise ValueError("Claude returned empty text")
 
         # Remove markdown code blocks if present
         if '```' in response_text:
@@ -58,10 +75,12 @@ Requirements:
         return json.loads(response_text)
 
     except json.JSONDecodeError as e:
-        print(f"[ERROR] Failed to parse JSON from Claude: {response_text}")
+        print(f"[ERROR] Failed to parse JSON. Response was: {response_text}", file=sys.stderr)
+        sys.stderr.flush()
         raise ValueError(f"Claude returned invalid JSON: {str(e)}")
     except Exception as e:
-        print(f"[ERROR] Claude API error: {str(e)}")
+        print(f"[ERROR] Claude API error: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        sys.stderr.flush()
         raise
 
 
@@ -113,8 +132,20 @@ Requirements:
             messages=[{"role": "user", "content": prompt}]
         )
 
+        # Check if message has content
+        if not message.content or len(message.content) == 0:
+            print(f"[ERROR] Empty quiz response from Claude API", file=sys.stderr)
+            sys.stderr.flush()
+            raise ValueError("Claude returned empty response")
+
         response_text = message.content[0].text.strip()
-        print(f"[DEBUG] Claude quiz response: {response_text[:200]}...")  # Log first 200 chars
+
+        print(f"[DEBUG] Quiz response length: {len(response_text)}", file=sys.stderr)
+        print(f"[DEBUG] Quiz response preview: {response_text[:500]}", file=sys.stderr)
+        sys.stderr.flush()
+
+        if not response_text:
+            raise ValueError("Claude returned empty text")
 
         # Remove markdown code blocks if present
         if '```' in response_text:
@@ -128,8 +159,10 @@ Requirements:
         return json.loads(response_text)
 
     except json.JSONDecodeError as e:
-        print(f"[ERROR] Failed to parse quiz JSON from Claude: {response_text}")
+        print(f"[ERROR] Failed to parse quiz JSON. Response was: {response_text}", file=sys.stderr)
+        sys.stderr.flush()
         raise ValueError(f"Claude returned invalid JSON: {str(e)}")
     except Exception as e:
-        print(f"[ERROR] Claude quiz API error: {str(e)}")
+        print(f"[ERROR] Claude quiz API error: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        sys.stderr.flush()
         raise
