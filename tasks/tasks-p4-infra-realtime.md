@@ -140,8 +140,8 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 3:** After completing tasks 5.0–6.0, merge to `main`. This aligns with Person 2 merging Socket.IO wiring and Person 3 merging AI routes. After this merge, the full end-to-end demo should work: start demo → transcript flows → professor generates question → Sam (live) + 3 auto-responders answer → mastery updates → heatmap updates → tutoring.
 
-- [ ] 7.0 Configure Render deployment for both services
-  - [ ] 7.1 Create `render.yaml` at the project root (Render Blueprint — frontend only):
+- [x] 7.0 Configure Render deployment for both services
+  - [x] 7.1 Create `render.yaml` at the project root (Render Blueprint — frontend only):
     ```yaml
     services:
       - type: web
@@ -163,7 +163,7 @@ Update the file after completing each sub-task, not just after completing an ent
           - key: DEMO_MODE
             value: "true"
     ```
-  - [ ] 7.2 Create `api/Dockerfile` for Cloud Run deployment (adapt from `knowledge-graph/Dockerfile`):
+  - [x] 7.2 Create `api/Dockerfile` for Cloud Run deployment (adapt from `knowledge-graph/Dockerfile`):
     ```dockerfile
     FROM python:3.12-slim
     WORKDIR /app
@@ -173,9 +173,9 @@ Update the file after completing each sub-task, not just after completing an ent
     EXPOSE 8080
     ENTRYPOINT ["sh", "-c", "gunicorn main:app --bind 0.0.0.0:$PORT"]
     ```
-  - [ ] 7.3 Ensure the Flask app binds to `0.0.0.0` and uses `PORT` env var: `app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))`
-  - [ ] 7.4 Ensure the Express server uses `process.env.PORT` (Render sets this)
-  - [ ] 7.5 Build the Next.js production bundle: `cd frontend && npm run build`. Fix any build errors (common: SSR issues with react-force-graph-2d if not properly dynamic-imported).
+  - [x] 7.3 Ensure the Flask app binds to `0.0.0.0` and uses `PORT` env var: `app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))`
+  - [x] 7.4 Ensure the Express server uses `process.env.PORT` (Render sets this)
+  - [x] 7.5 Build the Next.js production bundle: `cd frontend && npm run build`. Fix any build errors (common: SSR issues with react-force-graph-2d if not properly dynamic-imported).
   - [ ] 7.6 Test production mode locally: `cd frontend && NODE_ENV=production npx tsx server/index.ts`. Confirm pages load and Socket.IO connects.
   - [ ] 7.7 Deploy Flask API to Cloud Run: `gcloud run deploy prereq-api --source api/ --region us-central1 --allow-unauthenticated`. Set env vars: `SUPABASE_URL`, `SUPABASE_KEY`, `ANTHROPIC_API_KEY`.
   - [ ] 7.8 Deploy frontend to Render: push to GitHub, connect the repo to Render, deploy using the blueprint. Set `FLASK_API_URL` to the Cloud Run service URL.
