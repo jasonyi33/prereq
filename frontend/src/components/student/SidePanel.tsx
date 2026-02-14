@@ -18,6 +18,7 @@ import type { TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
 import { COLOR_HEX } from "@/lib/colors";
 import { flaskApi, nextApi } from "@/lib/api";
 import { formatTimestamp } from "@/lib/graph";
+import PerplexityDialog from "./PerplexityDialog";
 
 interface TranscriptExcerpt {
   text: string;
@@ -63,6 +64,9 @@ export default function SidePanel({
   const [resources, setResources] = useState<Resource[]>([]);
   const [loadingTranscripts, setLoadingTranscripts] = useState(false);
   const [loadingResources, setLoadingResources] = useState(false);
+
+  // Perplexity dialog state
+  const [perplexityOpen, setPerplexityOpen] = useState(false);
 
   // Transcript auto-scroll
   const transcriptBottomRef = useRef<HTMLDivElement>(null);
@@ -295,7 +299,10 @@ export default function SidePanel({
             </div>
 
             {/* Perplexity AI button */}
-            <button className="w-full py-3 px-4 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 flex items-center justify-center gap-2 transition-all">
+            <button
+              onClick={() => setPerplexityOpen(true)}
+              className="w-full py-3 px-4 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/20"
+            >
               <Sparkles size={16} />
               <span>Ask Perplexity AI</span>
             </button>
@@ -474,6 +481,24 @@ export default function SidePanel({
           )}
         </AnimatePresence>
       </div>
+
+      {/* Perplexity AI Dialog */}
+      {selectedNode && (
+        <PerplexityDialog
+          isOpen={perplexityOpen}
+          onClose={() => setPerplexityOpen(false)}
+          conceptLabel={selectedNode.label}
+          conceptDescription={selectedNode.description}
+          lectureContext={
+            transcripts.length > 0
+              ? transcripts
+                  .slice(0, 3)
+                  .map((t) => `[${formatTimestamp(t.timestamp_sec)}] ${t.text}`)
+                  .join("\n\n")
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }
