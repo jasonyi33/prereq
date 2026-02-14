@@ -10,6 +10,7 @@ export default function LandingPage() {
   const router = useRouter();
   const { user, role, profile, courses, enrollments, loading, signIn, signUp, signOut } = useAuth();
 
+  const [showAuth, setShowAuth] = useState(false);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [roleToggle, setRoleToggle] = useState<"student" | "teacher">("student");
   const [email, setEmail] = useState("");
@@ -23,6 +24,8 @@ export default function LandingPage() {
   // Auto-redirect authenticated users
   useEffect(() => {
     if (loading || !user) return;
+    // Skip hero for authenticated users
+    setShowAuth(true);
     if (role === "teacher" && courses.length > 0) {
       localStorage.setItem("courseId", courses[0].id);
       router.push("/professor/dashboard");
@@ -34,6 +37,57 @@ export default function LandingPage() {
       <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <StarsBackground />
         <div className="relative z-10 text-slate-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  // --- Hero landing page (unauthenticated, before clicking login) ---
+  if (!user && !showAuth) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+        <StarsBackground />
+        <div className="relative z-10 w-full max-w-lg px-6 text-center">
+          {/* Logo */}
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-green-500 shadow-lg shadow-blue-500/20 mb-8">
+            <span className="text-white font-bold text-3xl">P</span>
+          </div>
+
+          <h1 className="text-6xl font-bold text-slate-800 tracking-tight mb-4" style={{ letterSpacing: "-0.04em" }}>
+            Prereq
+          </h1>
+          <p className="text-xl text-slate-500 tracking-tight mb-3">
+            Live classroom companion
+          </p>
+          <p className="text-sm text-slate-400 max-w-sm mx-auto mb-10 leading-relaxed">
+            Personalized knowledge graphs for every student. Real-time understanding tracking, AI tutoring, and adaptive polls — all in one place.
+          </p>
+
+          {/* Feature pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+            {["Knowledge Graphs", "Live Polls", "AI Tutor", "Real-time Heatmaps"].map((f) => (
+              <span key={f} className="px-3 py-1.5 rounded-full bg-white/80 border border-slate-200 text-xs font-medium text-slate-600 shadow-sm">
+                {f}
+              </span>
+            ))}
+          </div>
+
+          {/* CTA buttons */}
+          <div className="flex flex-col gap-3 max-w-xs mx-auto">
+            <button
+              onClick={() => { setShowAuth(true); setMode("login"); }}
+              className="group relative overflow-hidden w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold text-sm shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+            >
+              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              <span className="relative">Log In</span>
+            </button>
+            <button
+              onClick={() => { setShowAuth(true); setMode("signup"); }}
+              className="w-full py-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-300 text-slate-700 font-semibold text-sm shadow-sm hover:shadow-md hover:shadow-blue-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+            >
+              Create Account
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -159,6 +213,17 @@ export default function LandingPage() {
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <StarsBackground />
       <div className="relative z-10 w-full max-w-md px-6">
+        {!user && (
+          <button
+            onClick={() => setShowAuth(false)}
+            className="mb-6 flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        )}
         <Header />
 
         <div className="rounded-2xl bg-white/70 border border-slate-200/80 backdrop-blur-xl p-8 shadow-xl shadow-slate-200/50">
