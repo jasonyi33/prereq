@@ -68,89 +68,89 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 1:** After completing tasks 0.0–1.0, merge to `main`. This aligns with Person 1 merging Flask scaffolding and Person 4 merging the Express server. After this merge, the full project structure exists on `main`.
 
-- [ ] 2.0 Build the landing page with student selector and professor mode
-  - [ ] 2.1 In `frontend/src/app/page.tsx`, build the landing page UI: app title "Prereq", a dropdown/select listing the 4 students (Alex, Jordan, Sam, Taylor), and a "Professor Mode" button
-  - [ ] 2.2 On page load, fetch the student list from Flask: `GET /api/courses/:id/students`. **DEPENDENCY: Person 1's student endpoint must be merged** (Merge Point 1). Until then, hardcode the 4 student names and IDs.
-  - [ ] 2.3 When a student is selected and confirmed, store the student ID in `localStorage.setItem('studentId', id)` and set a `studentId` cookie (`document.cookie = 'studentId=...'`), then navigate to `/student/[studentId]`
-  - [ ] 2.4 When "Professor Mode" is clicked, navigate to `/professor/dashboard`
-  - [ ] 2.5 The course ID can be hardcoded for the demo (single course). Store it in a constant or env var.
-  - [ ] 2.6 Verify: landing page renders, selecting a student navigates correctly, professor button works
+- [x] 2.0 Build the landing page with student selector and professor mode
+  - [x] 2.1 In `frontend/src/app/page.tsx`, build the landing page UI: app title "Prereq", a dropdown/select listing the 4 students (Alex, Jordan, Sam, Taylor), and a "Professor Mode" button
+  - [x] 2.2 On page load, fetch the student list from Flask: `GET /api/courses/:id/students`. **DEPENDENCY: Person 1's student endpoint must be merged** (Merge Point 1). Until then, hardcode the 4 student names and IDs.
+  - [x] 2.3 When a student is selected and confirmed, store the student ID in `localStorage.setItem('studentId', id)` and set a `studentId` cookie (`document.cookie = 'studentId=...'`), then navigate to `/student/[studentId]`
+  - [x] 2.4 When "Professor Mode" is clicked, navigate to `/professor/dashboard`
+  - [x] 2.5 The course ID can be hardcoded for the demo (single course). Store it in a constant or env var.
+  - [x] 2.6 Verify: landing page renders, selecting a student navigates correctly, professor button works
 
-- [ ] 3.0 Build the knowledge graph visualization component (react-force-graph-2d)
-  - [ ] 3.1 Create `frontend/src/components/graph/KnowledgeGraph.tsx` as a `'use client'` component
-  - [ ] 3.2 Import `react-force-graph-2d` using dynamic import with SSR disabled:
+- [x] 3.0 Build the knowledge graph visualization component (react-force-graph-2d)
+  - [x] 3.1 Create `frontend/src/components/graph/KnowledgeGraph.tsx` as a `'use client'` component
+  - [x] 3.2 Import `react-force-graph-2d` using dynamic import with SSR disabled:
     ```tsx
     const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
     ```
-  - [ ] 3.3 Accept props: `{ nodes, edges, activeConceptId?, onNodeClick? }`. The `nodes` array has `{ id, label, color, confidence }` and `edges` has `{ source, target }`.
-  - [ ] 3.4 Map node colors to hex values using the color hex map from `colors.ts`. If a node's ID matches `activeConceptId`, render it with the blue glow (#3b82f6) — use a pulsing animation (CSS keyframes or canvas draw).
-  - [ ] 3.5 Configure the graph: enable node labels, set node size proportional to difficulty (or fixed), set link color to a subtle gray, enable zoom/pan.
-  - [ ] 3.6 On node click, call `onNodeClick(node)` so the parent page can show the detail panel.
-  - [ ] 3.7 Create `frontend/src/components/graph/NodeDetailPanel.tsx` — displays: concept label, description, confidence score, mastery color badge, and a "Find Resources" button (which calls `GET /api/resources/search?concept=...`). **DEPENDENCY: Person 3's resource search endpoint.** Until then, show a placeholder.
-  - [ ] 3.8 Verify: render the graph with mock data (hardcoded 5-10 nodes), confirm nodes are colored, clickable, and the active glow works
-  - [ ] 3.9 Fetch real data from `GET /api/courses/:id/graph?student_id=` when Person 1's endpoint is available (after Merge Point 1). Verify with seeded data.
+  - [x] 3.3 Accept props: `{ nodes, edges, activeConceptId?, onNodeClick? }`. The `nodes` array has `{ id, label, color, confidence }` and `edges` has `{ source, target }`.
+  - [x] 3.4 Map node colors to hex values using the color hex map from `colors.ts`. If a node's ID matches `activeConceptId`, render it with the blue glow (#3b82f6) — use a pulsing animation (CSS keyframes or canvas draw).
+  - [x] 3.5 Configure the graph: enable node labels, set node size proportional to difficulty (or fixed), set link color to a subtle gray, enable zoom/pan.
+  - [x] 3.6 On node click, call `onNodeClick(node)` so the parent page can show the detail panel.
+  - [x] 3.7 Create `frontend/src/components/graph/NodeDetailPanel.tsx` — displays: concept label, description, confidence score, mastery color badge, and a "Find Resources" button (which calls `GET /api/resources/search?concept=...`). **DEPENDENCY: Person 3's resource search endpoint.** Until then, show a placeholder.
+  - [x] 3.8 Verify: render the graph with mock data (hardcoded 5-10 nodes), confirm nodes are colored, clickable, and the active glow works
+  - [x] 3.9 Fetch real data from `GET /api/courses/:id/graph?student_id=` when Person 1's endpoint is available (after Merge Point 1). Verify with seeded data.
 
-- [ ] 4.0 Build the professor dashboard page
-  - [ ] 4.1 In `frontend/src/app/professor/dashboard/page.tsx`, create the layout matching the wireframe in the PRD: transcript feed (left), concept heatmap (center), student list (right), concept timeline (bottom strip), poll controls (bottom), intervention panel (bottom)
-  - [ ] 4.2 Create `frontend/src/components/dashboard/TranscriptFeed.tsx` — a scrollable list of transcript chunks. Each chunk shows the text, and any detected concept labels are rendered as colored badges inline. Auto-scrolls to bottom on new chunks.
-  - [ ] 4.3 Create `frontend/src/components/dashboard/ConceptHeatmap.tsx` — a grid/table. Each row is a concept label. The cells show the distribution as a stacked color bar (green/yellow/red/gray segments proportional to counts). Fetch from `GET /api/courses/:id/heatmap`. **DEPENDENCY: Person 1's heatmap endpoint** (available after Merge Point 3). Until then, use hardcoded JSON.
-  - [ ] 4.4 Create `frontend/src/components/dashboard/ConceptTimeline.tsx` — a horizontal row of pill badges, each showing a concept label that was detected during the lecture, in chronological order. New concepts appear on the right.
-  - [ ] 4.5 Create `frontend/src/components/dashboard/StudentList.tsx` — a vertical list of student names, each with small colored dots representing their overall mastery (e.g., the average color across all concepts, or the count of green/yellow/red). Clicking a student navigates to `/student/[studentId]` to see their individual graph.
-  - [ ] 4.6 Create `frontend/src/components/dashboard/PollControls.tsx`:
+- [x] 4.0 Build the professor dashboard page
+  - [x] 4.1 In `frontend/src/app/professor/dashboard/page.tsx`, create the layout matching the wireframe in the PRD: transcript feed (left), concept heatmap (center), student list (right), concept timeline (bottom strip), poll controls (bottom), intervention panel (bottom)
+  - [x] 4.2 Create `frontend/src/components/dashboard/TranscriptFeed.tsx` — a scrollable list of transcript chunks. Each chunk shows the text, and any detected concept labels are rendered as colored badges inline. Auto-scrolls to bottom on new chunks.
+  - [x] 4.3 Create `frontend/src/components/dashboard/ConceptHeatmap.tsx` — a grid/table. Each row is a concept label. The cells show the distribution as a stacked color bar (green/yellow/red/gray segments proportional to counts). Fetch from `GET /api/courses/:id/heatmap`. **DEPENDENCY: Person 1's heatmap endpoint** (available after Merge Point 3). Until then, use hardcoded JSON.
+  - [x] 4.4 Create `frontend/src/components/dashboard/ConceptTimeline.tsx` — a horizontal row of pill badges, each showing a concept label that was detected during the lecture, in chronological order. New concepts appear on the right.
+  - [x] 4.5 Create `frontend/src/components/dashboard/StudentList.tsx` — a vertical list of student names, each with small colored dots representing their overall mastery (e.g., the average color across all concepts, or the count of green/yellow/red). Clicking a student navigates to `/student/[studentId]` to see their individual graph.
+  - [x] 4.6 Create `frontend/src/components/dashboard/PollControls.tsx`:
     - "Generate Question" button → calls `POST /api/lectures/:id/poll/generate` → shows preview (question text + concept label)
     - "Send to Students" button → calls `POST /api/lectures/:id/poll/:pollId/activate`
     - "Close Poll" button → calls `POST /api/lectures/:id/poll/:pollId/close` → shows results (distribution bar + misconception summary)
     - Display total responses count while poll is active
     - **DEPENDENCY: Person 3's poll endpoints** (available after Merge Point 3). Until then, wire the buttons with console.log stubs.
-  - [ ] 4.7 Create `frontend/src/components/dashboard/InterventionPanel.tsx` — a panel with a "Get Suggestions" button. When clicked, calls `POST /api/lectures/:id/interventions` with concept IDs that have high red counts (from heatmap data). Displays the returned suggestions. **DEPENDENCY: Person 3's intervention endpoint.**
-  - [ ] 4.8 In demo mode (`DEMO_MODE=true`), add a "Start Demo" button in the dashboard header. When clicked, it calls `POST /api/lectures` to create a lecture session, then starts the transcript flow. **DEPENDENCY: Person 4's lecture creation endpoint and transcript simulator.** Until then, the button can be a stub.
-  - [ ] 4.9 Verify: dashboard renders all panels, layout matches wireframe, mock data displays correctly
+  - [x] 4.7 Create `frontend/src/components/dashboard/InterventionPanel.tsx` — a panel with a "Get Suggestions" button. When clicked, calls `POST /api/lectures/:id/interventions` with concept IDs that have high red counts (from heatmap data). Displays the returned suggestions. **DEPENDENCY: Person 3's intervention endpoint.**
+  - [x] 4.8 In demo mode (`DEMO_MODE=true`), add a "Start Demo" button in the dashboard header. When clicked, it calls `POST /api/lectures` to create a lecture session, then starts the transcript flow. **DEPENDENCY: Person 4's lecture creation endpoint and transcript simulator.** Until then, the button can be a stub.
+  - [x] 4.9 Verify: dashboard renders all panels, layout matches wireframe, mock data displays correctly
 
 > **MERGE POINT 2:** After completing tasks 2.0–4.0 (or at least 2.0–3.0), merge to `main`. This gives the team a working UI to test against. Coordinate timing with Person 1's Merge Point 2 (mastery endpoints) so the full data flow can be tested.
 
-- [ ] 5.0 Build the student in-lecture view page
-  - [ ] 5.1 In `frontend/src/app/student/[studentId]/page.tsx`, create the layout matching the PRD wireframe: knowledge graph (left, ~60% width), active panel (right, ~40% width)
-  - [ ] 5.2 Render the `KnowledgeGraph` component with the student's personalized data: fetch from `GET /api/courses/:id/graph?student_id=[studentId]`
-  - [ ] 5.3 In the active panel, show the `PollCard` component when a poll is active, and a small `TranscriptFeed` when no poll is active
-  - [ ] 5.4 Create `frontend/src/components/student/PollCard.tsx`:
+- [x] 5.0 Build the student in-lecture view page
+  - [x] 5.1 In `frontend/src/app/student/[studentId]/page.tsx`, create the layout matching the PRD wireframe: knowledge graph (left, ~60% width), active panel (right, ~40% width)
+  - [x] 5.2 Render the `KnowledgeGraph` component with the student's personalized data: fetch from `GET /api/courses/:id/graph?student_id=[studentId]`
+  - [x] 5.3 In the active panel, show the `PollCard` component when a poll is active, and a small `TranscriptFeed` when no poll is active
+  - [x] 5.4 Create `frontend/src/components/student/PollCard.tsx`:
     - Shows the question text and concept label
     - Has a textarea for the student's free-form answer
     - "Submit" button → calls `POST /api/polls/:pollId/respond` with `{ studentId, answer }`
     - After submission, shows the feedback nudge from the evaluation response (not a grade, just guidance)
     - Disable textarea + button after submission
     - **DEPENDENCY: Person 3's respond endpoint.** Until then, mock the response.
-  - [ ] 5.5 Add a "Start Tutoring" button in the header that navigates to `/student/[studentId]/tutor`
-  - [ ] 5.6 Verify: student view renders graph with correct colors, poll card appears and is submittable
+  - [x] 5.5 Add a "Start Tutoring" button in the header that navigates to `/student/[studentId]/tutor`
+  - [x] 5.6 Verify: student view renders graph with correct colors, poll card appears and is submittable
 
-- [ ] 6.0 Build the post-lecture tutoring view page
-  - [ ] 6.1 In `frontend/src/app/student/[studentId]/tutor/page.tsx`, create the layout matching the PRD wireframe: weak concepts sidebar (left, ~20% width), chat interface (right, ~80% width)
-  - [ ] 6.2 On page load, create a tutoring session: `POST /api/tutoring/sessions` with `{ studentId, lectureId }`. The response includes `targetConcepts` (the student's weak concepts) and an `initialMessage` from the AI. **DEPENDENCY: Person 3's tutoring session endpoint.**
-  - [ ] 6.3 Create `frontend/src/components/tutor/WeakConceptsSidebar.tsx` — lists each target concept with its label and a colored dot (from confidence). These colors must update in real-time when the student demonstrates understanding during the chat (via Socket.IO `mastery:updated` events).
-  - [ ] 6.4 Create `frontend/src/components/tutor/ChatInterface.tsx`:
+- [x] 6.0 Build the post-lecture tutoring view page
+  - [x] 6.1 In `frontend/src/app/student/[studentId]/tutor/page.tsx`, create the layout matching the PRD wireframe: weak concepts sidebar (left, ~20% width), chat interface (right, ~80% width)
+  - [x] 6.2 On page load, create a tutoring session: `POST /api/tutoring/sessions` with `{ studentId, lectureId }`. The response includes `targetConcepts` (the student's weak concepts) and an `initialMessage` from the AI. **DEPENDENCY: Person 3's tutoring session endpoint.**
+  - [x] 6.3 Create `frontend/src/components/tutor/WeakConceptsSidebar.tsx` — lists each target concept with its label and a colored dot (from confidence). These colors must update in real-time when the student demonstrates understanding during the chat (via Socket.IO `mastery:updated` events).
+  - [x] 6.4 Create `frontend/src/components/tutor/ChatInterface.tsx`:
     - Scrollable message list showing alternating user/assistant messages
     - Text input + "Send" button at the bottom
     - On send: `POST /api/tutoring/sessions/:id/messages` with `{ content }`. Display the AI's response. If `masteryUpdates` is in the response, show a subtle notification ("Your understanding of [concept] improved!").
     - Auto-scroll to bottom on new messages
-  - [ ] 6.5 Verify: tutoring page loads, creates session, displays initial AI message, user can send messages and receive responses
+  - [x] 6.5 Verify: tutoring page loads, creates session, displays initial AI message, user can send messages and receive responses
 
-- [ ] 7.0 Wire Socket.IO event listeners for real-time updates across all pages
-  - [ ] 7.1 Create `frontend/src/lib/socket.ts` — a Socket.IO client singleton. Connect to the server on `window.location.origin` (same host, since Express serves both). Export a `useSocket()` hook that returns the socket instance.
-  - [ ] 7.2 On the professor dashboard and student view pages, emit `lecture:join` with `{ lectureId, role: 'professor'|'student', studentId? }` when the page mounts. **DEPENDENCY: Person 4's Socket.IO room management must be merged** (Merge Point 1).
-  - [ ] 7.3 On the professor dashboard, listen for:
+- [x] 7.0 Wire Socket.IO event listeners for real-time updates across all pages
+  - [x] 7.1 Create `frontend/src/lib/socket.ts` — a Socket.IO client singleton. Connect to the server on `window.location.origin` (same host, since Express serves both). Export a `useSocket()` hook that returns the socket instance.
+  - [x] 7.2 On the professor dashboard and student view pages, emit `lecture:join` with `{ lectureId, role: 'professor'|'student', studentId? }` when the page mounts. **DEPENDENCY: Person 4's Socket.IO room management must be merged** (Merge Point 1).
+  - [x] 7.3 On the professor dashboard, listen for:
     - `transcript:chunk` → append to TranscriptFeed, update ConceptTimeline with any new detected concepts
     - `lecture:concept-detected` → add pill to ConceptTimeline, trigger glow on the graph node if professor is viewing a student's graph
     - `poll:closed` → update PollControls with results
     - `heatmap:updated` → re-fetch full heatmap data from Flask `GET /api/courses/:id/heatmap` (the event payload is just `{ conceptId }` as a trigger, not the full distribution)
     - `mastery:updated` → update StudentList dots for the specific student
-  - [ ] 7.4 On the student view, listen for:
+  - [x] 7.4 On the student view, listen for:
     - `transcript:chunk` → append to small transcript feed
     - `lecture:concept-detected` → trigger blue glow on the matching graph node (set `activeConceptId`)
     - `poll:new-question` → show PollCard with the question data
     - `mastery:updated` (filtered to this student) → recolor the affected graph node with smooth CSS transition
-  - [ ] 7.5 On the tutoring view, listen for:
+  - [x] 7.5 On the tutoring view, listen for:
     - `mastery:updated` (filtered to this student) → update WeakConceptsSidebar colors
-  - [ ] 7.6 Implement smooth color transitions on graph nodes: when a node's color changes, animate from old color to new color over ~500ms. This can be done via the `nodeCanvasObject` callback in react-force-graph-2d with an interpolation.
-  - [ ] 7.7 Verify: open professor dashboard and student view side by side. Have Person 4 run the transcript simulator. Confirm transcript appears on both, concepts are detected, graph nodes glow.
+  - [x] 7.6 Implement smooth color transitions on graph nodes: when a node's color changes, animate from old color to new color over ~500ms. This can be done via the `nodeCanvasObject` callback in react-force-graph-2d with an interpolation.
+  - [x] 7.7 Verify: open professor dashboard and student view side by side. Have Person 4 run the transcript simulator. Confirm transcript appears on both, concepts are detected, graph nodes glow.
 
 > **MERGE POINT 3:** After completing tasks 5.0–7.0, merge to `main`. This aligns with Person 3 merging AI routes and Person 4 merging the transcript simulator. After this merge, the full end-to-end demo flow should work.
 
