@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import * as d3 from "d3-force";
 import { motion } from "motion/react";
 import useMeasure from "react-use-measure";
-import { COLOR_HEX } from "@/lib/colors";
+import { COLOR_HEX, confidenceToNodeFill, confidenceToNodeBorder } from "@/lib/colors";
 import { RefreshCw } from "lucide-react";
 
 export interface GraphNode {
@@ -310,21 +310,15 @@ export default function KnowledgeGraph({
           {simNodes.map((node) => {
             if (node.x === undefined || node.y === undefined) return null;
             const size = (node.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
-            const color = COLOR_HEX[node.color] || COLOR_HEX.gray;
+            const borderColor = confidenceToNodeBorder(node.confidence ?? 0);
             const isInSet = activeSet.has(node.id);
             const hasSelection = activeSet.size > 0;
             const isDimmed = hasSelection && !isInSet;
             const isActive = node.id === activeConceptId;
-            const glowColor = isActive ? COLOR_HEX.active : color;
+            const glowColor = isActive ? COLOR_HEX.active : borderColor;
 
-            // Color-specific fill tints (soft pastel backgrounds)
-            const fillMap: Record<string, string> = {
-              [COLOR_HEX.red]: `linear-gradient(135deg, #fef2f2, #fee2e2)`,
-              [COLOR_HEX.yellow]: `linear-gradient(135deg, #fefce8, #fef9c3)`,
-              [COLOR_HEX.green]: `linear-gradient(135deg, #f0fdf4, #dcfce7)`,
-              [COLOR_HEX.gray]: `linear-gradient(135deg, #f8fafc, #f1f5f9)`,
-            };
-            const defaultFill = fillMap[color] || fillMap[COLOR_HEX.gray];
+            // 4-bucket fill matching heatmap: orange / yellow / green / gray
+            const baseFill = confidenceToNodeFill(node.confidence ?? 0);
 
             return (
               <motion.div
@@ -344,12 +338,12 @@ export default function KnowledgeGraph({
                   height: size * 2,
                   background: isInSet || isActive
                     ? `linear-gradient(135deg, ${glowColor}20, ${glowColor}10)`
-                    : defaultFill,
+                    : baseFill,
                   border: isInSet
                     ? `2.5px solid ${glowColor}`
                     : isActive
                       ? `2.5px solid ${COLOR_HEX.active}`
-                      : `2px solid ${color}`,
+                      : `2px solid ${borderColor}`,
                   boxShadow: isInSet
                     ? `0 0 24px ${glowColor}40, 0 4px 12px ${glowColor}20`
                     : isActive
@@ -408,29 +402,29 @@ export default function KnowledgeGraph({
       <div className="absolute bottom-4 left-4 p-4 rounded-xl bg-white/70 border border-gray-200/80 backdrop-blur-md">
         <div className="flex flex-col gap-3 text-xs text-gray-400 font-medium">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-[2px] bg-gray-400 rounded-full" />
-            <span>Flow / Uses</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-[2px] bg-gray-400 border-b-2 border-dashed border-gray-400" />
+            <svg width="32" height="6"><line x1="0" y1="3" x2="26" y2="3" stroke="#64748b" strokeWidth="1.5" /><polygon points="26,0 32,3 26,6" fill="#64748b" /></svg>
             <span>Prerequisite</span>
           </div>
           <div className="h-px bg-gray-200 my-1" />
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#4ade80" }} />
               <span>Mastered</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#a3e635" }} />
+              <span>Good</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#facc15" }} />
               <span>Partial</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#fb923c" }} />
               <span>Struggling</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#94a3b8" }} />
               <span>Not Started</span>
             </div>
           </div>

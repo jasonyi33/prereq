@@ -187,7 +187,7 @@ function CustomTreemapCell(props: any) {
             fontSize={9}
             fontWeight={700}
             fill="#94a3b8"
-            style={{ textTransform: "uppercase" as const, letterSpacing: "0.08em" }}
+            style={{ textTransform: "uppercase" as const, letterSpacing: "0.08em", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
           >
             {name.length > Math.floor(width / 6)
               ? name.slice(0, Math.floor(width / 6)) + "…"
@@ -265,7 +265,7 @@ function CustomTreemapCell(props: any) {
               fontSize={11}
               fontWeight={600}
               fill="#334155"
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
             >
               {displayLines.map((line, i) => (
                 <tspan key={i} x={x + pad + 7} dy={i === 0 ? 0 : lineHeight}>
@@ -279,7 +279,7 @@ function CustomTreemapCell(props: any) {
               fontSize={10}
               fontWeight={500}
               fill="#64748b"
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
             >
               {pct}%
             </text>
@@ -299,7 +299,7 @@ function CustomTreemapCell(props: any) {
               fontSize={10}
               fontWeight={600}
               fill="#334155"
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
             >
               {label}
             </text>
@@ -309,7 +309,7 @@ function CustomTreemapCell(props: any) {
               fontSize={9}
               fontWeight={500}
               fill="#64748b"
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
             >
               {pct}%
             </text>
@@ -325,7 +325,7 @@ function CustomTreemapCell(props: any) {
           fontSize={9}
           fontWeight={600}
           fill="#475569"
-          style={{ pointerEvents: "none" }}
+          style={{ pointerEvents: "none", fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
         >
           {pct}%
         </text>

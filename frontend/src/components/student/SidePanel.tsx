@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { GraphNode } from "@/components/graph/KnowledgeGraph";
 import type { TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
-import { COLOR_HEX } from "@/lib/colors";
+import { COLOR_HEX, confidenceToNodeBorder } from "@/lib/colors";
 import { flaskApi, nextApi } from "@/lib/api";
 import { formatTimestamp } from "@/lib/graph";
 import PerplexityDialog from "./PerplexityDialog";
@@ -93,8 +93,8 @@ export default function SidePanel({
       return;
     }
 
-    const isStruggling = selectedNode.color === "red" || selectedNode.color === "yellow";
-    if (!isStruggling) {
+    const nodeConf = selectedNode.confidence ?? 0;
+    if (nodeConf === 0 || nodeConf >= 0.7) {
       setTranscripts([]);
       setResources([]);
       return;
@@ -139,10 +139,11 @@ export default function SidePanel({
   const renderNodeContent = () => {
     if (!selectedNode) return null;
 
-    const colorHex = COLOR_HEX[selectedNode.color] || COLOR_HEX.gray;
-    const confidencePct = Math.round(selectedNode.confidence * 100);
-    const isStruggling = selectedNode.color === "red" || selectedNode.color === "yellow";
-    const isMastered = selectedNode.color === "green";
+    const confidence = selectedNode.confidence ?? 0;
+    const colorHex = confidenceToNodeBorder(confidence);
+    const confidencePct = Math.round(confidence * 100);
+    const isStruggling = confidence > 0 && confidence < 0.7;
+    const isMastered = confidence >= 0.7;
 
     return (
       <motion.div
@@ -205,7 +206,7 @@ export default function SidePanel({
         )}
 
         {/* Gray: not yet covered */}
-        {selectedNode.color === "gray" && (
+        {confidence === 0 && (
           <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
             <p className="text-sm text-gray-400 italic">
               This concept hasn&apos;t been covered yet in lecture.
@@ -218,21 +219,27 @@ export default function SidePanel({
           <div className="space-y-5">
             <div
               className={`p-4 rounded-xl border ${
-                selectedNode.color === "red"
-                  ? "bg-red-50 border-red-200"
-                  : "bg-yellow-50 border-yellow-200"
+                confidence < 0.4
+                  ? "bg-orange-50 border-orange-200"
+                  : confidence < 0.55
+                    ? "bg-yellow-50 border-yellow-200"
+                    : "bg-lime-50 border-lime-200"
               }`}
             >
               <div className="flex items-start gap-3">
                 <AlertCircle
-                  className={`shrink-0 mt-0.5 ${selectedNode.color === "red" ? "text-red-500" : "text-yellow-500"}`}
+                  className={`shrink-0 mt-0.5 ${
+                    confidence < 0.4 ? "text-orange-500" : confidence < 0.55 ? "text-yellow-500" : "text-lime-500"
+                  }`}
                   size={20}
                 />
                 <div>
                   <h3
-                    className={`font-medium text-sm ${selectedNode.color === "red" ? "text-red-700" : "text-yellow-700"}`}
+                    className={`font-medium text-sm ${
+                      confidence < 0.4 ? "text-orange-700" : confidence < 0.55 ? "text-yellow-700" : "text-lime-700"
+                    }`}
                   >
-                    {selectedNode.color === "red" ? "Needs Attention" : "In Progress"}
+                    {confidence < 0.4 ? "Needs Attention" : confidence < 0.55 ? "In Progress" : "Almost There"}
                   </h3>
                   <p className="text-gray-500 text-xs mt-1">Review these resources to strengthen your understanding.</p>
                 </div>
