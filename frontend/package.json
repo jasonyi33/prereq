@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx server/index.ts",
-    "postinstall": "bash scripts/install-rtms.sh || true",
+    "postinstall": "node scripts/install-rtms.mjs || true",
     "build": "next build",
     "start": "tsx server/index.ts",
     "lint": "eslint",
