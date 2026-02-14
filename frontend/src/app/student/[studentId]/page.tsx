@@ -9,7 +9,7 @@ import SidePanel from "@/components/student/SidePanel";
 import { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi } from "@/lib/api";
-import { confidenceToColor, COLOR_HEX } from "@/lib/colors";
+import { confidenceToColor } from "@/lib/colors";
 import { getAncestors } from "@/lib/graph";
 import { useAuth } from "@/lib/auth-context";
 
@@ -54,10 +54,14 @@ export default function StudentView() {
 
   // Mastery summary counts
   const masteryCounts = useMemo(() => {
-    const counts = { green: 0, yellow: 0, red: 0, gray: 0 };
+    const counts = { mastered: 0, good: 0, partial: 0, struggling: 0, notStarted: 0 };
     for (const n of nodes) {
-      const color = n.color || confidenceToColor(n.confidence ?? 0);
-      if (color in counts) counts[color as keyof typeof counts]++;
+      const c = n.confidence ?? 0;
+      if (c === 0) counts.notStarted++;
+      else if (c < 0.4) counts.struggling++;
+      else if (c < 0.55) counts.partial++;
+      else if (c < 0.7) counts.good++;
+      else counts.mastered++;
     }
     return counts;
   }, [nodes]);
@@ -267,20 +271,24 @@ export default function StudentView() {
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
               <div className="flex items-center gap-3 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.green }} />
-                  <span className="text-xs font-medium text-gray-600">{masteryCounts.green}</span>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#4ade80" }} />
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.mastered}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.yellow }} />
-                  <span className="text-xs font-medium text-gray-600">{masteryCounts.yellow}</span>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#a3e635" }} />
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.good}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.red }} />
-                  <span className="text-xs font-medium text-gray-600">{masteryCounts.red}</span>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#facc15" }} />
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.partial}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.gray }} />
-                  <span className="text-xs font-medium text-gray-600">{masteryCounts.gray}</span>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#fb923c" }} />
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.struggling}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#94a3b8" }} />
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.notStarted}</span>
                 </div>
               </div>
             </div>

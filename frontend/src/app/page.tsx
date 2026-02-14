@@ -279,41 +279,6 @@ export default function LandingPage() {
             <span className="text-xs text-gray-400 tracking-wide">Compatible with Zoom</span>
           </div>
 
-          {/* Demo quick-access */}
-          <div className="flex items-center gap-3 my-4">
-            <div className="h-px flex-1 bg-gray-200/80" />
-            <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Demo</span>
-            <div className="h-px flex-1 bg-gray-200/80" />
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => router.push("/professor/dashboard")}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              Professor
-            </button>
-            <button
-              onClick={() => {
-                localStorage.setItem("studentId", "student-sam");
-                document.cookie = "studentId=student-sam;path=/";
-                router.push("/student/student-sam");
-              }}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                <path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5" />
-              </svg>
-              Student
-            </button>
-          </div>
         </GlassCard>
 
         <button
