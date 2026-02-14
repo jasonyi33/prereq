@@ -12,8 +12,8 @@ async function getRtmsSdk(): Promise<any> {
   if (!rtms) {
     try {
       rtms = (await import("@zoom/rtms")).default;
-    } catch {
-      throw new Error("@zoom/rtms SDK not installed — RTMS connections unavailable");
+    } catch (err: any) {
+      throw new Error(`@zoom/rtms SDK not installed — ${err?.message || err}`);
     }
   }
   return rtms;
