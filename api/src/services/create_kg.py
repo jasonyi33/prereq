@@ -1,5 +1,6 @@
 import tempfile
 
+import networkx as nx
 from PyPDF2 import PdfReader, PdfWriter
 import anthropic
 import os
@@ -139,6 +140,29 @@ def parse_kg(markdown: str) -> dict:
                 edges.append((parts[0].strip(), parts[1].strip()))
 
     return {"nodes": nodes, "edges": edges}
+
+
+def calculate_importance(graph: dict) -> dict:
+    """Calculate importance scores based on graph structure"""
+    G = nx.DiGraph()
+
+    for node_id in graph['nodes'].keys():
+        G.add_node(node_id)
+    for source, target in graph['edges']:
+        G.add_edge(source, target)
+
+    pagerank = nx.pagerank(G)
+
+    max_score = max(pagerank.values())
+    min_score = min(pagerank.values())
+
+    importance = {}
+    for node, score in pagerank.items():
+        normalized = (score - min_score) / (max_score - min_score) if max_score > min_score else 0.5
+        importance[node] = round(normalized, 3)
+
+    return importance
+
 
 if __name__ == '__main__':
     kg_markdown = create_kg("main_notes.pdf")
