@@ -109,3 +109,63 @@ Requirements:
         response_text = '\n'.join(lines).strip()
 
     return json.loads(response_text)
+
+
+def get_further_reading(concept_label: str, concept_description: str) -> list:
+    """Get 3 relevant links using Perplexity"""
+    import requests
+
+    perplexity_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_key:
+        return []
+
+    prompt = f"""Find 3 high-quality educational resources for learning about: {concept_label}
+
+Context: {concept_description}
+
+Requirements:
+- Mix of formats (articles, tutorials, videos)
+- Authoritative sources (Wikipedia, educational sites, .edu domains)
+- Free and accessible
+- Return as JSON array with title, url, and source name
+
+Return ONLY valid JSON:
+[
+  {{"title": "Resource title", "url": "https://...", "source": "Source name"}},
+  {{"title": "Resource title", "url": "https://...", "source": "Source name"}},
+  {{"title": "Resource title", "url": "https://...", "source": "Source name"}}
+]"""
+
+    try:
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            headers={
+                "Authorization": f"Bearer {perplexity_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-sonar-small-128k-online",
+                "messages": [{"role": "user", "content": prompt}]
+            },
+            timeout=15
+        )
+
+        if response.status_code != 200:
+            return []
+
+        result = response.json()
+        content = result['choices'][0]['message']['content'].strip()
+
+        # Remove markdown if present
+        if content.startswith('```'):
+            lines = content.split('\n')
+            lines = lines[1:]
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            content = '\n'.join(lines).strip()
+
+        return json.loads(content)
+
+    except Exception as e:
+        print(f"[ERROR] Perplexity API failed: {e}")
+        return []

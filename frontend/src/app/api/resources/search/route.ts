@@ -23,6 +23,43 @@ const FALLBACK_RESOURCES = [
   },
 ];
 
+/**
+ * GET /api/resources/search
+ *
+ * Searches for relevant learning resources using Perplexity Sonar API.
+ * Returns curated educational materials (videos, articles, documentation) to help
+ * students understand specific concepts.
+ *
+ * @query concept (required) - Concept name/label to search for
+ * @query courseId (optional) - Course UUID for additional context (currently unused)
+ *
+ * @returns JSON response with resources array
+ * Success: { resources: [{ title, url, type, snippet }] }
+ * Error: { error: string }
+ *
+ * Process:
+ * 1. Validates required 'concept' query parameter
+ * 2. Checks for PERPLEXITY_API_KEY environment variable
+ * 3. If no API key, returns hardcoded FALLBACK_RESOURCES
+ * 4. Calls Perplexity Sonar API with concept search query
+ * 5. Parses JSON response from AI-generated content
+ * 6. Returns 3-5 learning resources (videos, articles, textbooks)
+ * 7. Falls back to hardcoded resources on any error
+ *
+ * Resource types:
+ * - "video": YouTube tutorials, recorded lectures
+ * - "article": Blog posts, web tutorials, documentation
+ * - "textbook": Academic papers, textbook chapters
+ *
+ * Used by:
+ * - Student tutoring view (when student struggles with a concept)
+ * - Concept detail modals (additional learning materials)
+ * - Professor interventions (suggesting resources to struggling students)
+ *
+ * @example
+ * GET /api/resources/search?concept=Backpropagation
+ * GET /api/resources/search?concept=Chain%20Rule&courseId=uuid
+ */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const concept = searchParams.get("concept");

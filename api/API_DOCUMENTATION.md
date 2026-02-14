@@ -1699,6 +1699,67 @@ curl -X POST http://localhost:5000/api/quizzes/quiz-uuid/submit \
 
 ---
 
+## Resources
+
+### GET /api/resources/search
+**Type:** NON-CRUD (External API Integration)
+**Purpose:** Search for relevant learning resources using Perplexity Sonar API
+**Auth:** None
+**Location:** Next.js API route (`frontend/src/app/api/resources/search/route.ts`)
+**Status:** ✅ Implemented
+**Query Parameters:**
+- `concept` (string, required): Concept name to search for
+- `courseId` (string, uuid, optional): Course context for more targeted results (currently unused in implementation)
+
+**Process:**
+1. Validates `concept` query parameter exists
+2. Checks for `PERPLEXITY_API_KEY` environment variable
+3. If no API key: Returns hardcoded fallback resources
+4. Constructs search query for concept in ML course context
+5. Calls Perplexity Sonar API (`https://api.perplexity.ai/chat/completions`)
+6. Parses JSON from AI response (with regex extraction)
+7. Returns 3-5 curated learning resources
+8. Falls back to hardcoded resources on any error
+
+**Response:** `200 OK`
+```json
+{
+  "resources": [
+    {
+      "title": "Backpropagation: A Comprehensive Guide",
+      "url": "https://example.com/backprop-guide",
+      "type": "article",
+      "snippet": "Backpropagation is an algorithm for computing gradients in neural networks..."
+    },
+    {
+      "title": "Visual Guide to Backpropagation",
+      "url": "https://youtube.com/watch?v=...",
+      "type": "video",
+      "snippet": "Step-by-step visualization of how backpropagation works..."
+    },
+    {
+      "title": "PyTorch Backpropagation Documentation",
+      "url": "https://pytorch.org/docs/stable/autograd.html",
+      "type": "documentation",
+      "snippet": "Official documentation for automatic differentiation..."
+    }
+  ]
+}
+```
+
+**Error:** `400 Bad Request` if concept parameter missing
+
+**Notes:**
+- Uses Perplexity Sonar API for high-quality, up-to-date resources
+- Graceful degradation: Falls back to curated resources if API unavailable
+- Fallback resources include 3Blue1Brown, CS229 notes, Khan Academy
+- Results include mix of articles, videos, and textbook chapters
+- Typically displayed in student tutoring view or concept detail modal
+- External API call may add latency (consider caching results)
+- `courseId` parameter currently unused (can be enhanced for context)
+
+---
+
 ## Future Considerations
 
 This API is designed for a 48-hour hackathon demo. Production considerations include:
