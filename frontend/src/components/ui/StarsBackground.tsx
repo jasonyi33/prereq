@@ -39,11 +39,11 @@ export default function StarsBackground() {
 
     const colors: GlassNode["color"][] = ["blue", "green", "indigo", "teal", "purple"];
 
-    nodesRef.current = Array.from({ length: 24 }, () => ({
+    nodesRef.current = Array.from({ length: 26 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      radius: Math.random() * 40 + 12,
-      opacity: Math.random() * 0.18 + 0.06,
+      radius: Math.random() * 55 + 18,
+      opacity: Math.random() * 0.18 + 0.10,
       speed: Math.random() * 0.12 + 0.03,
       offset: Math.random() * Math.PI * 2,
       color: colors[Math.floor(Math.random() * colors.length)],
@@ -67,7 +67,7 @@ export default function StarsBackground() {
 
       nodesRef.current.forEach((node) => {
         const sway = Math.sin(time * 0.005 + node.offset) * 0.35;
-        const breathe = Math.sin(time * 0.012 + node.offset) * 0.04;
+        const breathe = Math.sin(time * 0.012 + node.offset) * 0.03;
         const pulse = Math.sin(time * 0.008 + node.offset * 2) * 0.2;
         const currentOpacity = node.opacity + breathe;
         const currentRadius = node.radius * (1 + pulse * 0.08);
@@ -84,42 +84,42 @@ export default function StarsBackground() {
         const px = node.x / dpr;
         const py = node.y / dpr;
 
-        // Large soft outer glow
+        // Soft outer glow
         const glowGradient = ctx.createRadialGradient(px, py, currentRadius * 0.3, px, py, currentRadius * 3);
-        glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.5)})`);
-        glowGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.15)})`);
+        glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.35)})`);
+        glowGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.1)})`);
         glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.fillStyle = glowGradient;
         ctx.beginPath();
         ctx.arc(px, py, currentRadius * 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Glass body — translucent fill with depth
+        // Glass body
         const fillGradient = ctx.createRadialGradient(
           px - currentRadius * 0.25, py - currentRadius * 0.25, 0,
           px, py, currentRadius,
         );
-        fillGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.9)})`);
-        fillGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.35)})`);
-        fillGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.08)})`);
+        fillGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.5)})`);
+        fillGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.2)})`);
+        fillGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.05)})`);
         ctx.fillStyle = fillGradient;
         ctx.beginPath();
         ctx.arc(px, py, currentRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Subtle glass rim
+        // Subtle rim
         ctx.beginPath();
         ctx.arc(px, py, currentRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 1.5)})`;
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.8)})`;
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Inner specular highlight — top-left
+        // Specular highlight
         const hlGradient = ctx.createRadialGradient(
           px - currentRadius * 0.3, py - currentRadius * 0.35, 0,
           px - currentRadius * 0.3, py - currentRadius * 0.35, currentRadius * 0.45,
         );
-        hlGradient.addColorStop(0, `rgba(255, 255, 255, ${Math.max(0, currentOpacity * 1.0)})`);
+        hlGradient.addColorStop(0, `rgba(255, 255, 255, ${Math.max(0, currentOpacity * 0.7)})`);
         hlGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
         ctx.fillStyle = hlGradient;
         ctx.beginPath();
@@ -140,16 +140,16 @@ export default function StarsBackground() {
 
   return (
     <>
-      {/* Dark base */}
-      <div className="fixed inset-0 z-0 bg-[#0a0e1a]" />
+      {/* Light base */}
+      <div className="fixed inset-0 z-0 bg-[#fafafa]" />
       {/* Subtle radial accent blurs */}
       <div
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%), " +
-            "radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%), " +
-            "radial-gradient(ellipse at 50% 60%, rgba(34, 197, 94, 0.04) 0%, transparent 40%)",
+            "radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%), " +
+            "radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.04) 0%, transparent 50%), " +
+            "radial-gradient(ellipse at 50% 60%, rgba(34, 197, 94, 0.025) 0%, transparent 40%)",
         }}
       />
       {/* Glass nodes canvas */}

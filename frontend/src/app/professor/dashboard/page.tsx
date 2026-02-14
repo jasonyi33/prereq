@@ -242,21 +242,19 @@ export default function ProfessorDashboard() {
     .map((c) => c.id);
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 relative overflow-hidden">
-      {/* Subtle background accents */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-emerald-200/15 blur-[100px] rounded-full" />
-      </div>
+    <div className="flex h-screen flex-col bg-[#fafafa] relative overflow-hidden">
 
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-slate-200 px-5 py-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-slate-800 tracking-tight">Professor Dashboard</h1>
+      <header className="relative z-10 flex items-center justify-between bg-white/80 backdrop-blur-sm border-b border-gray-200/80 px-5 h-14">
+        <div className="flex items-center gap-4">
+          <h1 className="font-[family-name:var(--font-instrument-serif)] text-xl text-gray-800 tracking-tight">
+            prereq
+          </h1>
+          <span className="text-sm text-gray-400 font-light">Professor Dashboard</span>
           {lectureId && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">Live</span>
+              <span className="text-[10px] font-medium text-emerald-600 uppercase tracking-wider">Live</span>
             </div>
           )}
           {joinCode && (
@@ -266,10 +264,10 @@ export default function ProfessorDashboard() {
                 setCodeCopied(true);
                 setTimeout(() => setCodeCopied(false), 2000);
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-colors cursor-pointer"
               title="Click to copy join code"
             >
-              <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider font-mono">
+              <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wider font-mono">
                 {codeCopied ? "Copied!" : joinCode}
               </span>
             </button>
@@ -281,7 +279,7 @@ export default function ProfessorDashboard() {
               size="sm"
               onClick={handleStartDemo}
               disabled={!courseId || demoStarting}
-              className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-sm"
+              className="bg-gray-800 text-white hover:bg-gray-700 transition-all duration-200"
             >
               {demoStarting ? "Starting..." : "Start Demo"}
             </Button>
@@ -290,7 +288,7 @@ export default function ProfessorDashboard() {
             size="sm"
             variant="ghost"
             onClick={() => setZoomSettingsOpen(true)}
-            className="text-slate-400 hover:text-slate-600"
+            className="text-gray-400 hover:text-gray-600"
             title="Zoom Settings"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -303,7 +301,7 @@ export default function ProfessorDashboard() {
                 await signOut();
                 router.push("/");
               }}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-gray-400 hover:text-gray-600"
             >
               Sign out
             </Button>
@@ -330,8 +328,8 @@ export default function ProfessorDashboard() {
       </div>
 
       {/* Bottom: Timeline + Controls */}
-      <div className="relative z-10 bg-white/70 backdrop-blur-sm border-t border-slate-200">
-        <div className="border-b border-slate-100 px-5">
+      <div className="relative z-10 bg-white/80 backdrop-blur-sm border-t border-gray-200/80">
+        <div className="border-b border-gray-100 px-5">
           <ConceptTimeline concepts={timelineConcepts} />
         </div>
         <div className="grid grid-cols-2 gap-3 p-3">

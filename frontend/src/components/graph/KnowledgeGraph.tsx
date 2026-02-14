@@ -47,7 +47,9 @@ interface SimLink {
   target: string | SimNode;
 }
 
-const NODE_BASE_RADIUS = 30;
+const NODE_BASE_RADIUS = 36;
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2.5;
 
 export default function KnowledgeGraph({
   nodes,
@@ -61,6 +63,13 @@ export default function KnowledgeGraph({
   const [simLinks, setSimLinks] = useState<SimLink[]>([]);
   const [tick, setTick] = useState(0);
   const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
+
+  // Zoom & pan state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isPanning = useRef(false);
+  const panStart = useRef({ x: 0, y: 0 });
+  const panOffset = useRef({ x: 0, y: 0 });
 
   // Stable refs for callbacks
   const onNodeClickRef = useRef(onNodeClick);
@@ -120,12 +129,12 @@ export default function KnowledgeGraph({
         d3
           .forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance(120),
+          .distance(180),
       )
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force("charge", d3.forceManyBody().strength(-500))
       .force(
         "collide",
-        d3.forceCollide<SimNode>().radius((d) => ((d.relevance || 0.6) * 20 + NODE_BASE_RADIUS) * 1.5),
+        d3.forceCollide<SimNode>().radius((d) => ((d.relevance || 0.6) * 20 + NODE_BASE_RADIUS) * 2),
       )
       .force(
         "x",
@@ -144,7 +153,39 @@ export default function KnowledgeGraph({
     };
   }, [bounds.width, bounds.height, simNodes.length]);
 
+  // Zoom handler (wheel)
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom((prev) => {
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta));
+    });
+  }, []);
+
+  // Pan handlers (mouse drag on background)
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest("[data-graph-node]")) return;
+    isPanning.current = true;
+    panStart.current = { x: e.clientX, y: e.clientY };
+    panOffset.current = { x: pan.x, y: pan.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [pan]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isPanning.current) return;
+    setPan({
+      x: panOffset.current.x + (e.clientX - panStart.current.x),
+      y: panOffset.current.y + (e.clientY - panStart.current.y),
+    });
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    isPanning.current = false;
+  }, []);
+
   const handleReset = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
     if (simulationRef.current) {
       simulationRef.current.alpha(1).restart();
     }
@@ -163,39 +204,48 @@ export default function KnowledgeGraph({
     return set;
   }, [highlightedNodeIds]);
 
-  // Find the selected node (the one that's both in activeSet and triggered the selection)
   const selectedNodeId = useMemo(() => {
     if (!highlightedNodeIds || highlightedNodeIds.size === 0) return null;
-    // The selected node is the one where clicking triggered ancestor computation
-    // It's included in highlightedNodeIds (parent adds node.id to the set)
-    return null; // We don't have a direct selectedNodeId, we use activeSet for highlighting
+    return null;
   }, [highlightedNodeIds]);
 
-  // Suppress unused var warning — tick is read to trigger re-render
   void tick;
   void selectedNodeId;
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 shadow-inner font-sans">
+    <div
+      className="relative w-full h-full overflow-hidden bg-gradient-to-br from-[#fafafa] via-white to-gray-50/50 rounded-xl border border-gray-200/80 font-sans"
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      style={{ touchAction: "none" }}
+    >
       {/* Dot grid background */}
       <div
-        className="absolute inset-0 opacity-20 pointer-events-none"
+        className="absolute inset-0 opacity-30 pointer-events-none"
         style={{
-          backgroundImage: "radial-gradient(circle, #94a3b8 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, #cbd5e1 1px, transparent 1px)",
           backgroundSize: "32px 32px",
         }}
       />
 
       {/* Container for measurement */}
       <div ref={containerRef} className="w-full h-full">
+        {/* Zoom/pan transform wrapper */}
+        <div
+          className="absolute inset-0 origin-center"
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+        >
         {/* SVG layer for links */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+        <svg className="absolute inset-0 pointer-events-none" width={bounds.width || "100%"} height={bounds.height || "100%"} style={{ overflow: "visible" }}>
           <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" opacity="0.6" />
+            <marker id="arrowhead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 0, 12 5, 0 10" fill="#64748b" />
             </marker>
-            <marker id="arrowhead-active" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa" opacity="0.9" />
+            <marker id="arrowhead-active" markerWidth="14" markerHeight="10" refX="12" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 0, 14 5, 0 10" fill="#3b82f6" />
             </marker>
           </defs>
 
@@ -203,26 +253,50 @@ export default function KnowledgeGraph({
             {simLinks.map((link, i) => {
               const source = link.source as SimNode;
               const target = link.target as SimNode;
-              if (!source.x || !target.x || !source.y || !target.y) return null;
+              if (source.x == null || target.x == null || source.y == null || target.y == null) return null;
 
               const isSourceRel = activeSet.has(source.id);
               const isTargetRel = activeSet.has(target.id);
               const isPath = isSourceRel && isTargetRel;
 
-              // Check if this is a "prerequisite" relationship (dashed)
-              const isPrereq = true; // all edges are prerequisites in our data model
+              // Shorten line to stop at edge of nodes (so arrowhead is visible)
+              const targetSize = (target.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
+              const sourceSize = (source.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
+              const totalDx = target.x - source.x;
+              const totalDy = target.y - source.y;
+              const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+              if (dist === 0) return null;
 
-              const dx = target.x - source.x;
-              const d = `M${source.x},${source.y} C${source.x + dx / 2},${source.y} ${target.x - dx / 2},${target.y} ${target.x},${target.y}`;
+              const ux = totalDx / dist;
+              const uy = totalDy / dist;
+
+              // Only shorten if there's enough room between the two node edges
+              const margin = 6; // space for arrowhead
+              const totalInset = sourceSize + targetSize + margin;
+              let sx: number, sy: number, tx: number, ty: number;
+              if (dist > totalInset) {
+                sx = source.x + ux * sourceSize;
+                sy = source.y + uy * sourceSize;
+                tx = target.x - ux * (targetSize + margin);
+                ty = target.y - uy * (targetSize + margin);
+              } else {
+                // Nodes overlap or are very close — just draw a short line between centers
+                sx = source.x;
+                sy = source.y;
+                tx = target.x;
+                ty = target.y;
+              }
+
+              const cdx = tx - sx;
+              const d = `M${sx},${sy} C${sx + cdx / 2},${sy} ${tx - cdx / 2},${ty} ${tx},${ty}`;
 
               return (
                 <path
                   key={`link-${i}`}
                   d={d}
-                  stroke={isPath ? "#60a5fa" : "#475569"}
-                  strokeWidth={isPath ? 2 : 1.5}
-                  strokeDasharray={isPrereq ? "5,5" : "none"}
-                  opacity={isPath ? 0.8 : 0.2}
+                  stroke={isPath ? "#3b82f6" : "#64748b"}
+                  strokeWidth={isPath ? 2.5 : 1.5}
+                  opacity={isPath ? 1 : 0.8}
                   fill="none"
                   markerEnd={isPath ? "url(#arrowhead-active)" : "url(#arrowhead)"}
                 />
@@ -232,19 +306,25 @@ export default function KnowledgeGraph({
         </svg>
 
         {/* DOM layer for nodes */}
-        <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 pointer-events-none" data-graph-nodes>
           {simNodes.map((node) => {
-            if (node.x == null || node.y == null) return null;
+            if (node.x === undefined || node.y === undefined) return null;
             const size = (node.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
             const color = COLOR_HEX[node.color] || COLOR_HEX.gray;
             const isInSet = activeSet.has(node.id);
             const hasSelection = activeSet.size > 0;
             const isDimmed = hasSelection && !isInSet;
             const isActive = node.id === activeConceptId;
-
-            // Determine if this is the "clicked" node (the non-ancestor in the set that the others lead to)
-            // For glow purposes, use blue for activeConceptId, else mastery color
             const glowColor = isActive ? COLOR_HEX.active : color;
+
+            // Color-specific fill tints (soft pastel backgrounds)
+            const fillMap: Record<string, string> = {
+              [COLOR_HEX.red]: `linear-gradient(135deg, #fef2f2, #fee2e2)`,
+              [COLOR_HEX.yellow]: `linear-gradient(135deg, #fefce8, #fef9c3)`,
+              [COLOR_HEX.green]: `linear-gradient(135deg, #f0fdf4, #dcfce7)`,
+              [COLOR_HEX.gray]: `linear-gradient(135deg, #f8fafc, #f1f5f9)`,
+            };
+            const defaultFill = fillMap[color] || fillMap[COLOR_HEX.gray];
 
             return (
               <motion.div
@@ -252,39 +332,56 @@ export default function KnowledgeGraph({
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{
                   opacity: isDimmed ? 0.2 : 1,
-                  scale: isInSet && !isDimmed ? 1.05 : 1,
+                  scale: isInSet && !isDimmed ? 1.08 : 1,
                   x: node.x - size,
                   y: node.y - size,
                 }}
                 transition={{ duration: 0.4, type: "spring", bounce: 0.3 }}
-                className="absolute rounded-full flex items-center justify-center cursor-pointer pointer-events-auto border transition-all duration-500 ease-out"
+                data-graph-node
+                className="absolute rounded-full flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-500 ease-out"
                 style={{
                   width: size * 2,
                   height: size * 2,
-                  background: `radial-gradient(130% 130% at 30% 30%, ${glowColor}15 0%, ${glowColor}05 40%, rgba(15, 23, 42, 0.8) 100%)`,
-                  borderColor: isInSet
-                    ? glowColor
+                  background: isInSet || isActive
+                    ? `linear-gradient(135deg, ${glowColor}20, ${glowColor}10)`
+                    : defaultFill,
+                  border: isInSet
+                    ? `2.5px solid ${glowColor}`
                     : isActive
-                      ? COLOR_HEX.active
-                      : "rgba(255,255,255,0.1)",
+                      ? `2.5px solid ${COLOR_HEX.active}`
+                      : `2px solid ${color}`,
                   boxShadow: isInSet
-                    ? `0 0 30px ${glowColor}80, inset 0 0 20px ${glowColor}40, 0 0 60px ${glowColor}40`
+                    ? `0 0 24px ${glowColor}40, 0 4px 12px ${glowColor}20`
                     : isActive
-                      ? `0 0 20px ${COLOR_HEX.active}60, inset 0 0 15px ${COLOR_HEX.active}30`
-                      : "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1)",
+                      ? `0 0 20px ${COLOR_HEX.active}35, 0 4px 12px ${COLOR_HEX.active}15`
+                      : `0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)`,
                 }}
                 onClick={() => handleNodeClick(node)}
               >
-                {/* Glass reflections */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-transparent opacity-50" />
-                <div className="absolute top-[10%] left-[10%] w-[30%] h-[20%] bg-white/20 rounded-full blur-[3px]" />
+                {/* Glossy top highlight */}
+                <div
+                  className="absolute rounded-full pointer-events-none"
+                  style={{
+                    top: "8%",
+                    left: "15%",
+                    width: "55%",
+                    height: "35%",
+                    background: "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 100%)",
+                    borderRadius: "50%",
+                  }}
+                />
 
                 {/* Text label */}
-                <div className="absolute inset-0 flex items-center justify-center p-2 text-center pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center p-1.5 text-center pointer-events-none overflow-hidden">
                   <p
-                    className={`text-[11px] font-medium leading-tight tracking-wide drop-shadow-lg transition-colors ${
-                      isInSet || isActive ? "text-white font-semibold" : "text-slate-300"
+                    className={`font-semibold leading-[1.15] transition-colors ${
+                      isInSet || isActive ? "text-gray-900" : "text-gray-700"
                     }`}
+                    style={{
+                      fontSize: node.label.length > 16 ? "9px" : node.label.length > 10 ? "10px" : "11px",
+                      wordBreak: "break-word",
+                      hyphens: "auto",
+                    }}
                   >
                     {node.label}
                   </p>
@@ -293,13 +390,14 @@ export default function KnowledgeGraph({
             );
           })}
         </div>
+        </div>{/* close zoom/pan wrapper */}
       </div>
 
       {/* Reset button */}
       <div className="absolute bottom-4 right-4 flex gap-2">
         <button
           onClick={handleReset}
-          className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 backdrop-blur-md transition-colors"
+          className="p-2 rounded-lg bg-white/70 hover:bg-gray-100 text-gray-400 border border-gray-200/80 backdrop-blur-md transition-colors"
           title="Reset View"
         >
           <RefreshCw size={16} />
@@ -307,32 +405,32 @@ export default function KnowledgeGraph({
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 p-4 rounded-xl bg-slate-900/40 border border-slate-700/30 backdrop-blur-md shadow-lg">
-        <div className="flex flex-col gap-3 text-xs text-slate-400 font-medium">
+      <div className="absolute bottom-4 left-4 p-4 rounded-xl bg-white/70 border border-gray-200/80 backdrop-blur-md">
+        <div className="flex flex-col gap-3 text-xs text-gray-400 font-medium">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-[2px] bg-slate-500 rounded-full" />
+            <div className="w-8 h-[2px] bg-gray-400 rounded-full" />
             <span>Flow / Uses</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-[2px] bg-slate-500 border-b-2 border-dashed border-slate-500" />
+            <div className="w-8 h-[2px] bg-gray-400 border-b-2 border-dashed border-gray-400" />
             <span>Prerequisite</span>
           </div>
-          <div className="h-px bg-slate-700/50 my-1" />
+          <div className="h-px bg-gray-200 my-1" />
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
               <span>Mastered</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
               <span>Partial</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
               <span>Struggling</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
               <span>Not Started</span>
             </div>
           </div>
