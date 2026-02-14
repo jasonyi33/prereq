@@ -2,11 +2,6 @@ import anthropic
 import os
 import json
 
-import anthropic
-import os
-import json
-import sys
-
 
 def generate_learning_page(concept_label: str, concept_description: str,
                            past_mistakes: list, current_confidence: float) -> dict:
@@ -34,9 +29,8 @@ Return ONLY valid JSON with this structure:
 }}
 
 Requirements:
-- Use markdown formatting (headers, lists, code blocks)
+- Use markdown formatting
 - Adjust complexity to student's level
-- Address specific past mistakes if provided
 - Be concise but thorough
 - No fluff or excessive motivation
 - Return ONLY valid JSON, no markdown code blocks"""
@@ -47,23 +41,13 @@ Requirements:
         messages=[{"role": "user", "content": prompt}]
     )
 
-    # Check if message has content
-    if not message.content or len(message.content) == 0:
-        print(f"[ERROR] Empty response from Claude API", file=sys.stderr)
-        sys.stderr.flush()
-        raise ValueError("Claude returned empty response")
-
     response_text = message.content[0].text.strip()
 
-    if not response_text:
-        raise ValueError("Claude returned empty text")
-
-    # Remove markdown code blocks if present
     if response_text.startswith('```'):
         lines = response_text.split('\n')
-        lines = lines[1:]  # Remove first line (```json or ```)
+        lines = lines[1:]
         if lines and lines[-1].strip() == '```':
-            lines = lines[:-1]  # Remove last line (```)
+            lines = lines[:-1]
         response_text = '\n'.join(lines).strip()
 
     return json.loads(response_text)
@@ -104,45 +88,23 @@ Requirements:
 - Exactly 5 questions
 - Mix difficulty: 2 easy, 2 medium, 1 challenging
 - Test conceptual understanding, not just recall
-- Include questions targeting past mistakes if provided
-- Make distractors plausible but clearly wrong
 - Explanations should teach, not just state correctness
 - Options should be roughly same length
 - Return ONLY valid JSON, no markdown code blocks"""
 
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=3000,
-            messages=[{"role": "user", "content": prompt}]
-        )
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=3000,
+        messages=[{"role": "user", "content": prompt}]
+    )
 
-        # Check if message has content
-        if not message.content or len(message.content) == 0:
-            print(f"[ERROR] Empty quiz response from Claude API", file=sys.stderr)
-            sys.stderr.flush()
-            raise ValueError("Claude returned empty response")
+    response_text = message.content[0].text.strip()
 
-        response_text = message.content[0].text.strip()
+    if response_text.startswith('```'):
+        lines = response_text.split('\n')
+        lines = lines[1:]
+        if lines and lines[-1].strip() == '```':
+            lines = lines[:-1]
+        response_text = '\n'.join(lines).strip()
 
-        if not response_text:
-            raise ValueError("Claude returned empty text")
-
-        # Remove markdown code blocks if present
-        if response_text.startswith('```'):
-            lines = response_text.split('\n')
-            lines = lines[1:]  # Remove first line (```json or ```)
-            if lines and lines[-1].strip() == '```':
-                lines = lines[:-1]  # Remove last line (```)
-            response_text = '\n'.join(lines).strip()
-
-        return json.loads(response_text)
-
-    except json.JSONDecodeError as e:
-        print(f"[ERROR] Failed to parse quiz JSON. Response was: {response_text}", file=sys.stderr)
-        sys.stderr.flush()
-        raise ValueError(f"Claude returned invalid JSON: {str(e)}")
-    except Exception as e:
-        print(f"[ERROR] Claude quiz API error: {type(e).__name__}: {str(e)}", file=sys.stderr)
-        sys.stderr.flush()
-        raise
+    return json.loads(response_text)
