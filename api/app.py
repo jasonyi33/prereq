@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 
+from src.routes.pages import pages
 from src.routes.courses import courses
 from src.routes.create import create
 from src.routes.graph import graph
@@ -25,6 +26,8 @@ app.register_blueprint(transcripts)
 app.register_blueprint(concepts)
 app.register_blueprint(polls)
 app.register_blueprint(tutoring)
+app.register_blueprint(pages)
+
 
 
 @app.route('/api/health', methods=['GET'])
