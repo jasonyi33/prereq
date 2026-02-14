@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 
+from api.src.routes.heatmap import heatmap
 from src.routes.courses import courses
 from src.routes.create import create
 from src.routes.graph import graph
@@ -13,6 +14,7 @@ app.register_blueprint(create)
 app.register_blueprint(courses)
 app.register_blueprint(students)
 app.register_blueprint(graph)
+app.register_blueprint(heatmap)
 
 
 @app.route('/api/health', methods=['GET'])
