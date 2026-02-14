@@ -21,14 +21,28 @@ const io = new Server(server, {
 
 setupSocket(io);
 
-// Initialize Zoom RTMS if credentials are configured
-// Dynamic import avoids loading the native @zoom/rtms binary when not needed (e.g. on Render)
-if (process.env.ZOOM_CLIENT_ID) {
-  app.use("/webhook", express.json());
-  import("./rtms").then(({ setupRTMS }) => setupRTMS(app)).catch((err) => {
-    console.warn("[RTMS] Failed to load Zoom RTMS module:", err.message);
-  });
-}
+// Initialize Zoom RTMS — always attempt to load so per-teacher webhooks work
+// even without global ZOOM_CLIENT_ID env var
+app.use("/webhook", express.json());
+app.use("/webhook/:teacherId", express.json());
+
+let clearCredentialCacheFn: ((teacherId: string) => void) | null = null;
+
+import("./rtms").then(({ setupRTMS, clearCredentialCache }) => {
+  setupRTMS(app);
+  clearCredentialCacheFn = clearCredentialCache;
+}).catch((err) => {
+  console.warn("[RTMS] Zoom RTMS module unavailable:", err.message);
+});
+
+// Cache-clearing endpoint called by ZoomSettingsDialog after saving credentials
+app.post("/api/zoom/clear-cache", express.json(), (req, res) => {
+  const teacherId = req.query.teacherId as string;
+  if (teacherId && clearCredentialCacheFn) {
+    clearCredentialCacheFn(teacherId);
+  }
+  res.json({ ok: true });
+});
 
 const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();

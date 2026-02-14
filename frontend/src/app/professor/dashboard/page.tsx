@@ -9,6 +9,7 @@ import ConceptTimeline, { type TimelineConcept } from "@/components/dashboard/Co
 import StudentList, { type StudentSummary } from "@/components/dashboard/StudentList";
 import PollControls from "@/components/dashboard/PollControls";
 import InterventionPanel from "@/components/dashboard/InterventionPanel";
+import ZoomSettingsDialog from "@/components/dashboard/ZoomSettingsDialog";
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi, nextApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -22,7 +23,7 @@ function confidenceToColor(confidence: number): string {
 
 export default function ProfessorDashboard() {
   const router = useRouter();
-  const { user, role, courses: authCourses, signOut } = useAuth();
+  const { user, profile, role, courses: authCourses, signOut } = useAuth();
   const [courseId, setCourseId] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState<string | null>(null);
   const [lectureId, setLectureId] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export default function ProfessorDashboard() {
   const [demoStarting, setDemoStarting] = useState(false);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [zoomSettingsOpen, setZoomSettingsOpen] = useState(false);
 
   const socket = useSocket();
 
@@ -284,6 +286,15 @@ export default function ProfessorDashboard() {
               {demoStarting ? "Starting..." : "Start Demo"}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setZoomSettingsOpen(true)}
+            className="text-slate-400 hover:text-slate-600"
+            title="Zoom Settings"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </Button>
           {user && (
             <Button
               size="sm"
@@ -328,6 +339,15 @@ export default function ProfessorDashboard() {
           <InterventionPanel lectureId={lectureId} strugglingConceptIds={strugglingConceptIds} />
         </div>
       </div>
+
+      {/* Zoom Settings Dialog */}
+      {profile?.id && (
+        <ZoomSettingsDialog
+          open={zoomSettingsOpen}
+          onOpenChange={setZoomSettingsOpen}
+          teacherId={profile.id}
+        />
+      )}
     </div>
   );
 }
