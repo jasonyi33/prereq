@@ -87,18 +87,32 @@ export default function ProfessorDashboard() {
       .catch(() => {});
   }, [courseId]);
 
-  // Check for existing live lecture on mount
+  // Poll for the latest live lecture every 5s so we auto-join when RTMS creates one
   useEffect(() => {
     if (!courseId) return;
-    flaskApi
-      .get(`/api/courses/${courseId}/lectures`)
-      .then((lectures: { id: string; status: string }[]) => {
-        const live = lectures.find((l) => l.status === "live");
-        if (live) {
-          setLectureId(live.id);
-        }
-      })
-      .catch(() => {});
+
+    const checkLiveLecture = () => {
+      flaskApi
+        .get(`/api/courses/${courseId}/lectures`)
+        .then((lectures: { id: string; status: string; started_at?: string }[]) => {
+          const liveLectures = lectures.filter((l) => l.status === "live");
+          liveLectures.sort((a, b) => (b.started_at || "").localeCompare(a.started_at || ""));
+          const live = liveLectures[0];
+          if (live) {
+            setLectureId((prev) => {
+              if (prev !== live.id) {
+                localStorage.setItem("lectureId", live.id);
+              }
+              return live.id;
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    checkLiveLecture();
+    const interval = setInterval(checkLiveLecture, 5000);
+    return () => clearInterval(interval);
   }, [courseId]);
 
   // Join lecture room as professor
