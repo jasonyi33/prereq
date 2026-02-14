@@ -25,7 +25,7 @@ Student's current level: {confidence_level} (confidence: {current_confidence})
 Return ONLY valid JSON with this structure:
 {{
   "title": "Clear, engaging title",
-  "content": "Well-structured markdown content (300-500 words). Include:\n- Core definition\n- Key intuition\n- 2-3 concrete examples\n- Common pitfalls (especially addressing past mistakes if provided)\n- Visual analogies where helpful"
+  "content": "Well-structured markdown content (300-500 words). Include:\\n- Core definition\\n- Key intuition\\n- 2-3 concrete examples\\n- Common pitfalls (especially addressing past mistakes if provided)\\n- Visual analogies where helpful"
 }}
 
 Requirements:
@@ -36,22 +36,33 @@ Requirements:
 - No fluff or excessive motivation
 - Return ONLY valid JSON, no markdown code blocks"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-    response_text = message.content[0].text.strip()
+        response_text = message.content[0].text.strip()
+        print(f"[DEBUG] Claude response: {response_text[:200]}...")  # Log first 200 chars
 
-    # Remove markdown code blocks if present
-    if '```' in response_text:
-        response_text = response_text.split('```')[1]
-        if response_text.startswith('json'):
-            response_text = response_text[4:]
-        response_text = response_text.strip()
+        # Remove markdown code blocks if present
+        if '```' in response_text:
+            parts = response_text.split('```')
+            if len(parts) >= 3:
+                response_text = parts[1]
+                if response_text.startswith('json'):
+                    response_text = response_text[4:]
+                response_text = response_text.strip()
 
-    return json.loads(response_text)
+        return json.loads(response_text)
+
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] Failed to parse JSON from Claude: {response_text}")
+        raise ValueError(f"Claude returned invalid JSON: {str(e)}")
+    except Exception as e:
+        print(f"[ERROR] Claude API error: {str(e)}")
+        raise
 
 
 def generate_practice_quiz(concept_label: str, concept_description: str,
@@ -95,19 +106,30 @@ Requirements:
 - Options should be roughly same length
 - Return ONLY valid JSON, no markdown code blocks"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=3000,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-    response_text = message.content[0].text.strip()
+        response_text = message.content[0].text.strip()
+        print(f"[DEBUG] Claude quiz response: {response_text[:200]}...")  # Log first 200 chars
 
-    # Remove markdown code blocks if present
-    if '```' in response_text:
-        response_text = response_text.split('```')[1]
-        if response_text.startswith('json'):
-            response_text = response_text[4:]
-        response_text = response_text.strip()
+        # Remove markdown code blocks if present
+        if '```' in response_text:
+            parts = response_text.split('```')
+            if len(parts) >= 3:
+                response_text = parts[1]
+                if response_text.startswith('json'):
+                    response_text = response_text[4:]
+                response_text = response_text.strip()
 
-    return json.loads(response_text)
+        return json.loads(response_text)
+
+    except json.JSONDecodeError as e:
+        print(f"[ERROR] Failed to parse quiz JSON from Claude: {response_text}")
+        raise ValueError(f"Claude returned invalid JSON: {str(e)}")
+    except Exception as e:
+        print(f"[ERROR] Claude quiz API error: {str(e)}")
+        raise
