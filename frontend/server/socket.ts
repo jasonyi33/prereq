@@ -1,17 +1,21 @@
 import { Server } from "socket.io";
 
-let io: Server;
+// Use globalThis so the Socket.IO instance is shared between the Express server
+// and Next.js API routes (which are bundled as separate modules by Next.js).
+const g = globalThis as unknown as {
+  __socketIO?: Server;
+  __lectureStudents?: Map<string, Set<string>>;
+  __socketMeta?: Map<string, { lectureId: string; studentId?: string }>;
+};
 
 // In-memory map: lectureId → Set of studentIds
-const lectureStudents = new Map<string, Set<string>>();
-// Reverse map: socketId → { lectureId, studentId } for cleanup on disconnect
-const socketMeta = new Map<string, { lectureId: string; studentId?: string }>();
+if (!g.__lectureStudents) g.__lectureStudents = new Map();
+if (!g.__socketMeta) g.__socketMeta = new Map();
+const lectureStudents = g.__lectureStudents;
+const socketMeta = g.__socketMeta;
 
-export function getIO(): Server {
-  if (!io) {
-    throw new Error("Socket.IO not initialized. Ensure setupSocket() is called before getIO().");
-  }
-  return io;
+export function getIO(): Server | null {
+  return g.__socketIO || null;
 }
 
 export function getStudentsInLecture(lectureId: string): string[] {
@@ -20,9 +24,9 @@ export function getStudentsInLecture(lectureId: string): string[] {
 }
 
 export function setupSocket(ioServer: Server): void {
-  io = ioServer;
+  g.__socketIO = ioServer;
 
-  io.on("connection", (socket) => {
+  ioServer.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
     socket.on("lecture:join", (payload: { lectureId: string; role: string; studentId?: string }) => {

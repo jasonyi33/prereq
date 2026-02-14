@@ -9,6 +9,7 @@ import { createServer } from "http";
 import next from "next";
 import { Server } from "socket.io";
 import { setupSocket } from "./socket";
+import { setupRTMS } from "./rtms";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT || "3000", 10);
@@ -21,6 +22,13 @@ const io = new Server(server, {
 });
 
 setupSocket(io);
+
+// Initialize Zoom RTMS if credentials are configured
+// JSON parsing is scoped to /webhook route only to avoid conflicting with Next.js body parsing
+if (process.env.ZOOM_CLIENT_ID) {
+  app.use("/webhook", express.json());
+  setupRTMS(app);
+}
 
 const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();
