@@ -41,47 +41,33 @@ Requirements:
 - No fluff or excessive motivation
 - Return ONLY valid JSON, no markdown code blocks"""
 
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}]
-        )
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}]
+    )
 
-        # Check if message has content
-        if not message.content or len(message.content) == 0:
-            print(f"[ERROR] Empty response from Claude API", file=sys.stderr)
-            sys.stderr.flush()
-            raise ValueError("Claude returned empty response")
-
-        response_text = message.content[0].text.strip()
-
-        print(f"[DEBUG] Response length: {len(response_text)}", file=sys.stderr)
-        print(f"[DEBUG] Response preview: {response_text[:500]}", file=sys.stderr)
+    # Check if message has content
+    if not message.content or len(message.content) == 0:
+        print(f"[ERROR] Empty response from Claude API", file=sys.stderr)
         sys.stderr.flush()
+        raise ValueError("Claude returned empty response")
 
-        if not response_text:
-            raise ValueError("Claude returned empty text")
+    response_text = message.content[0].text.strip()
 
-        # Remove markdown code blocks if present
-        if '```' in response_text:
-            parts = response_text.split('```')
-            if len(parts) >= 3:
-                response_text = parts[1]
-                if response_text.startswith('json'):
-                    response_text = response_text[4:]
-                response_text = response_text.strip()
+    if not response_text:
+        raise ValueError("Claude returned empty text")
 
-        return json.loads(response_text)
+    # Remove markdown code blocks if present
+    if '```' in response_text:
+        parts = response_text.split('```')
+        if len(parts) >= 3:
+            response_text = parts[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
 
-    except json.JSONDecodeError as e:
-        print(f"[ERROR] Failed to parse JSON. Response was: {response_text}", file=sys.stderr)
-        sys.stderr.flush()
-        raise ValueError(f"Claude returned invalid JSON: {str(e)}")
-    except Exception as e:
-        print(f"[ERROR] Claude API error: {type(e).__name__}: {str(e)}", file=sys.stderr)
-        sys.stderr.flush()
-        raise
+    return json.loads(response_text)
 
 
 def generate_practice_quiz(concept_label: str, concept_description: str,
@@ -139,10 +125,6 @@ Requirements:
             raise ValueError("Claude returned empty response")
 
         response_text = message.content[0].text.strip()
-
-        print(f"[DEBUG] Quiz response length: {len(response_text)}", file=sys.stderr)
-        print(f"[DEBUG] Quiz response preview: {response_text[:500]}", file=sys.stderr)
-        sys.stderr.flush()
 
         if not response_text:
             raise ValueError("Claude returned empty text")

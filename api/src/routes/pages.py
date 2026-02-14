@@ -26,6 +26,7 @@ def test_claude():
         "api_key_set": bool(os.getenv("ANTHROPIC_API_KEY"))
     }), 200
 
+
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
 def generate_page(student_id):
@@ -44,9 +45,12 @@ def generate_page(student_id):
     concept = concept_resp.data  # FIX: Extract data here
 
     # Get student's current mastery
-    mastery_resp = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq('concept_id',
-                                                                                                          concept_id).single().execute()
-    current_confidence = mastery_resp.data['confidence'] if mastery_resp.data else 0.0
+    try:
+        mastery_resp = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq(
+            'concept_id', concept_id).single().execute()
+        current_confidence = mastery_resp.data['confidence'] if mastery_resp.data else 0.0
+    except:
+        current_confidence = 0.0
 
     # Get past quiz mistakes
     past_mistakes = []
