@@ -348,29 +348,43 @@ export function setupRTMS(app: Express): void {
 
   // Per-teacher webhook: POST /webhook/:teacherId
   app.post("/webhook/:teacherId", async (req, res) => {
-    const { teacherId } = req.params;
+    try {
+      const { teacherId } = req.params;
 
-    // For validation challenges, we need the teacher's secret
-    // For RTMS events, we also need credentials
-    const creds = await getTeacherCredentials(teacherId);
-    if (!creds) {
-      // If it's a validation challenge and we have no creds, we can't validate
-      if (req.body?.event === "endpoint.url_validation") {
-        res.status(404).json({ error: "No Zoom credentials found. Save credentials first." });
+      // For validation challenges, we need the teacher's secret
+      // For RTMS events, we also need credentials
+      const creds = await getTeacherCredentials(teacherId);
+      if (!creds) {
+        // If it's a validation challenge and we have no creds, we can't validate
+        if (req.body?.event === "endpoint.url_validation") {
+          res.status(404).json({ error: "No Zoom credentials found. Save credentials first." });
+          return;
+        }
+        res.status(200).send("OK");
+        console.warn(`[RTMS] No credentials for teacher ${teacherId}, ignoring event`);
         return;
       }
-      res.status(200).send("OK");
-      console.warn(`[RTMS] No credentials for teacher ${teacherId}, ignoring event`);
-      return;
-    }
 
-    handleWebhook(teacherId, creds.zoom_client_secret)(req, res);
+      handleWebhook(teacherId, creds.zoom_client_secret)(req, res);
+    } catch (err) {
+      console.error("[RTMS] Webhook handler error:", err);
+      if (!res.headersSent) {
+        res.status(500).send("Webhook handler failed — check server logs");
+      }
+    }
   });
 
   // Per-teacher OAuth: GET /auth/:teacherId
   app.get("/auth/:teacherId", async (req, res) => {
-    const { teacherId } = req.params;
-    await handleOAuth(teacherId)(req, res);
+    try {
+      const { teacherId } = req.params;
+      await handleOAuth(teacherId)(req, res);
+    } catch (err) {
+      console.error("[RTMS] OAuth callback error:", err);
+      if (!res.headersSent) {
+        res.status(500).send("OAuth callback failed — check server logs");
+      }
+    }
   });
 
   console.log("[RTMS] Zoom RTMS integration initialized");
