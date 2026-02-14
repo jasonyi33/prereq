@@ -113,20 +113,20 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 2:** After completing tasks 3.0–4.0, merge to `main`. Person 2 needs Socket.IO helpers to wire up real-time listeners. Person 3 needs the DB pool and emit helpers for their API routes. Coordinate with Person 1's Merge Point 2 (mastery endpoints).
 
-- [ ] 5.0 Build transcript simulator for demo mode
-  - [ ] 5.1 Create `frontend/server/simulator.ts`:
+- [x] 5.0 Build transcript simulator for demo mode
+  - [x] 5.1 Create `frontend/server/simulator.ts`:
     - Export a `startSimulator(lectureId: string, courseId: string): void` function
     - The simulator reads from a hardcoded array of transcript chunks — write ~20-30 chunks covering a 3-minute "lecture" about neural networks and backpropagation (the demo topic). Each chunk should be 1-3 sentences of realistic lecture dialogue.
     - Every 3-5 seconds (randomized), POST the next chunk to `POST /api/lectures/:id/transcript` with `{ text, timestamp, speakerName: "Professor" }`
     - The `timestamp` should increment realistically (e.g., chunk 1 at 0s, chunk 2 at 4s, chunk 3 at 7s...)
     - Include concept-rich chunks that will trigger detection of: Chain Rule, Gradients, Backpropagation, Computational Graphs, Loss Functions, Gradient Descent (these are the concepts the demo will focus on)
     - Stop after all chunks are sent (or when `stopSimulator()` is called)
-  - [ ] 5.2 Export a `stopSimulator(): void` function that clears the interval/timeout
-  - [ ] 5.3 Wire the simulator to the "Start Demo" button flow: when the professor dashboard calls `POST /api/lectures` (creating a lecture), if `DEMO_MODE=true`, automatically start the simulator for that lecture. Add this logic in the lecture creation route or as a separate `POST /api/lectures/:id/start-demo` endpoint.
+  - [x] 5.2 Export a `stopSimulator(): void` function that clears the interval/timeout
+  - [x] 5.3 Wire the simulator to the "Start Demo" button flow: when the professor dashboard calls `POST /api/lectures` (creating a lecture), if `DEMO_MODE=true`, automatically start the simulator for that lecture. Add this logic in the lecture creation route or as a separate `POST /api/lectures/:id/start-demo` endpoint.
   - [ ] 5.4 Verify: start a demo lecture, confirm transcript chunks appear in real-time on the professor dashboard (via Socket.IO events). Confirm concept detection fires for relevant chunks.
 
-- [ ] 6.0 Build demo auto-responder for simulated students
-  - [ ] 6.1 Create `frontend/server/auto-responder.ts`:
+- [x] 6.0 Build demo auto-responder for simulated students
+  - [x] 6.1 Create `frontend/server/auto-responder.ts`:
     - Export a `onPollActivated(pollId: string, question: string, conceptLabel: string): void` function. Person 3's poll activate route calls this directly (no Socket.IO listener needed — the auto-responder runs in the same process).
     - When called, after a random 5-15 second delay per student, call `POST /api/polls/:pollId/respond` for each of the 3 auto-responding students. **DEPENDENCY: Person 3's respond endpoint must be merged** (Merge Point 2).
     - Scripted answers per student (matching CLAUDE.md seed data roles):
@@ -134,8 +134,8 @@ Update the file after completing each sub-task, not just after completing an ent
       - **Jordan (partial):** Submit an answer with the right intuition but missing key details — Claude should evaluate as "partial"
       - **Taylor (wrong):** Submit a clearly incorrect or confused answer — Claude should evaluate as "wrong"
     - Use student IDs from the seed data. These can be hardcoded or fetched from Flask `GET /api/courses/:id/students` on startup.
-  - [ ] 6.2 Write 3-5 sets of scripted answer templates for different ML concepts (Chain Rule, Backpropagation, Gradient Descent, etc.) so the auto-responder gives concept-appropriate answers, not generic ones
-  - [ ] 6.3 No startup initialization needed — Person 3's activate route imports and calls `onPollActivated()` directly when `DEMO_MODE=true`. Just ensure the function is exported from `@server/auto-responder`.
+  - [x] 6.2 Write 3-5 sets of scripted answer templates for different ML concepts (Chain Rule, Backpropagation, Gradient Descent, etc.) so the auto-responder gives concept-appropriate answers, not generic ones
+  - [x] 6.3 No startup initialization needed — Person 3's activate route imports and calls `onPollActivated()` directly when `DEMO_MODE=true`. Just ensure the function is exported from `@server/auto-responder`.
   - [ ] 6.4 Verify: activate a poll, confirm 3 auto-responses appear after a delay. Check that Alex → green, Jordan → yellow, Taylor → red in the mastery data. Confirm the professor dashboard heatmap updates.
 
 > **MERGE POINT 3:** After completing tasks 5.0–6.0, merge to `main`. This aligns with Person 2 merging Socket.IO wiring and Person 3 merging AI routes. After this merge, the full end-to-end demo should work: start demo → transcript flows → professor generates question → Sam (live) + 3 auto-responders answer → mastery updates → heatmap updates → tutoring.

@@ -5,6 +5,16 @@ from ..db import supabase
 tutoring = Blueprint("tutoring", __name__)
 
 
+# --- P1 CRUD endpoints ---
+
+@tutoring.route('/api/students/<student_id>/tutoring', methods=['GET'])
+def get_student_sessions(student_id):
+    result = supabase.table('tutoring_sessions').select('*').eq('student_id', student_id).execute()
+    return jsonify(result.data), 200
+
+
+# --- P3 endpoints ---
+
 @tutoring.route('/api/tutoring/sessions', methods=['POST'])
 def create_session():
     data = request.json
