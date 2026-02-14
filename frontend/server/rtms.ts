@@ -240,21 +240,13 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     }
   });
 
-  // Set SDK env vars temporarily for this client's join call
-  // (the SDK's client.join() generates the signature internally from these)
-  const prevClient = process.env.ZM_RTMS_CLIENT;
-  const prevSecret = process.env.ZM_RTMS_SECRET;
+  // Set SDK env vars for this client — the SDK reads these asynchronously
+  // during the WebSocket handshake, so they must persist beyond client.join()
   process.env.ZM_RTMS_CLIENT = clientId;
   process.env.ZM_RTMS_SECRET = clientSecret;
 
   diag("join", `Calling client.join() with streamId=${streamId}`);
   client.join(payload);
-
-  // Restore previous env vars
-  if (prevClient !== undefined) process.env.ZM_RTMS_CLIENT = prevClient;
-  else delete process.env.ZM_RTMS_CLIENT;
-  if (prevSecret !== undefined) process.env.ZM_RTMS_SECRET = prevSecret;
-  else delete process.env.ZM_RTMS_SECRET;
 
   diag("join", "client.join() called — waiting for onJoinConfirm callback...");
 }
