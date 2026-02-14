@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useEffect, useMemo, useState } from "react";
+import { useCallback, useRef, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { COLOR_HEX } from "@/lib/colors";
 
@@ -27,6 +27,7 @@ interface KnowledgeGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
   activeConceptId?: string | null;
+  highlightedNodeIds?: Set<string>;
   onNodeClick?: (node: GraphNode) => void;
   width?: number;
   height?: number;
@@ -36,6 +37,7 @@ export default function KnowledgeGraph({
   nodes,
   edges,
   activeConceptId,
+  highlightedNodeIds,
   onNodeClick,
   width,
   height,
@@ -43,7 +45,17 @@ export default function KnowledgeGraph({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fgRef = useRef<any>(null);
   const animationRef = useRef(0);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const hoveredRef = useRef<string | null>(null);
+
+  // Refs for reactive props so callbacks have stable references
+  const activeConceptRef = useRef(activeConceptId);
+  activeConceptRef.current = activeConceptId;
+
+  const highlightedRef = useRef(highlightedNodeIds);
+  highlightedRef.current = highlightedNodeIds;
+
+  const onNodeClickRef = useRef(onNodeClick);
+  onNodeClickRef.current = onNodeClick;
 
   useEffect(() => {
     let frame: number;
@@ -67,14 +79,15 @@ export default function KnowledgeGraph({
       const fontSize = 11 / globalScale;
       const baseRadius = 8 / globalScale;
       const hex = COLOR_HEX[node.color] || COLOR_HEX.gray;
-      const isActive = node.id === activeConceptId;
-      const isHovered = node.id === hoveredNode;
+      const isActive = node.id === activeConceptRef.current;
+      const isHovered = node.id === hoveredRef.current;
+      const isHighlighted = highlightedRef.current?.has(node.id) ?? false;
 
       // Outer glow (inspired by ParticleBackground radial gradient)
-      if (isActive || isHovered) {
+      if (isActive || isHovered || isHighlighted) {
         const pulse = isActive
           ? 0.5 + 0.5 * Math.sin((animationRef.current / 120) * Math.PI * 2)
-          : 0.8;
+          : isHighlighted ? 0.7 : 0.8;
         const glowColor = isActive ? COLOR_HEX.active : hex;
         const glowRadius = baseRadius * (2.5 + (isActive ? pulse * 0.8 : 0));
 
@@ -135,10 +148,10 @@ export default function KnowledgeGraph({
       );
       ctx.fill();
 
-      ctx.fillStyle = isHovered || isActive ? "#ffffff" : "#cbd5e1";
+      ctx.fillStyle = isHovered || isActive || isHighlighted ? "#ffffff" : "#cbd5e1";
       ctx.fillText(label, node.x, textY);
     },
-    [activeConceptId, hoveredNode],
+    [],
   );
 
   // Custom link rendering with glow effect (inspired by LiveDataFlowDiagram)
@@ -151,20 +164,25 @@ export default function KnowledgeGraph({
 
       const sourceHex = COLOR_HEX[source.color] || COLOR_HEX.gray;
       const targetHex = COLOR_HEX[target.color] || COLOR_HEX.gray;
-      const isActiveEdge = source.id === activeConceptId || target.id === activeConceptId;
+      const isActiveEdge = source.id === activeConceptRef.current || target.id === activeConceptRef.current;
+      const isHighlightedEdge = (highlightedRef.current?.has(source.id) && highlightedRef.current?.has(target.id)) ?? false;
+      const isBright = isActiveEdge || isHighlightedEdge;
 
       // Edge line with gradient
       const gradient = ctx.createLinearGradient(source.x, source.y, target.x, target.y);
-      gradient.addColorStop(0, sourceHex + (isActiveEdge ? "80" : "40"));
-      gradient.addColorStop(1, targetHex + (isActiveEdge ? "80" : "40"));
+      gradient.addColorStop(0, sourceHex + (isBright ? "80" : "40"));
+      gradient.addColorStop(1, targetHex + (isBright ? "80" : "40"));
 
       ctx.strokeStyle = gradient;
-      ctx.lineWidth = (isActiveEdge ? 2 : 1) / globalScale;
+      ctx.lineWidth = (isBright ? 2 : 1) / globalScale;
 
-      // Glow for active edges
+      // Glow for active/highlighted edges
       if (isActiveEdge) {
         ctx.shadowBlur = 6 / globalScale;
         ctx.shadowColor = COLOR_HEX.active + "60";
+      } else if (isHighlightedEdge) {
+        ctx.shadowBlur = 4 / globalScale;
+        ctx.shadowColor = sourceHex + "40";
       }
 
       ctx.beginPath();
@@ -173,24 +191,73 @@ export default function KnowledgeGraph({
       ctx.stroke();
       ctx.shadowBlur = 0;
     },
-    [activeConceptId],
+    [],
   );
 
   const handleNodeClick = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (node: any) => {
-      if (onNodeClick) onNodeClick(node as GraphNode);
+      if (onNodeClickRef.current) onNodeClickRef.current(node as GraphNode);
     },
-    [onNodeClick],
+    [],
+  );
+
+  // Fallback: when clicking the background, manually check if a node is nearby.
+  // This catches cases where the shadow canvas hit-detection misses nodes.
+  const handleBackgroundClick = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (event: any) => {
+      const fg = fgRef.current;
+      if (!fg) return;
+      const coords = fg.screen2GraphCoords(event.offsetX, event.offsetY);
+      const HIT_RADIUS = 14; // graph units, matches nodePointerAreaPaint
+      let closest: { node: unknown; dist: number } | null = null;
+      for (const node of graphData.nodes) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const n = node as any;
+        if (n.x == null || n.y == null) continue;
+        const dx = coords.x - n.x;
+        const dy = coords.y - n.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < HIT_RADIUS && (!closest || dist < closest.dist)) {
+          closest = { node: n, dist };
+        }
+      }
+      if (closest && onNodeClickRef.current) {
+        onNodeClickRef.current(closest.node as GraphNode);
+      }
+    },
+    [graphData],
   );
 
   const handleNodeHover = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (node: any) => {
-      setHoveredNode(node ? node.id : null);
+      hoveredRef.current = node ? node.id : null;
     },
     [],
   );
+
+  // Stable callback for pointer area (hit detection)
+  const nodePointerAreaPaint = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (node: any, color: string, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const r = 14 / globalScale;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+    },
+    [],
+  );
+
+  // No-op so links paint nothing on the shadow canvas (hit detection).
+  // Without this, default link hit areas occlude node hit areas, making
+  // nodes that sit on link paths unclickable.
+  const linkPointerAreaPaint = useCallback(() => {}, []);
+
+  // Stable callback for particle color
+  const particleColor = useCallback(() => COLOR_HEX.active + "aa", []);
 
   return (
     <ForceGraph2D
@@ -199,22 +266,16 @@ export default function KnowledgeGraph({
       width={width}
       height={height}
       nodeCanvasObject={nodeCanvasObject}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        const r = 10 / globalScale;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-      }}
+      nodePointerAreaPaint={nodePointerAreaPaint}
       linkCanvasObject={linkCanvasObject}
+      linkPointerAreaPaint={linkPointerAreaPaint}
       onNodeClick={handleNodeClick}
+      onBackgroundClick={handleBackgroundClick}
       onNodeHover={handleNodeHover}
-      // Animated particles flowing along edges (LiveDataFlowDiagram pattern)
       linkDirectionalParticles={2}
       linkDirectionalParticleWidth={3}
       linkDirectionalParticleSpeed={0.004}
-      linkDirectionalParticleColor={() => COLOR_HEX.active + "aa"}
+      linkDirectionalParticleColor={particleColor}
       backgroundColor="#0f172a"
       cooldownTicks={100}
     />
