@@ -15,6 +15,10 @@ export function getSupabase(): SupabaseClient {
 // Convenience export — lazy-initialized to avoid build-time errors
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    return (getSupabase() as unknown as Record<string | symbol, unknown>)[prop];
+    const value = (getSupabase() as unknown as Record<string | symbol, unknown>)[prop];
+    if (typeof value === "function") {
+      return (value as Function).bind(getSupabase());
+    }
+    return value;
   },
 });
