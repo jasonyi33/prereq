@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 
 from ..db import supabase
+from ..middleware.auth import optional_auth
 
 tutoring = Blueprint("tutoring", __name__)
 
@@ -8,6 +9,7 @@ tutoring = Blueprint("tutoring", __name__)
 # --- P1 CRUD endpoints ---
 
 @tutoring.route('/api/students/<student_id>/tutoring', methods=['GET'])
+@optional_auth
 def get_student_sessions(student_id):
     result = supabase.table('tutoring_sessions').select('*').eq('student_id', student_id).execute()
     return jsonify(result.data), 200
@@ -16,6 +18,7 @@ def get_student_sessions(student_id):
 # --- P3 endpoints ---
 
 @tutoring.route('/api/tutoring/sessions', methods=['POST'])
+@optional_auth
 def create_session():
     data = request.json
     result = supabase.table('tutoring_sessions').insert({
@@ -29,6 +32,7 @@ def create_session():
 
 
 @tutoring.route('/api/tutoring/sessions/<session_id>', methods=['GET'])
+@optional_auth
 def get_session(session_id):
     result = supabase.table('tutoring_sessions').select(
         'id, student_id, target_concepts'
@@ -40,6 +44,7 @@ def get_session(session_id):
 
 
 @tutoring.route('/api/tutoring/sessions/<session_id>/messages', methods=['POST'])
+@optional_auth
 def create_messages(session_id):
     data = request.json
 
@@ -66,6 +71,7 @@ def create_messages(session_id):
 
 
 @tutoring.route('/api/tutoring/sessions/<session_id>/messages', methods=['GET'])
+@optional_auth
 def get_messages(session_id):
     exclude_role = request.args.get('exclude_role')
 
@@ -81,6 +87,7 @@ def get_messages(session_id):
 
 
 @tutoring.route('/api/tutoring/messages/<message_id>', methods=['PUT'])
+@optional_auth
 def update_message(message_id):
     data = request.json
     update_fields = {}

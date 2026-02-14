@@ -1,10 +1,12 @@
 from flask import request, jsonify, Blueprint
 from ..db import supabase
+from ..middleware.auth import optional_auth
 
 transcripts = Blueprint("transcripts", __name__)
 
 
 @transcripts.route('/api/lectures/<lecture_id>/transcripts', methods=['POST'])
+@optional_auth
 def create_transcript(lecture_id):
     data = request.json
 
@@ -30,6 +32,7 @@ def create_transcript(lecture_id):
 
 
 @transcripts.route('/api/lectures/<lecture_id>/transcripts', methods=['GET'])
+@optional_auth
 def get_transcripts(lecture_id):
     result = supabase.table('transcript_chunks').select('*').eq('lecture_id', lecture_id).order(
         'timestamp_sec').execute()
@@ -37,6 +40,7 @@ def get_transcripts(lecture_id):
 
 
 @transcripts.route('/api/transcripts/<chunk_id>/concepts', methods=['GET'])
+@optional_auth
 def get_transcript_concepts(chunk_id):
     result = supabase.table('transcript_concepts').select('concept_id').eq('transcript_chunk_id', chunk_id).execute()
     concept_ids = [r['concept_id'] for r in result.data]

@@ -1,9 +1,20 @@
 const FLASK_API_URL = process.env.NEXT_PUBLIC_FLASK_API_URL || "http://localhost:5000";
 
 async function request(baseUrl: string, path: string, options?: RequestInit) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options?.headers as Record<string, string>) || {}),
+  };
+
+  // Inject auth header from localStorage token
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${baseUrl}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
     ...options,
+    headers,
   });
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`;

@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 from ..db import supabase
 from ..services.create_kg import calculate_importance
+from ..middleware.auth import optional_auth
 
 graph = Blueprint("graph", __name__)
 
@@ -17,6 +18,7 @@ def confidence_to_color(confidence):
 
 
 @graph.route('/api/courses/<course_id>/graph', methods=['GET'])
+@optional_auth
 def get_graph(course_id):
     student_id = request.args.get('student_id')
 

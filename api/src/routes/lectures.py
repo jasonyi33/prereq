@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 
 from ..db import supabase
+from ..middleware.auth import optional_auth
 
 lectures = Blueprint("lectures", __name__)
 
@@ -8,6 +9,7 @@ lectures = Blueprint("lectures", __name__)
 # --- P1 CRUD endpoints ---
 
 @lectures.route('/api/lectures', methods=['POST'])
+@optional_auth
 def create_lecture():
     data = request.json
     result = supabase.table('lecture_sessions').insert({
@@ -20,6 +22,7 @@ def create_lecture():
 
 
 @lectures.route('/api/lectures/<lecture_id>', methods=['GET'])
+@optional_auth
 def get_lecture(lecture_id):
     result = supabase.table('lecture_sessions').select('*').eq('id', lecture_id).execute()
 
@@ -30,12 +33,14 @@ def get_lecture(lecture_id):
 
 
 @lectures.route('/api/courses/<course_id>/lectures', methods=['GET'])
+@optional_auth
 def get_course_lectures(course_id):
     result = supabase.table('lecture_sessions').select('*').eq('course_id', course_id).order('started_at', desc=True).execute()
     return jsonify(result.data), 200
 
 
 @lectures.route('/api/lectures/<lecture_id>', methods=['PUT'])
+@optional_auth
 def update_lecture(lecture_id):
     data = request.json
     result = supabase.table('lecture_sessions').update(data).eq('id', lecture_id).execute()
@@ -49,6 +54,7 @@ def update_lecture(lecture_id):
 # --- P3 endpoints ---
 
 @lectures.route('/api/lectures/<lecture_id>/transcript-chunks', methods=['GET'])
+@optional_auth
 def get_transcript_chunks(lecture_id):
     limit = request.args.get('limit', type=int)
     query = supabase.table('transcript_chunks').select('text, timestamp_sec').eq('lecture_id', lecture_id).order('created_at', desc=True)
@@ -59,6 +65,7 @@ def get_transcript_chunks(lecture_id):
 
 
 @lectures.route('/api/lectures/<lecture_id>/recent-concept', methods=['GET'])
+@optional_auth
 def get_recent_concept(lecture_id):
     result = supabase.table('transcript_concepts').select(
         'concept_id, transcript_chunks!inner(lecture_id, created_at)'
@@ -75,6 +82,7 @@ def get_recent_concept(lecture_id):
 
 
 @lectures.route('/api/lectures/<lecture_id>/transcript-excerpts', methods=['GET'])
+@optional_auth
 def get_transcript_excerpts(lecture_id):
     concept_ids_param = request.args.get('concept_ids', '')
     if not concept_ids_param:

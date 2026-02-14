@@ -19,7 +19,9 @@
       "Bash(git merge:*)",
       "Bash(npx next build:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "mcp__filesystem__read_text_file",
+      "mcp__filesystem__read_multiple_files"
     ]
   }
 }

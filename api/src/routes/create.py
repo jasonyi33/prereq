@@ -6,6 +6,7 @@ import hashlib
 from dotenv import load_dotenv
 
 from ..services.create_kg import create_kg, calculate_importance, parse_kg
+from ..middleware.auth import optional_auth
 
 load_dotenv()
 create = Blueprint(
@@ -29,6 +30,7 @@ def get_file_hash(file):
 
 
 @create.route('/api/upload', methods=['POST'])
+@optional_auth
 def upload_pdf():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400

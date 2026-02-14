@@ -1,7 +1,9 @@
 """
 Seed script for Prereq demo.
-Creates CS229 course, ~35 concepts, edges, 4 students, and pre-seeded mastery.
-Requires Flask API running on http://localhost:5000.
+Creates auth users, CS229 course with teacher/join code, ~35 concepts, edges,
+4 students with mastery, historical lecture, polls, and tutoring session.
+
+Requires: SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY in .env
 
 Usage:
     python scripts/seed_demo.py
@@ -9,29 +11,138 @@ Usage:
 
 import requests
 import sys
+import os
+import json
+from dotenv import load_dotenv
 
-FLASK_URL = "http://localhost:5000"
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+FLASK_URL = os.getenv("FLASK_API_URL", "http://localhost:5000")
+# If FLASK_URL points to prod, use localhost for seeding
+if "run.app" in FLASK_URL or "render" in FLASK_URL:
+    FLASK_URL = "http://localhost:5000"
+
+DEMO_PASSWORD = "prereq-demo-2024"
+JOIN_CODE = "CS229M"
 
 
-def api(method, path, json=None):
+def api(method, path, json_data=None):
     url = f"{FLASK_URL}{path}"
-    resp = getattr(requests, method)(url, json=json)
+    resp = getattr(requests, method)(url, json=json_data)
     if not resp.ok:
         print(f"  FAILED {method.upper()} {path}: {resp.status_code} {resp.text}")
         sys.exit(1)
     return resp.json()
 
 
+def get_supabase_admin():
+    """Create admin Supabase client using service role key."""
+    from supabase import create_client
+    url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if not service_key:
+        print("WARNING: SUPABASE_SERVICE_ROLE_KEY not set. Skipping auth user creation.")
+        print("  Set it from Supabase Dashboard > Settings > API > service_role key")
+        return None
+    return create_client(url, service_key)
+
+
+def get_supabase():
+    """Create regular Supabase client."""
+    from supabase import create_client
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    return create_client(url, key)
+
+
+def create_auth_user(admin_client, email, password, name, role):
+    """Create a Supabase auth user via admin API. Returns user ID or None."""
+    if not admin_client:
+        return None
+    try:
+        result = admin_client.auth.admin.create_user({
+            "email": email,
+            "password": password,
+            "email_confirm": True,
+            "user_metadata": {"name": name, "role": role},
+        })
+        return result.user.id
+    except Exception as e:
+        # User might already exist
+        if "already been registered" in str(e) or "already exists" in str(e):
+            # Look up existing user
+            users = admin_client.auth.admin.list_users()
+            for u in users:
+                if u.email == email:
+                    return u.id
+        print(f"  WARNING: Could not create auth user {email}: {e}")
+        return None
+
+
 def main():
     print("=== Prereq Demo Seed ===\n")
 
-    # 1. Create course
-    print("Creating course...")
-    course = api("post", "/api/courses", {"name": "CS229 Machine Learning", "description": "Stanford CS229 — Machine Learning"})
-    course_id = course["id"]
-    print(f"  Course: {course_id}\n")
+    supabase = get_supabase()
+    admin = get_supabase_admin()
 
-    # 2. Define concepts by category
+    # -------------------------------------------------------------------
+    # 1. Create auth users
+    # -------------------------------------------------------------------
+    print("Creating auth users...")
+
+    teacher_auth_id = create_auth_user(admin, "professor@stanford.edu", DEMO_PASSWORD, "Professor Andrew", "teacher")
+    if teacher_auth_id:
+        print(f"  Teacher: professor@stanford.edu -> {teacher_auth_id}")
+
+    student_auth = {}
+    for name, email in [("Alex", "alex@stanford.edu"), ("Jordan", "jordan@stanford.edu"),
+                         ("Sam", "sam@stanford.edu"), ("Taylor", "taylor@stanford.edu")]:
+        auth_id = create_auth_user(admin, email, DEMO_PASSWORD, name, "student")
+        if auth_id:
+            student_auth[name] = auth_id
+            print(f"  {name}: {email} -> {auth_id}")
+
+    print()
+
+    # -------------------------------------------------------------------
+    # 2. Create teacher row
+    # -------------------------------------------------------------------
+    teacher_id = None
+    if teacher_auth_id:
+        print("Creating teacher profile...")
+        existing = supabase.table("teachers").select("id").eq("auth_id", teacher_auth_id).execute().data
+        if existing:
+            teacher_id = existing[0]["id"]
+            print(f"  Teacher row already exists: {teacher_id}")
+        else:
+            result = supabase.table("teachers").insert({
+                "auth_id": teacher_auth_id,
+                "name": "Professor Andrew",
+                "email": "professor@stanford.edu",
+            }).execute()
+            teacher_id = result.data[0]["id"]
+            print(f"  Teacher row: {teacher_id}")
+        print()
+
+    # -------------------------------------------------------------------
+    # 3. Create course with teacher_id and join_code
+    # -------------------------------------------------------------------
+    print("Creating course...")
+    course_row = {
+        "name": "CS229 Machine Learning",
+        "description": "Stanford CS229 — Machine Learning",
+        "join_code": JOIN_CODE,
+    }
+    if teacher_id:
+        course_row["teacher_id"] = teacher_id
+
+    result = supabase.table("courses").insert(course_row).execute()
+    course_id = result.data[0]["id"]
+    print(f"  Course: {course_id} (join code: {JOIN_CODE})\n")
+
+    # -------------------------------------------------------------------
+    # 4. Insert concepts
+    # -------------------------------------------------------------------
     concepts_spec = [
         # Linear Algebra
         {"label": "Vectors", "description": "Mathematical objects with magnitude and direction", "category": "Linear Algebra", "difficulty": 1},
@@ -77,27 +188,6 @@ def main():
         {"label": "Bias-Variance Tradeoff", "description": "Balancing model complexity between underfitting and overfitting", "category": "Evaluation", "difficulty": 4},
     ]
 
-    # Insert concepts via Flask graph endpoint (which uses concept_nodes table)
-    # Flask doesn't have a bulk concept insert, so we use individual inserts via Supabase
-    # Actually, we need to use the courses upload endpoint or insert directly.
-    # The simplest approach: use the existing POST endpoint patterns.
-    # Looking at the Flask routes, there's no direct POST /api/concepts endpoint.
-    # The concepts are normally created via PDF upload.
-    # We'll need to insert via the courses graph endpoint or directly.
-    # Since the seed script is a one-time thing, let's call Supabase directly via Flask.
-    # Actually, let's just POST to a minimal endpoint. Since there isn't one, we'll
-    # use the Supabase REST API directly (the anon key allows inserts).
-
-    import os
-    from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
-
-    from supabase import create_client
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-    supabase = create_client(supabase_url, supabase_key)
-
-    # 3. Insert concepts
     print("Creating concepts...")
     label_to_id = {}
     for c in concepts_spec:
@@ -110,11 +200,11 @@ def main():
         }).execute()
         node_id = result.data[0]["id"]
         label_to_id[c["label"]] = node_id
-        print(f"  {c['label']} → {node_id}")
+    print(f"  Total concepts: {len(label_to_id)}\n")
 
-    print(f"\n  Total concepts: {len(label_to_id)}\n")
-
-    # 4. Insert edges (prerequisite relationships)
+    # -------------------------------------------------------------------
+    # 5. Insert edges
+    # -------------------------------------------------------------------
     edges_spec = [
         ("Vectors", "Matrices"),
         ("Matrices", "Matrix Multiplication"),
@@ -163,7 +253,9 @@ def main():
             edge_count += 1
     print(f"  Total edges: {edge_count}\n")
 
-    # 5. Create students
+    # -------------------------------------------------------------------
+    # 6. Create students (with auth_id if available)
+    # -------------------------------------------------------------------
     print("Creating students...")
     students_spec = [
         {"name": "Alex", "email": "alex@stanford.edu"},
@@ -174,18 +266,33 @@ def main():
 
     student_ids = {}
     for s in students_spec:
-        result = api("post", f"/api/courses/{course_id}/students", s)
-        student_ids[s["name"]] = result["id"]
-        print(f"  {s['name']} → {result['id']}")
+        row = {
+            "name": s["name"],
+            "email": s["email"],
+            "course_id": course_id,
+        }
+        auth_id = student_auth.get(s["name"])
+        if auth_id:
+            row["auth_id"] = auth_id
 
+        student = supabase.table("students").insert(row).execute().data[0]
+        student_ids[s["name"]] = student["id"]
+        print(f"  {s['name']} -> {student['id']}")
+
+    # Create mastery rows for all students
+    for sname, sid in student_ids.items():
+        mastery_rows = [{
+            "student_id": sid,
+            "concept_id": cid,
+            "confidence": 0.0,
+        } for cid in label_to_id.values()]
+        if mastery_rows:
+            supabase.table("student_mastery").insert(mastery_rows).execute()
     print()
 
-    # 6. Seed mastery values per student profile
-    # Alex: Strong — most 0.7-0.9, regularization/dropout at 0.5
-    # Jordan: Average — fundamentals 0.7+, intermediate 0.4-0.6, backprop/reg 0.15-0.3
-    # Sam: Struggling — neural net cluster 0.1-0.2, calculus 0.3-0.5, basic linear algebra 0.7+
-    # Taylor: Specific gaps — all math 0.8+, all neural network concepts 0.1-0.2
-
+    # -------------------------------------------------------------------
+    # 7. Seed mastery values
+    # -------------------------------------------------------------------
     mastery_profiles = {
         "Alex": {
             "Vectors": 0.9, "Matrices": 0.85, "Eigenvalues": 0.75, "Matrix Multiplication": 0.9,
@@ -241,16 +348,176 @@ def main():
             cid = label_to_id.get(concept_label)
             if not cid:
                 continue
-            api("put", f"/api/students/{sid}/mastery/{cid}", {"confidence": confidence})
+            supabase.table("student_mastery").update({
+                "confidence": confidence
+            }).eq("student_id", sid).eq("concept_id", cid).execute()
             count += 1
         print(f"  {student_name}: {count} mastery values set")
+    print()
 
-    print("\n=== Seed Complete ===")
+    # -------------------------------------------------------------------
+    # 8. Historical completed lecture
+    # -------------------------------------------------------------------
+    print("Creating historical lecture...")
+    lecture = supabase.table("lecture_sessions").insert({
+        "course_id": course_id,
+        "title": "CS229 Lecture 12: Intro to Neural Networks",
+        "status": "completed",
+    }).execute().data[0]
+    lecture_id = lecture["id"]
+    print(f"  Lecture: {lecture_id}\n")
+
+    # Transcript chunks
+    transcript_chunks_data = [
+        {"text": "Today we're going to talk about neural networks, starting from the basic building block — the perceptron.", "timestamp_sec": 0, "speaker_name": "Professor Andrew"},
+        {"text": "A perceptron takes a weighted sum of its inputs, adds a bias, and passes it through an activation function.", "timestamp_sec": 45, "speaker_name": "Professor Andrew"},
+        {"text": "The most common activation functions are ReLU, sigmoid, and tanh. ReLU is the most popular in modern networks.", "timestamp_sec": 120, "speaker_name": "Professor Andrew"},
+        {"text": "When we stack multiple layers of neurons together, we get a deep neural network. Each layer transforms the data.", "timestamp_sec": 210, "speaker_name": "Professor Andrew"},
+        {"text": "The forward pass computes the output by propagating the input through each layer sequentially.", "timestamp_sec": 300, "speaker_name": "Professor Andrew"},
+        {"text": "To train the network, we need to compute gradients of the loss with respect to each weight. This is where backpropagation comes in.", "timestamp_sec": 420, "speaker_name": "Professor Andrew"},
+        {"text": "Backpropagation applies the chain rule recursively through the computational graph to compute all gradients efficiently.", "timestamp_sec": 510, "speaker_name": "Professor Andrew"},
+        {"text": "Once we have the gradients, we update the weights using gradient descent — moving each weight in the direction that reduces the loss.", "timestamp_sec": 600, "speaker_name": "Professor Andrew"},
+        {"text": "The learning rate controls how large each step is. Too large and you overshoot, too small and training is slow.", "timestamp_sec": 690, "speaker_name": "Professor Andrew"},
+        {"text": "In practice, we use stochastic gradient descent with mini-batches rather than computing the gradient over the entire dataset.", "timestamp_sec": 780, "speaker_name": "Professor Andrew"},
+    ]
+
+    # Concept associations for transcript chunks
+    chunk_concepts = [
+        ["Perceptron"],
+        ["Perceptron", "Activation Functions"],
+        ["Activation Functions"],
+        ["Layers"],
+        ["Forward Pass"],
+        ["Backpropagation", "Gradients"],
+        ["Backpropagation", "Chain Rule", "Computational Graphs"],
+        ["Weight Updates", "Gradient Descent"],
+        ["Learning Rate"],
+        ["SGD"],
+    ]
+
+    print("Creating transcript chunks...")
+    chunk_ids = []
+    for i, chunk in enumerate(transcript_chunks_data):
+        result = supabase.table("transcript_chunks").insert({
+            "lecture_id": lecture_id,
+            "text": chunk["text"],
+            "timestamp_sec": chunk["timestamp_sec"],
+            "speaker_name": chunk["speaker_name"],
+        }).execute()
+        chunk_id = result.data[0]["id"]
+        chunk_ids.append(chunk_id)
+
+        # Link concepts
+        for label in chunk_concepts[i]:
+            cid = label_to_id.get(label)
+            if cid:
+                supabase.table("transcript_concepts").insert({
+                    "transcript_chunk_id": chunk_id,
+                    "concept_id": cid,
+                }).execute()
+    print(f"  {len(chunk_ids)} transcript chunks with concept links\n")
+
+    # -------------------------------------------------------------------
+    # 9. Historical closed polls
+    # -------------------------------------------------------------------
+    print("Creating historical polls...")
+
+    # Poll 1: about Backpropagation
+    poll1 = supabase.table("poll_questions").insert({
+        "lecture_id": lecture_id,
+        "concept_id": label_to_id["Backpropagation"],
+        "question": "What is the primary purpose of backpropagation in neural networks?",
+        "expected_answer": "To efficiently compute gradients of the loss function with respect to each weight in the network by applying the chain rule through the computational graph.",
+        "status": "closed",
+    }).execute().data[0]
+
+    # Poll 2: about Activation Functions
+    poll2 = supabase.table("poll_questions").insert({
+        "lecture_id": lecture_id,
+        "concept_id": label_to_id["Activation Functions"],
+        "question": "Why do neural networks need non-linear activation functions?",
+        "expected_answer": "Without non-linear activation functions, stacking multiple layers would be equivalent to a single linear transformation, making the network unable to learn complex non-linear relationships.",
+        "status": "closed",
+    }).execute().data[0]
+
+    # Poll responses matching student profiles
+    poll_responses = [
+        # Poll 1 (Backpropagation)
+        {"poll_id": poll1["id"], "student": "Alex", "answer": "Backpropagation computes the gradients of the loss with respect to every weight by applying the chain rule through the computational graph, allowing efficient gradient descent.", "eval": "correct"},
+        {"poll_id": poll1["id"], "student": "Jordan", "answer": "It propagates the error backwards through the network to update the weights somehow.", "eval": "partial"},
+        {"poll_id": poll1["id"], "student": "Sam", "answer": "It makes the network learn by going backwards.", "eval": "wrong"},
+        {"poll_id": poll1["id"], "student": "Taylor", "answer": "Backpropagation is the backward pass that computes all partial derivatives of the loss using the chain rule on the computational graph.", "eval": "correct"},
+        # Poll 2 (Activation Functions)
+        {"poll_id": poll2["id"], "student": "Alex", "answer": "Without non-linear activations, stacking layers would just be one big linear transformation, so the network couldn't learn non-linear decision boundaries.", "eval": "correct"},
+        {"poll_id": poll2["id"], "student": "Jordan", "answer": "They add non-linearity which helps the network learn more complex patterns.", "eval": "partial"},
+        {"poll_id": poll2["id"], "student": "Sam", "answer": "They make the neurons fire or not fire.", "eval": "wrong"},
+        {"poll_id": poll2["id"], "student": "Taylor", "answer": "I'm not sure, maybe to speed up training?", "eval": "wrong"},
+    ]
+
+    for pr in poll_responses:
+        evaluation = {
+            "eval_result": pr["eval"],
+            "feedback": f"{'Good understanding!' if pr['eval'] == 'correct' else 'Partially correct.' if pr['eval'] == 'partial' else 'Not quite right.'}",
+            "reasoning": f"Student response evaluated as {pr['eval']}.",
+        }
+        supabase.table("poll_responses").insert({
+            "question_id": pr["poll_id"],
+            "student_id": student_ids[pr["student"]],
+            "answer": pr["answer"],
+            "evaluation": json.dumps(evaluation),
+        }).execute()
+
+    print(f"  2 polls with {len(poll_responses)} responses\n")
+
+    # -------------------------------------------------------------------
+    # 10. Historical tutoring session for Sam
+    # -------------------------------------------------------------------
+    print("Creating tutoring session for Sam...")
+    session = supabase.table("tutoring_sessions").insert({
+        "student_id": student_ids["Sam"],
+        "target_concepts": [label_to_id["Backpropagation"], label_to_id["Chain Rule"]],
+    }).execute().data[0]
+    session_id = session["id"]
+
+    tutoring_messages = [
+        {"role": "assistant", "content": "Hi Sam! I noticed you're working on understanding backpropagation. Let's start with the basics — can you tell me what you know about how a neural network computes its output?"},
+        {"role": "user", "content": "I know it goes through layers and does some math but I'm not really sure about the details."},
+        {"role": "assistant", "content": "That's a good start! The forward pass is where the input data flows through each layer. At each neuron, the inputs are multiplied by weights, summed up, and then passed through an activation function. Now, backpropagation is essentially the reverse of this — it figures out how much each weight contributed to the error. Do you remember the chain rule from calculus?"},
+        {"role": "user", "content": "Kind of — it's when you multiply derivatives together for composed functions right?"},
+    ]
+
+    rows = []
+    for msg in tutoring_messages:
+        rows.append({
+            "session_id": session_id,
+            "role": msg["role"],
+            "content": msg["content"],
+        })
+    supabase.table("tutoring_messages").insert(rows).execute()
+    print(f"  Session {session_id} with {len(tutoring_messages)} messages\n")
+
+    # -------------------------------------------------------------------
+    # Done!
+    # -------------------------------------------------------------------
+    print("=" * 50)
+    print("=== Seed Complete ===")
+    print("=" * 50)
     print(f"\nCourse ID: {course_id}")
-    print("\nStudent IDs:")
+    print(f"Join Code: {JOIN_CODE}")
+    print(f"\nStudent IDs:")
     for name, sid in student_ids.items():
         print(f"  {name}: {sid}")
-    print("\nNext: Fill in .env with real keys, start Flask (cd api && python app.py), then run this script.")
+
+    if teacher_auth_id:
+        print(f"\n--- Demo Credentials ---")
+        print(f"Teacher:  professor@stanford.edu / {DEMO_PASSWORD}")
+        print(f"Alex:     alex@stanford.edu / {DEMO_PASSWORD}")
+        print(f"Jordan:   jordan@stanford.edu / {DEMO_PASSWORD}")
+        print(f"Sam:      sam@stanford.edu / {DEMO_PASSWORD}  (live participant)")
+        print(f"Taylor:   taylor@stanford.edu / {DEMO_PASSWORD}")
+        print(f"Join Code: {JOIN_CODE}")
+    else:
+        print(f"\n(Auth users not created — set SUPABASE_SERVICE_ROLE_KEY to enable)")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint
 
 from ..db import supabase
+from ..middleware.auth import optional_auth
 
 polls = Blueprint("polls", __name__)
 
@@ -8,6 +9,7 @@ polls = Blueprint("polls", __name__)
 # --- P1 CRUD endpoints ---
 
 @polls.route('/api/lectures/<lecture_id>/polls', methods=['POST'])
+@optional_auth
 def create_poll_for_lecture(lecture_id):
     data = request.json
     result = supabase.table('poll_questions').insert({
@@ -22,12 +24,14 @@ def create_poll_for_lecture(lecture_id):
 
 
 @polls.route('/api/lectures/<lecture_id>/polls', methods=['GET'])
+@optional_auth
 def get_lecture_polls(lecture_id):
     result = supabase.table('poll_questions').select('*').eq('lecture_id', lecture_id).execute()
     return jsonify(result.data), 200
 
 
 @polls.route('/api/polls/<poll_id>', methods=['PUT'])
+@optional_auth
 def update_poll(poll_id):
     data = request.json
     result = supabase.table('poll_questions').update(data).eq('id', poll_id).execute()
@@ -41,6 +45,7 @@ def update_poll(poll_id):
 # --- P3 endpoints ---
 
 @polls.route('/api/polls', methods=['POST'])
+@optional_auth
 def create_poll():
     data = request.json
     result = supabase.table('poll_questions').insert({
@@ -57,6 +62,7 @@ def create_poll():
 
 
 @polls.route('/api/polls/<poll_id>', methods=['GET'])
+@optional_auth
 def get_poll(poll_id):
     result = supabase.table('poll_questions').select(
         'id, question, expected_answer, concept_id, lecture_id, status'
@@ -68,6 +74,7 @@ def get_poll(poll_id):
 
 
 @polls.route('/api/polls/<poll_id>/status', methods=['PUT'])
+@optional_auth
 def update_poll_status(poll_id):
     data = request.json
     result = supabase.table('poll_questions').update({
@@ -80,6 +87,7 @@ def update_poll_status(poll_id):
 
 
 @polls.route('/api/polls/<poll_id>/responses', methods=['POST'])
+@optional_auth
 def create_poll_response(poll_id):
     data = request.json
     result = supabase.table('poll_responses').insert({
@@ -95,6 +103,7 @@ def create_poll_response(poll_id):
 
 
 @polls.route('/api/polls/<poll_id>/responses', methods=['GET'])
+@optional_auth
 def get_poll_responses(poll_id):
     result = supabase.table('poll_responses').select(
         'answer, evaluation'

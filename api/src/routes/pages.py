@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from flask import Blueprint, request, jsonify
 from ..db import supabase
 from ..services.generate_content import generate_learning_page, generate_practice_quiz, get_further_reading
+from ..middleware.auth import optional_auth
 from datetime import datetime
 
 load_dotenv()
@@ -9,6 +10,7 @@ pages = Blueprint('pages', __name__)
 
 
 @pages.route('/api/debug/test-claude', methods=['GET'])
+@optional_auth
 def test_claude():
     """Debug endpoint to test Claude directly"""
     import anthropic
@@ -30,6 +32,7 @@ def test_claude():
 
 
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
+@optional_auth
 def generate_page(student_id):
     """Generate personalized learning page based on mastery & past mistakes"""
     data = request.json
@@ -101,6 +104,7 @@ def generate_page(student_id):
 
 
 @pages.route('/api/pages/<page_id>', methods=['GET'])
+@optional_auth
 def get_page(page_id):
     """Get learning page by ID"""
     page = supabase.table('learning_pages').select('*').eq('id', page_id).single().execute()
@@ -112,6 +116,7 @@ def get_page(page_id):
 
 
 @pages.route('/api/students/<student_id>/pages', methods=['GET'])
+@optional_auth
 def list_student_pages(student_id):
     """List all pages for a student"""
     pages_data = supabase.table('learning_pages').select('*, concept_nodes(label)').eq('student_id', student_id).order(
@@ -121,6 +126,7 @@ def list_student_pages(student_id):
 
 
 @pages.route('/api/pages/<page_id>', methods=['DELETE'])
+@optional_auth
 def delete_page(page_id):
     """Delete learning page"""
     supabase.table('learning_pages').delete().eq('id', page_id).execute()
@@ -130,7 +136,7 @@ def delete_page(page_id):
 # ==================== PRACTICE QUIZZES ====================
 
 @pages.route('/api/pages/<page_id>/quiz/generate', methods=['POST'])
-@pages.route('/api/pages/<page_id>/quiz/generate', methods=['POST'])
+@optional_auth
 def generate_quiz(page_id):
     """Generate practice quiz for a learning page"""
     # Get page details
@@ -205,6 +211,7 @@ def generate_quiz(page_id):
 
 
 @pages.route('/api/quizzes/<quiz_id>', methods=['GET'])
+@optional_auth
 def get_quiz(quiz_id):
     """Get quiz with questions (but not correct answers if pending)"""
     quiz = supabase.table('practice_quizzes').select('*, quiz_questions(*)').eq('id', quiz_id).single().execute()
@@ -222,6 +229,7 @@ def get_quiz(quiz_id):
 
 
 @pages.route('/api/quizzes/<quiz_id>/submit', methods=['POST'])
+@optional_auth
 def submit_quiz(quiz_id):
     """Submit quiz answers and calculate score"""
     data = request.json
@@ -308,6 +316,7 @@ def submit_quiz(quiz_id):
 
 
 @pages.route('/api/students/<student_id>/quizzes', methods=['GET'])
+@optional_auth
 def list_student_quizzes(student_id):
     """List all quizzes for a student"""
     quizzes = supabase.table('practice_quizzes').select('*, concept_nodes(label)').eq('student_id', student_id).order(
@@ -317,6 +326,7 @@ def list_student_quizzes(student_id):
 
 
 @pages.route('/api/quizzes/<quiz_id>', methods=['DELETE'])
+@optional_auth
 def delete_quiz(quiz_id):
     """Delete quiz (cascades to questions and responses)"""
     supabase.table('practice_quizzes').delete().eq('id', quiz_id).execute()
@@ -324,6 +334,7 @@ def delete_quiz(quiz_id):
 
 
 @pages.route('/api/perplexity/query', methods=['POST'])
+@optional_auth
 def perplexity_query():
     """Query Perplexity with a custom prompt"""
     import requests

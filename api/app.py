@@ -12,10 +12,12 @@ from src.routes.transcripts import transcripts
 from src.routes.concepts import concepts
 from src.routes.polls import polls
 from src.routes.tutoring import tutoring
+from src.routes.auth import auth
 
 app = Flask(__name__)
 CORS(app)
 
+app.register_blueprint(auth)
 app.register_blueprint(create)
 app.register_blueprint(courses)
 app.register_blueprint(students)

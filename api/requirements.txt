@@ -6,3 +6,4 @@ pypdf2
 gunicorn
 python-dotenv
 requests
+pyjwt[crypto]

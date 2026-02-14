@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from ..db import supabase
+from ..middleware.auth import optional_auth
 
 load_dotenv()
 students = Blueprint("students", __name__)
@@ -22,12 +23,14 @@ def confidence_to_color(confidence):
 
 
 @students.route('/api/courses/<course_id>/students', methods=['GET'])
+@optional_auth
 def get_students(course_id):
     result = supabase.table('students').select('id, name, email').eq('course_id', course_id).execute()
     return jsonify(result.data), 200
 
 
 @students.route('/api/courses/<course_id>/students', methods=['POST'])
+@optional_auth
 def create_student(course_id):
     data = request.json
 
@@ -54,6 +57,7 @@ def create_student(course_id):
 
 
 @students.route('/api/students/<student_id>/mastery', methods=['GET'])
+@optional_auth
 def get_mastery(student_id):
     result = supabase.table('student_mastery').select('concept_id, confidence, attempts').eq('student_id',
                                                                                              student_id).execute()
@@ -66,6 +70,7 @@ def get_mastery(student_id):
 
 
 @students.route('/api/students/<student_id>/mastery/<concept_id>', methods=['PUT'])
+@optional_auth
 def update_mastery(student_id, concept_id):
     data = request.json
 
@@ -113,6 +118,7 @@ def update_mastery(student_id, concept_id):
 
 
 @students.route('/api/mastery/attendance-boost', methods=['POST'])
+@optional_auth
 def attendance_boost():
     data = request.json
     student_ids = data['student_ids']

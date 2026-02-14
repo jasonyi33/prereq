@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import TranscriptFeed, { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
 import ConceptHeatmap, { type HeatmapConcept } from "@/components/dashboard/ConceptHeatmap";
@@ -10,6 +11,7 @@ import PollControls from "@/components/dashboard/PollControls";
 import InterventionPanel from "@/components/dashboard/InterventionPanel";
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi, nextApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 function confidenceToColor(confidence: number): string {
   if (confidence === 0) return "gray";
@@ -19,7 +21,10 @@ function confidenceToColor(confidence: number): string {
 }
 
 export default function ProfessorDashboard() {
+  const router = useRouter();
+  const { user, role, courses: authCourses, signOut } = useAuth();
   const [courseId, setCourseId] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState<string | null>(null);
   const [lectureId, setLectureId] = useState<string | null>(null);
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
   const [timelineConcepts, setTimelineConcepts] = useState<TimelineConcept[]>([]);
@@ -28,11 +33,18 @@ export default function ProfessorDashboard() {
   const [totalStudents, setTotalStudents] = useState(0);
   const [demoStarting, setDemoStarting] = useState(false);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const socket = useSocket();
 
-  // Load course ID from localStorage or fetch from API
+  // Load course ID from auth context, then localStorage, then API
   useEffect(() => {
+    if (authCourses.length > 0) {
+      setCourseId(authCourses[0].id);
+      setJoinCode(authCourses[0].join_code || null);
+      localStorage.setItem("courseId", authCourses[0].id);
+      return;
+    }
     const stored = localStorage.getItem("courseId");
     if (stored) {
       setCourseId(stored);
@@ -40,14 +52,15 @@ export default function ProfessorDashboard() {
     }
     flaskApi
       .get("/api/courses")
-      .then((courses: { id: string }[]) => {
+      .then((courses: { id: string; join_code?: string }[]) => {
         if (courses.length > 0) {
           setCourseId(courses[0].id);
+          setJoinCode(courses[0].join_code || null);
           localStorage.setItem("courseId", courses[0].id);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [authCourses]);
 
   // Fetch heatmap data
   useEffect(() => {
@@ -260,17 +273,47 @@ export default function ProfessorDashboard() {
               <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">Live</span>
             </div>
           )}
+          {joinCode && (
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(joinCode);
+                setCodeCopied(true);
+                setTimeout(() => setCodeCopied(false), 2000);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+              title="Click to copy join code"
+            >
+              <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider font-mono">
+                {codeCopied ? "Copied!" : joinCode}
+              </span>
+            </button>
+          )}
         </div>
-        {!lectureId && (
-          <Button
-            size="sm"
-            onClick={handleStartDemo}
-            disabled={!courseId || demoStarting}
-            className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-sm"
-          >
-            {demoStarting ? "Starting..." : "Start Demo"}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!lectureId && (
+            <Button
+              size="sm"
+              onClick={handleStartDemo}
+              disabled={!courseId || demoStarting}
+              className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-sm"
+            >
+              {demoStarting ? "Starting..." : "Start Demo"}
+            </Button>
+          )}
+          {user && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                await signOut();
+                router.push("/");
+              }}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              Sign out
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* Main content */}
