@@ -379,10 +379,10 @@ export function setupRTMS(app: Express): void {
     try {
       const { teacherId } = req.params;
       await handleOAuth(teacherId)(req, res);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[RTMS] OAuth callback error:", err);
       if (!res.headersSent) {
-        res.status(500).send("OAuth callback failed — check server logs");
+        res.status(500).send(`OAuth callback failed: ${err?.message || err}`);
       }
     }
   });
