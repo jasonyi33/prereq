@@ -66,20 +66,15 @@ TEMPORAL ORDERING:
 
 Return ONLY valid JSON with this exact structure:
 {
-  "concepts": [
-    {
-      "label": "Topic Name",
-      "description": "...",
-      "category": "Category Name",
-      "difficulty": 3
-    }
-  ],
+  "nodes": {
+    "linear_reg": "Linear Regression & Normal Equations",
+    "gradient_descent": "Gradient Descent Optimization",
+    ...
+  },
   "edges": [
-    {
-      "source_label": "Prerequisite Topic",
-      "target_label": "Dependent Topic",
-      "relationship": "prerequisite"
-    }
+    ["gradient_descent", "linear_reg"],
+    ["linear_reg", "logistic_reg"],
+    ...
   ]
 }
 

@@ -87,7 +87,8 @@ def upload_pdf():
         node_id_map[label] = node['id']
 
     # Insert edges
-    for source_label, target_label in result['graph']['edges']:
+    for edge in result['graph']['edges']:
+        source_label, target_label = edge[0], edge[1]
         if source_label in node_id_map and target_label in node_id_map:
             supabase.table('concept_edges').insert({
                 'course_id': course_id,
