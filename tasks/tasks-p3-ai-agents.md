@@ -192,33 +192,33 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 3:** After completing tasks 5.0–6.0, merge to `main`. This aligns with Person 2 merging UI and Person 4 merging the simulator. After this merge, the full demo loop should work end-to-end.
 
-- [ ] 7.0 Build Perplexity resource search endpoint
-  - [ ] 7.1 Create `frontend/src/app/api/resources/search/route.ts` (GET handler):
+- [x] 7.0 Build Perplexity resource search endpoint
+  - [x] 7.1 Create `frontend/src/app/api/resources/search/route.ts` (GET handler):
     - Accept query params: `concept` (label string), `courseId`
     - Call Perplexity Sonar API (`https://api.perplexity.ai/chat/completions`) with model `sonar` and a prompt: "Find 3-5 learning resources (YouTube videos, articles, textbook chapters) for understanding [concept] in the context of [course name]. Return JSON: { resources: [{ title, url, type, snippet }] }"
     - Use `PERPLEXITY_API_KEY` from env
     - Parse and return `{ resources: [{ title, url, type, snippet }] }`
-  - [ ] 7.2 If `PERPLEXITY_API_KEY` is not set, return a hardcoded fallback with 2-3 generic resources (for testing without API credits)
-  - [ ] 7.3 Verify: call the endpoint with a concept name, confirm resources are returned
+  - [x] 7.2 If `PERPLEXITY_API_KEY` is not set, return a hardcoded fallback with 2-3 generic resources (for testing without API credits)
+  - [x] 7.3 Verify: call the endpoint with a concept name, confirm resources are returned
 
-- [ ] 8.0 Build intervention suggestions endpoint
-  - [ ] 8.1 Create `frontend/src/lib/prompts/intervention.ts`. Export:
+- [x] 8.0 Build intervention suggestions endpoint
+  - [x] 8.1 Create `frontend/src/lib/prompts/intervention.ts`. Export:
     - `buildInterventionPrompt(concepts: { label: string, description: string, distribution: { green: number, yellow: number, red: number, gray: number } }[]): string`
-  - [ ] 8.2 The prompt must instruct Claude Sonnet to:
+  - [x] 8.2 The prompt must instruct Claude Sonnet to:
     - Analyze which concepts have high red/yellow counts
     - Suggest specific teaching strategies (e.g., "Try a visual analogy for Chain Rule", "Use a code example for Backpropagation")
     - Return `{ "suggestions": [{ "concept_label": "...", "suggestion": "..." }] }`
-  - [ ] 8.3 Create `frontend/src/app/api/lectures/[id]/interventions/route.ts` (POST handler):
+  - [x] 8.3 Create `frontend/src/app/api/lectures/[id]/interventions/route.ts` (POST handler):
     - Accept `{ conceptIds: string[] }`
     - Fetch concept details and heatmap distribution from Flask (`GET /api/courses/:id/heatmap`)
     - Filter to the requested concept IDs
     - Call Claude Sonnet with the intervention prompt
     - Return `{ suggestions: [{ conceptId, conceptLabel, suggestion }] }`
-  - [ ] 8.4 Verify: call the endpoint with concept IDs that have high red counts, confirm useful suggestions
+  - [x] 8.4 Verify: call the endpoint with concept IDs that have high red counts, confirm useful suggestions
 
-- [ ] 9.0 Write tests for prompt output parsing and eval_result mapping
-  - [ ] 9.1 Ensure all parsing tests from tasks 2.3, 3.5, 4.3, 6.4 are in `frontend/src/lib/prompts/__tests__/parsing.test.ts`
-  - [ ] 9.2 Run full test suite: `npx vitest run`
-  - [ ] 9.3 Fix any parsing edge cases discovered during integration
+- [x] 9.0 Write tests for prompt output parsing and eval_result mapping
+  - [x] 9.1 Ensure all parsing tests from tasks 2.3, 3.5, 4.3, 6.4 are in `frontend/src/lib/prompts/__tests__/parsing.test.ts`
+  - [x] 9.2 Run full test suite: `npx vitest run`
+  - [x] 9.3 Fix any parsing edge cases discovered during integration
 
 > **MERGE POINT 4 (Final):** Merge any remaining fixes to `main`. All 4 devs should be on `main` for end-to-end demo testing. Focus on: does the full loop work? Transcript → concept detection → poll → evaluation → mastery update → graph recolor → heatmap update → tutoring.
