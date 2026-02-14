@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 import hashlib
 from dotenv import load_dotenv
 
-from ..services.create_kg import create_kg
+from ..services.create_kg import create_kg, calculate_importance, parse_kg
 
 load_dotenv()
 create = Blueprint(

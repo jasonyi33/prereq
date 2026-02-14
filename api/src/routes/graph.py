@@ -1,5 +1,5 @@
 from flask import request, jsonify, Blueprint
-from ..db import supabase
+from ...db import supabase
 from ..services.create_kg import calculate_importance
 
 graph = Blueprint("graph", __name__)
@@ -44,6 +44,7 @@ def get_graph(course_id):
         mastery_map = {m['concept_id']: m['confidence'] for m in mastery}
 
         for node in nodes:
+            node['importance'] = importance.get(node['label'], 0.5)
             conf = mastery_map.get(node['id'], 0.0)
             node['confidence'] = conf
             node['color'] = confidence_to_color(conf)
