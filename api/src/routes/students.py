@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from ..db import supabase
 from ..middleware.auth import optional_auth
+from ..cache import cache_get, cache_set, cache_delete_pattern
 
 load_dotenv()
 students = Blueprint("students", __name__)
@@ -33,6 +34,11 @@ def get_students(course_id):
 @optional_auth
 def get_students_summary(course_id):
     """Return all students with mastery distributions computed server-side."""
+    cache_key = f"students_summary:{course_id}"
+    hit = cache_get(cache_key)
+    if hit is not None:
+        return jsonify(hit), 200
+
     students_data = supabase.table('students').select('id, name').eq('course_id', course_id).limit(500).execute().data
     if not students_data:
         return jsonify([]), 200
@@ -60,6 +66,7 @@ def get_students_summary(course_id):
             'masteryDistribution': dist,
         })
 
+    cache_set(cache_key, result, ttl_seconds=10)
     return jsonify(result), 200
 
 
@@ -93,6 +100,11 @@ def create_student(course_id):
 @students.route('/api/students/<student_id>/mastery', methods=['GET'])
 @optional_auth
 def get_mastery(student_id):
+    cache_key = f"mastery:{student_id}"
+    hit = cache_get(cache_key)
+    if hit is not None:
+        return jsonify(hit), 200
+
     result = supabase.table('student_mastery').select('concept_id, confidence, attempts').eq('student_id',
                                                                                              student_id).execute()
 
@@ -100,6 +112,7 @@ def get_mastery(student_id):
     for m in mastery:
         m['color'] = confidence_to_color(m['confidence'])
 
+    cache_set(cache_key, mastery, ttl_seconds=10)
     return jsonify(mastery), 200
 
 
@@ -142,6 +155,12 @@ def update_mastery(student_id, concept_id):
         'attempts': old_attempts + (1 if 'eval_result' in data else 0)
     }).eq('student_id', student_id).eq('concept_id', concept_id).execute()
 
+    # Invalidate caches affected by mastery change
+    cache_delete_pattern(f"mastery:{student_id}")
+    cache_delete_pattern(f"graph:*:{student_id}")
+    cache_delete_pattern("heatmap:*")
+    cache_delete_pattern("students_summary:*")
+
     return jsonify({
         'concept_id': concept_id,
         'old_color': old_color,
@@ -177,5 +196,12 @@ def attendance_boost():
     # Batch update using upsert
     if to_update:
         supabase.table('student_mastery').upsert(to_update).execute()
+
+        # Invalidate caches for all affected students
+        for sid in student_ids:
+            cache_delete_pattern(f"mastery:{sid}")
+            cache_delete_pattern(f"graph:*:{sid}")
+        cache_delete_pattern("heatmap:*")
+        cache_delete_pattern("students_summary:*")
 
     return jsonify({'updated': len(to_update)}), 200

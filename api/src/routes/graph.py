@@ -2,6 +2,7 @@ from flask import request, jsonify, Blueprint
 from ..db import supabase
 from ..services.create_kg import calculate_importance
 from ..middleware.auth import optional_auth
+from ..cache import cache_get, cache_set
 
 graph = Blueprint("graph", __name__)
 
@@ -21,6 +22,12 @@ def confidence_to_color(confidence):
 @optional_auth
 def get_graph(course_id):
     student_id = request.args.get('student_id')
+
+    # Check Redis cache
+    cache_key = f"graph:{course_id}:{student_id or 'none'}"
+    hit = cache_get(cache_key)
+    if hit is not None:
+        return jsonify(hit), 200
 
     nodes = supabase.table('concept_nodes').select('*').eq('course_id', course_id).execute().data
     edges = supabase.table('concept_edges').select('*').eq('course_id', course_id).execute().data
@@ -51,4 +58,7 @@ def get_graph(course_id):
             node['confidence'] = conf
             node['color'] = confidence_to_color(conf)
 
-    return jsonify({'nodes': nodes, 'edges': edges}), 200
+    result = {'nodes': nodes, 'edges': edges}
+    # Cache with student mastery for 10s, without for 60s (structure changes rarely)
+    cache_set(cache_key, result, ttl_seconds=10 if student_id else 60)
+    return jsonify(result), 200
