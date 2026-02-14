@@ -131,23 +131,26 @@ def parse_kg(markdown: str) -> dict:
 
 
 def calculate_importance(graph: dict) -> dict:
-    """Calculate importance scores based on graph structure"""
-    G = nx.DiGraph()
+    """Calculate importance based on in-degree (how many nodes depend on this)"""
 
-    for node_id in graph['nodes'].keys():
-        G.add_node(node_id)
-    for source, target in graph['edges']:
-        G.add_edge(source, target)
+    # Count in-degrees (how many nodes have this as prerequisite)
+    in_degree = {node: 0 for node in graph['nodes'].keys()}
+    out_degree = {node: 0 for node in graph['nodes'].keys()}
 
-    pagerank = nx.pagerank(G)
+    for edge in graph['edges']:
+        source, target = edge[0], edge[1]
+        if source in in_degree and target in in_degree:
+            out_degree[source] += 1
+            in_degree[target] += 1
 
-    max_score = max(pagerank.values())
-    min_score = min(pagerank.values())
+    # Importance = foundational-ness (high in-degree = many depend on it)
+    max_in = max(in_degree.values()) if in_degree.values() else 1
 
     importance = {}
-    for node, score in pagerank.items():
-        normalized = (score - min_score) / (max_score - min_score) if max_score > min_score else 0.5
-        importance[node] = round(normalized, 3)
+    for node in graph['nodes'].keys():
+        # Normalize in-degree to 0-1 range
+        score = in_degree[node] / max_in if max_in > 0 else 0.5
+        importance[node] = round(score, 3)
 
     return importance
 

@@ -6,4 +6,3 @@ pypdf2
 gunicorn
 python-dotenv
 networkx
-numpy
