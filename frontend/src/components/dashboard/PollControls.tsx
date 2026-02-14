@@ -34,7 +34,7 @@ export default function PollControls({ lectureId }: PollControlsProps) {
     setGenerating(true);
     setError(null);
     try {
-      const data = await nextApi.post(`/api/lectures/${lectureId}/poll/generate`, {});
+      const data = await nextApi.post(`/api/lectures/${lectureId}/polls/generate`, {});
       setPoll({
         pollId: data.pollId,
         question: data.question,
@@ -54,7 +54,7 @@ export default function PollControls({ lectureId }: PollControlsProps) {
   async function handleActivate() {
     if (!lectureId || !poll.pollId) return;
     try {
-      await nextApi.post(`/api/lectures/${lectureId}/poll/${poll.pollId}/activate`, {});
+      await nextApi.post(`/api/lectures/${lectureId}/polls/${poll.pollId}/activate`, {});
       setPoll((p) => ({ ...p, status: "active" }));
     } catch (err) {
       console.error("Failed to activate poll:", err);
@@ -64,7 +64,7 @@ export default function PollControls({ lectureId }: PollControlsProps) {
   async function handleClose() {
     if (!lectureId || !poll.pollId) return;
     try {
-      const data = await nextApi.post(`/api/lectures/${lectureId}/poll/${poll.pollId}/close`, {});
+      const data = await nextApi.post(`/api/lectures/${lectureId}/polls/${poll.pollId}/close`, {});
       setPoll((p) => ({
         ...p,
         status: "closed",

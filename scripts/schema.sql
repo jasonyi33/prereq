@@ -112,6 +112,8 @@ CREATE TABLE teachers (
     auth_id UUID UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
+    zoom_client_id VARCHAR(255),
+    zoom_client_secret VARCHAR(255),
     created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -24,6 +24,8 @@ export default function LandingPage() {
   // Auto-redirect authenticated users
   useEffect(() => {
     if (loading || !user) return;
+    // Skip hero for authenticated users
+    setShowAuth(true);
     if (role === "teacher" && courses.length > 0) {
       localStorage.setItem("courseId", courses[0].id);
       router.push("/professor/dashboard");
