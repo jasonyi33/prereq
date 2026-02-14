@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx server/index.ts",
+    "postinstall": "cd node_modules/@zoom/rtms && prebuild-install -r napi || echo 'warn: @zoom/rtms prebuild not available'",
     "build": "next build",
     "start": "tsx server/index.ts",
     "lint": "eslint",
