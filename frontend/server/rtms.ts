@@ -287,8 +287,9 @@ function handleOAuth(teacherId: string | null) {
       }
       clientId = creds.zoom_client_id;
       clientSecret = creds.zoom_client_secret;
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-      redirectUri = `${appUrl}/auth/${teacherId}`;
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const host = req.headers["host"];
+      redirectUri = `${protocol}://${host}/auth/${teacherId}`;
     } else {
       clientId = process.env.ZOOM_CLIENT_ID || "";
       clientSecret = process.env.ZOOM_CLIENT_SECRET || "";
