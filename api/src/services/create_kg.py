@@ -156,7 +156,7 @@ def calculate_importance(graph: dict) -> dict:
     for node in graph['nodes'].keys():
         # Normalize in-degree to 0-1 range
         score = in_degree[node] / max_in if max_in > 0 else 0.5
-        importance[node] = sigmoid(round(score, 3) + 2)
+        importance[node] = sigmoid(round(score, 3) + 1)
 
     return importance
 

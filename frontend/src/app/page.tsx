@@ -181,6 +181,7 @@ export default function LandingPage() {
             <span className="text-sm text-gray-500 uppercase tracking-wider">Works with</span>
             <img src="/zoom-logo.png" alt="Zoom" className="h-10 opacity-80" />
             <img src="/stanford-logo.png" alt="Stanford" className="h-12 opacity-80" />
+            <img src="/stanford-logo.png" alt="Stanford" className="h-12 opacity-80" />
           </div>
         </div>
         <style jsx>{`

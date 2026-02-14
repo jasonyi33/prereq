@@ -6,6 +6,9 @@ import { X, Sparkles, Send, Loader2, ExternalLink } from "lucide-react";
 import { nextApi } from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 interface PerplexityDialogProps {
   isOpen: boolean;
@@ -184,9 +187,10 @@ export default function PerplexityDialog({
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-teal-700 uppercase tracking-wider mb-3">AI Response</p>
-                              <div className="prose prose-sm prose-gray max-w-none">
+                              <div className="prose prose-sm prose-gray max-w-none markdown-content">
                                 <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
+                                  remarkPlugins={[remarkGfm, remarkMath]}
+                                  rehypePlugins={[rehypeKatex]}
                                   components={{
                                     h1: ({ children }) => (
                                       <h1 className="text-lg font-semibold text-gray-800 mb-3 mt-4 first:mt-0">{children}</h1>
@@ -300,6 +304,45 @@ export default function PerplexityDialog({
           </motion.div>
         </>
       )}
+
+      {/* Custom styles for KaTeX math rendering */}
+      <style jsx global>{`
+        .markdown-content .katex {
+          font-size: 1.05em;
+        }
+        .markdown-content .katex-display {
+          margin: 1rem 0;
+          padding: 0.75rem;
+          background: linear-gradient(to bottom right, rgb(249 250 251), rgb(243 244 246));
+          border: 1px solid rgb(229 231 235);
+          border-radius: 0.5rem;
+          overflow-x: auto;
+        }
+        .markdown-content .katex-display > .katex {
+          margin: 0;
+        }
+        .markdown-content .katex-html {
+          color: rgb(55 65 81);
+        }
+        .markdown-content .katex .mord.text {
+          color: rgb(55 65 81);
+        }
+        .markdown-content p .katex {
+          padding: 0 0.125rem;
+        }
+        .markdown-content .katex .vlist-t {
+          color: rgb(55 65 81);
+        }
+        .markdown-content .katex .mop,
+        .markdown-content .katex .mbin,
+        .markdown-content .katex .mrel {
+          color: rgb(13 148 136);
+        }
+        .markdown-content .katex .mopen,
+        .markdown-content .katex .mclose {
+          color: rgb(107 114 128);
+        }
+      `}</style>
     </AnimatePresence>
   );
 }
