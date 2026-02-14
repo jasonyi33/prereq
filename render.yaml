@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: prereq-frontend
+    runtime: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npx tsx server/index.ts
+    envVars:
+      - key: FLASK_API_URL
+        sync: false  # Set to Cloud Run Flask service URL after deploying
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: DEMO_MODE
+        value: "true"
