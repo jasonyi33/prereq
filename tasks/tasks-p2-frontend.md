@@ -47,24 +47,24 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ## Tasks
 
-- [ ] 0.0 Create feature branch
-  - [ ] 0.1 Run `git checkout -b feat/p2-frontend` from `main`
+- [x] 0.0 Create feature branch
+  - [x] 0.1 Run `git checkout -b feat/p2-frontend` from `main`
 
-- [ ] 1.0 Set up Next.js pages, Tailwind CSS, and shadcn/ui component library
-  - [ ] 1.1 Verify `frontend/` directory exists with Next.js 14+ (App Router). If not, run `npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir`. **DEPENDENCY: Coordinate with Person 4** who is also setting up the frontend directory for the custom Express server. Person 4 should create the Next.js project first, then Person 2 adds UI scaffolding on top.
-  - [ ] 1.2 Initialize shadcn/ui: `cd frontend && npx shadcn-ui@latest init`. Select defaults (New York style, zinc base color). Add core components: `npx shadcn-ui@latest add button card input textarea select dropdown-menu dialog badge`
-  - [ ] 1.3 Install additional dependencies: `npm install react-force-graph-2d recharts socket.io-client`
-  - [ ] 1.4 Create `frontend/src/lib/colors.ts` with `confidenceToColor()` function and a hex map constant:
+- [x] 1.0 Set up Next.js pages, Tailwind CSS, and shadcn/ui component library
+  - [x] 1.1 Verify `frontend/` directory exists with Next.js 14+ (App Router). If not, run `npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir`. **DEPENDENCY: Coordinate with Person 4** who is also setting up the frontend directory for the custom Express server. Person 4 should create the Next.js project first, then Person 2 adds UI scaffolding on top.
+  - [x] 1.2 Initialize shadcn/ui: `cd frontend && npx shadcn-ui@latest init`. Select defaults (New York style, zinc base color). Add core components: `npx shadcn-ui@latest add button card input textarea select dropdown-menu dialog badge`
+  - [x] 1.3 Install additional dependencies: `npm install react-force-graph-2d recharts socket.io-client`
+  - [x] 1.4 Create `frontend/src/lib/colors.ts` with `confidenceToColor()` function and a hex map constant:
     ```
     gray → #94a3b8, red → #ef4444, yellow → #eab308, green → #22c55e, active → #3b82f6
     ```
-  - [ ] 1.5 Create `frontend/src/lib/api.ts` with fetch helpers: `flaskApi.get(path)`, `flaskApi.put(path, body)`, `nextApi.post(path, body)` — these prepend `FLASK_API_URL` or `/api` and handle JSON parsing. Keep it simple, no axios.
-  - [ ] 1.6 Create the 4 page files as empty shells (just a div with the page name) so routing works:
+  - [x] 1.5 Create `frontend/src/lib/api.ts` with fetch helpers: `flaskApi.get(path)`, `flaskApi.put(path, body)`, `nextApi.post(path, body)` — these prepend `FLASK_API_URL` or `/api` and handle JSON parsing. Keep it simple, no axios.
+  - [x] 1.6 Create the 4 page files as empty shells (just a div with the page name) so routing works:
     - `frontend/src/app/page.tsx` (landing)
     - `frontend/src/app/professor/dashboard/page.tsx`
     - `frontend/src/app/student/[studentId]/page.tsx`
     - `frontend/src/app/student/[studentId]/tutor/page.tsx`
-  - [ ] 1.7 Verify: `npm run dev` starts without errors, all 4 routes render their shell content
+  - [x] 1.7 Verify: `npm run dev` starts without errors, all 4 routes render their shell content
 
 > **MERGE POINT 1:** After completing tasks 0.0–1.0, merge to `main`. This aligns with Person 1 merging Flask scaffolding and Person 4 merging the Express server. After this merge, the full project structure exists on `main`.
 
