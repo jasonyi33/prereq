@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from flask import request, jsonify, Blueprint
 from ..db import supabase
 from ..middleware.auth import optional_auth
+from ..cache import cache_get, cache_set
 
 load_dotenv()
 heatmap = Blueprint("heatmap", __name__)
@@ -21,6 +22,12 @@ def confidence_to_color(confidence):
 @heatmap.route('/api/courses/<course_id>/heatmap', methods=['GET'])
 @optional_auth
 def get_heatmap(course_id):
+    # Check Redis cache
+    cache_key = f"heatmap:{course_id}"
+    hit = cache_get(cache_key)
+    if hit is not None:
+        return jsonify(hit), 200
+
     # Get all concepts for the course
     concepts = supabase.table('concept_nodes').select('id, label, category').eq('course_id', course_id).execute().data
 
@@ -65,7 +72,9 @@ def get_heatmap(course_id):
             "avg_confidence": round(avg_confidence, 2)
         })
 
-    return jsonify({
+    result = {
         "concepts": heatmap_data,
         "total_students": total_students
-    }), 200
+    }
+    cache_set(cache_key, result, ttl_seconds=5)
+    return jsonify(result), 200

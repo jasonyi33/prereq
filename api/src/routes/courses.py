@@ -11,6 +11,7 @@ from ..db import supabase
 
 from ..services.create_kg import create_kg, parse_kg, calculate_importance
 from ..middleware.auth import optional_auth, require_auth
+from ..cache import cache_delete_pattern
 
 load_dotenv()
 courses = Blueprint("courses", __name__)
@@ -202,6 +203,9 @@ def upload_course_pdf(course_id):
                 'source_id': node_id_map[source_label],
                 'target_id': node_id_map[target_label]
             }).execute()
+
+    # Invalidate graph cache for this course
+    cache_delete_pattern(f"graph:{course_id}:*")
 
     return jsonify(graph_data), 200
 
