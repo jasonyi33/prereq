@@ -1,10 +1,23 @@
 // Zoom RTMS integration — receives live meeting transcripts via Zoom's RTMS SDK
 // Supports both global env-var credentials (legacy/demo) and per-teacher credentials
 
-import rtms from "@zoom/rtms";
 import { createHmac } from "crypto";
 import type { Express } from "express";
 import { supabase } from "./db";
+
+// Lazy-load @zoom/rtms SDK — only needed when actually connecting to a meeting.
+// Webhook validation and OAuth work without it, so routes register even if SDK is missing.
+let rtms: any = null;
+async function getRtmsSdk(): Promise<any> {
+  if (!rtms) {
+    try {
+      rtms = (await import("@zoom/rtms")).default;
+    } catch {
+      throw new Error("@zoom/rtms SDK not installed — RTMS connections unavailable");
+    }
+  }
+  return rtms;
+}
 
 const RTMS_EVENTS = ["meeting.rtms_started", "webinar.rtms_started", "session.rtms_started"];
 const RTMS_STOP_EVENTS = ["meeting.rtms_stopped", "webinar.rtms_stopped", "session.rtms_stopped"];
@@ -164,7 +177,8 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     teacherLectures.set(teacherId, lectureId);
   }
 
-  const client = new rtms.Client();
+  const sdk = await getRtmsSdk();
+  const client = new sdk.Client();
   activeStreams.set(streamId, { client, teacherId, lectureId });
 
   let startTime = Date.now();
