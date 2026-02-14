@@ -39,7 +39,9 @@ async function getConceptMap(lectureId: string): Promise<{ labels: string[]; lab
   }
 
   const cached = { labels, labelToId };
-  conceptCache.set(lectureId, cached);
+  if (labels.length > 0) {
+    conceptCache.set(lectureId, cached);
+  }
   return cached;
 }
 

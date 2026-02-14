@@ -45,6 +45,18 @@ export function setupSocket(ioServer: Server): void {
         lectureStudents.get(lectureId)!.add(studentId);
       }
 
+      // Clean up previous lecture if socket is re-joining
+      const prev = socketMeta.get(socket.id);
+      if (prev?.studentId) {
+        const prevSet = lectureStudents.get(prev.lectureId);
+        if (prevSet) {
+          prevSet.delete(prev.studentId);
+          if (prevSet.size === 0) {
+            lectureStudents.delete(prev.lectureId);
+          }
+        }
+      }
+
       // Store socket metadata for disconnect cleanup
       socketMeta.set(socket.id, { lectureId, studentId });
 
