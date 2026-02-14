@@ -201,10 +201,6 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     teacherLectures.set(teacherId, lectureId);
   }
 
-  // Set SDK env vars BEFORE constructing Client — the SDK reads these at construction time
-  process.env.ZM_RTMS_CLIENT = clientId;
-  process.env.ZM_RTMS_SECRET = clientSecret;
-
   let sdk: any;
   try {
     sdk = await getRtmsSdk();
@@ -232,7 +228,7 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
   });
 
   client.onJoinConfirm((reason: number) => {
-    diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}`);
+    diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}, clientId=${clientId.slice(0, 8)}...`);
     startTime = Date.now();
   });
 
@@ -244,8 +240,9 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     }
   });
 
-  diag("join", `Calling client.join() with streamId=${streamId}`);
-  client.join(payload);
+  // Pass credentials directly to join() — avoids env var race conditions with multiple teachers
+  diag("join", `Calling client.join() with streamId=${streamId}, clientId=${clientId.slice(0, 8)}..., secretLen=${clientSecret.length}`);
+  client.join({ ...payload, client: clientId, secret: clientSecret });
 
   diag("join", "client.join() called — waiting for onJoinConfirm callback...");
 }
