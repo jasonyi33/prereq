@@ -1,5 +1,6 @@
 import tempfile
 
+import networkx as nx
 from PyPDF2 import PdfReader, PdfWriter
 import anthropic
 import os
@@ -63,28 +64,30 @@ TEMPORAL ORDERING:
 - But only create edges where there's a genuine prerequisite relationship
 - A topic from Ch 2 can have no incoming edges if it doesn't require Ch 1 concepts
 
-OUTPUT FORMAT (strict markdown):
+Return ONLY valid JSON with this exact structure:
+{
+  "nodes": {
+    "linear_reg": "Linear Regression & Normal Equations",
+    "gradient_descent": "Gradient Descent Optimization",
+    ...
+  },
+  "edges": [
+    ["gradient_descent", "linear_reg"],
+    ["linear_reg", "logistic_reg"],
+    ...
+  ]
+}
 
-## Nodes
-- linear_reg: Linear Regression & Normal Equations
-- gradient_descent: Gradient Descent Optimization
-- logistic_reg: Logistic Regression & Classification
-- neural_nets: Neural Networks & Deep Learning
-...
-
-## Edges
-- linear_reg -> logistic_reg
-- gradient_descent -> linear_reg
-- gradient_descent -> logistic_reg
-- linear_reg -> neural_nets
-...
-
-REQUIREMENTS:
-- MUST be a valid DAG (no cycles)
+Requirements:
+- 20-30 concept nodes covering all major topics
+- Edges form a DAG (no cycles)
 - Use concise snake_case IDs (e.g., linear_reg, svm, k_means)
-- Node descriptions should be 2-8 words, capturing the main concept
-- 20-30 nodes total
-- Only include edges that represent genuine prerequisite relationships"""
+- Each edge: source is prerequisite for target
+- Only include edges that represent genuine prerequisite relationships
+- Difficulty: 1-5 scale
+
+Return ONLY the JSON object.
+"""
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -112,33 +115,45 @@ REQUIREMENTS:
 
     return message.content[0].text
 
+
 def parse_kg(markdown: str) -> dict:
-    """Parse markdown KG into dictionary format"""
-    lines = markdown.strip().split('\n')
-    nodes = {}
-    edges = []
+    import json
+    text = markdown.strip()
 
-    section = None
-    for line in lines:
-        line = line.strip()
-        if line == "## Nodes":
-            section = "nodes"
-        elif line == "## Edges":
-            section = "edges"
-        elif line.startswith('- ') and section == "nodes":
-            # Parse: - node_id: Module Name
-            parts = line[2:].split(': ', 1)
-            if len(parts) == 2:
-                node_id = parts[0].strip()
-                node_info = parts[1].strip()
-                nodes[node_id] = node_info
-        elif line.startswith('- ') and section == "edges":
-            # Parse: - source -> target
-            parts = line[2:].split(' -> ')
-            if len(parts) == 2:
-                edges.append((parts[0].strip(), parts[1].strip()))
+    # Strip markdown code blocks if present
+    if '```' in text:
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+        text = text.strip()
 
-    return {"nodes": nodes, "edges": edges}
+    return json.loads(text)
+
+
+def calculate_importance(graph: dict) -> dict:
+    """Calculate importance based on in-degree (how many nodes depend on this)"""
+
+    # Count in-degrees (how many nodes have this as prerequisite)
+    in_degree = {node: 0 for node in graph['nodes'].keys()}
+    out_degree = {node: 0 for node in graph['nodes'].keys()}
+
+    for edge in graph['edges']:
+        source, target = edge[0], edge[1]
+        if source in in_degree and target in in_degree:
+            out_degree[source] += 1
+            in_degree[target] += 1
+
+    # Importance = foundational-ness (high in-degree = many depend on it)
+    max_in = max(in_degree.values()) if in_degree.values() else 1
+
+    importance = {}
+    for node in graph['nodes'].keys():
+        # Normalize in-degree to 0-1 range
+        score = in_degree[node] / max_in if max_in > 0 else 0.5
+        importance[node] = round(score, 3)
+
+    return importance
+
 
 if __name__ == '__main__':
     kg_markdown = create_kg("main_notes.pdf")
