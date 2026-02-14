@@ -117,9 +117,12 @@ Requirements:
 def get_further_reading(concept_label: str, concept_description: str) -> list:
     """Get 3 relevant links using Perplexity"""
     import requests
+    import sys
 
     perplexity_key = os.getenv("PERPLEXITY_API_KEY")
+
     if not perplexity_key:
+        print("[ERROR] No Perplexity API key", file=sys.stderr)
         return []
 
     prompt = f"""Find 3 high-quality educational resources for learning about: {concept_label}
@@ -147,13 +150,14 @@ Return ONLY valid JSON:
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama-3.1-sonar-small-128k-online",
+                "model": "sonar",
                 "messages": [{"role": "user", "content": prompt}]
             },
             timeout=15
         )
 
         if response.status_code != 200:
+            print(f"[ERROR] Perplexity failed: {response.text}", file=sys.stderr)
             return []
 
         result = response.json()
@@ -167,8 +171,11 @@ Return ONLY valid JSON:
                 lines = lines[:-1]
             content = '\n'.join(lines).strip()
 
-        return json.loads(content)
+        parsed = json.loads(content)
+        return parsed
 
     except Exception as e:
-        print(f"[ERROR] Perplexity API failed: {e}")
+        print(f"[ERROR] Perplexity exception: {type(e).__name__}: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         return []

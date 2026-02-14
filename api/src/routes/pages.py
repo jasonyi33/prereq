@@ -28,7 +28,6 @@ def test_claude():
 
 
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
-@pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
 def generate_page(student_id):
     """Generate personalized learning page based on mastery & past mistakes"""
     data = request.json
