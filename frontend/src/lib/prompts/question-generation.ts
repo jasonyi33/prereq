@@ -80,7 +80,7 @@ export async function generateQuestion(
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 512,
     messages: [{ role: "user", content: prompt }],
-  });
+  }, { timeout: 15000 });
 
   const content = message.content[0];
   if (content.type !== "text") {

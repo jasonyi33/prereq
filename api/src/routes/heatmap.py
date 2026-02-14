@@ -28,28 +28,34 @@ def get_heatmap(course_id):
     students = supabase.table('students').select('id').eq('course_id', course_id).execute().data
     total_students = len(students)
 
-    heatmap_data = []
+    if not concepts:
+        return jsonify({"concepts": [], "total_students": total_students}), 200
 
+    # Batch: fetch ALL mastery records for all concepts in one query
+    concept_ids = [c['id'] for c in concepts]
+    all_mastery = supabase.table('student_mastery').select('concept_id, confidence').in_(
+        'concept_id', concept_ids
+    ).limit(5000).execute().data
+
+    # Group mastery records by concept_id in Python
+    mastery_by_concept = {}
+    for record in all_mastery:
+        cid = record['concept_id']
+        mastery_by_concept.setdefault(cid, []).append(record['confidence'])
+
+    heatmap_data = []
     for concept in concepts:
         concept_id = concept['id']
-
-        # Get all mastery records for this concept
-        mastery_records = supabase.table('student_mastery').select('confidence').eq(
-            'concept_id', concept_id
-        ).execute().data
+        confidences = mastery_by_concept.get(concept_id, [])
 
         # Count colors
         distribution = {"green": 0, "yellow": 0, "red": 0, "gray": 0}
         total_confidence = 0
+        for conf in confidences:
+            distribution[confidence_to_color(conf)] += 1
+            total_confidence += conf
 
-        for record in mastery_records:
-            confidence = record['confidence']
-            color = confidence_to_color(confidence)
-            distribution[color] += 1
-            total_confidence += confidence
-
-        # Calculate average
-        avg_confidence = total_confidence / len(mastery_records) if mastery_records else 0.0
+        avg_confidence = total_confidence / len(confidences) if confidences else 0.0
 
         heatmap_data.append({
             "id": concept_id,

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from src.routes.pages import pages
@@ -30,6 +30,13 @@ app.register_blueprint(polls)
 app.register_blueprint(tutoring)
 app.register_blueprint(pages)
 
+
+
+@app.after_request
+def add_cache_headers(response):
+    if request.method == 'GET' and response.status_code == 200:
+        response.headers['Cache-Control'] = 'public, max-age=5'
+    return response
 
 
 @app.route('/api/health', methods=['GET'])

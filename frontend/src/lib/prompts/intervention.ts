@@ -60,6 +60,8 @@ export async function generateInterventions(
   concepts: ConceptDistribution[]
 ): Promise<InterventionSuggestion[]> {
   const prompt = buildInterventionPrompt(concepts);
+  console.log("=== INTERVENTION DEBUG ===");
+  console.log("Input concepts:", JSON.stringify(concepts, null, 2));
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-5-20250929",
@@ -69,5 +71,11 @@ export async function generateInterventions(
 
   const content =
     message.content[0].type === "text" ? message.content[0].text : "";
-  return parseInterventionResponse(content);
+  console.log("Claude raw response:", content);
+
+  const parsed = parseInterventionResponse(content);
+  console.log("Parsed suggestions:", JSON.stringify(parsed, null, 2));
+  console.log("=== END DEBUG ===");
+
+  return parsed;
 }

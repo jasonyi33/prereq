@@ -11,6 +11,9 @@ export async function POST(
     conceptIds: string[];
   };
 
+  console.log("=== INTERVENTIONS ROUTE DEBUG ===");
+  console.log("Received conceptIds:", conceptIds);
+
   if (!conceptIds || conceptIds.length === 0) {
     return NextResponse.json(
       { error: "conceptIds array is required" },
@@ -65,6 +68,8 @@ export async function POST(
         distribution: { green: number; yellow: number; red: number; gray: number };
       }[];
 
+    console.log("Target concepts to send to Claude:", JSON.stringify(targetConcepts, null, 2));
+
     if (targetConcepts.length === 0) {
       return NextResponse.json(
         { error: "No matching concepts found in heatmap" },
@@ -74,6 +79,7 @@ export async function POST(
 
     // Generate intervention suggestions via Claude Sonnet
     const rawSuggestions = await generateInterventions(targetConcepts);
+    console.log("Raw suggestions from generateInterventions:", rawSuggestions);
 
     // Map concept labels back to IDs
     const labelToId = new Map(concepts.map((c) => [c.label, c.id]));

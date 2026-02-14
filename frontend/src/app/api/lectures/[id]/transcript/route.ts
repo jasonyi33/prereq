@@ -1,27 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { flaskGet, flaskPost } from "@/lib/flask";
+import { flaskPost } from "@/lib/flask";
 import { detectConcepts } from "@/lib/prompts/concept-detection";
+import { getConceptMap } from "@/lib/concept-cache";
 import { emitToLectureRoom, getStudentsInLecture } from "@server/socket-helpers";
-
-// Cache: lectureId → { labels: string[], labelToId: Map<string, string> }
-const conceptCache = new Map<string, { labels: string[]; labelToId: Map<string, string> }>();
-
-interface LectureData {
-  id: string;
-  course_id: string;
-  title: string;
-  status: string;
-}
-
-interface GraphNode {
-  id: string;
-  label: string;
-}
-
-interface GraphData {
-  nodes: GraphNode[];
-  edges: unknown[];
-}
 
 interface TranscriptChunk {
   id: string;
@@ -29,31 +10,6 @@ interface TranscriptChunk {
   text: string;
   timestamp_sec: number;
   speaker_name: string | null;
-}
-
-async function getConceptMap(lectureId: string): Promise<{ labels: string[]; labelToId: Map<string, string> }> {
-  if (conceptCache.has(lectureId)) {
-    return conceptCache.get(lectureId)!;
-  }
-
-  // Look up course_id for this lecture via Flask
-  const lecture = await flaskGet<LectureData>(`/api/lectures/${lectureId}`);
-
-  // Fetch concepts from Flask
-  const graph = await flaskGet<GraphData>(`/api/courses/${lecture.course_id}/graph`);
-
-  const labelToId = new Map<string, string>();
-  const labels: string[] = [];
-  for (const node of graph.nodes || []) {
-    labels.push(node.label);
-    labelToId.set(node.label, node.id);
-  }
-
-  const cached = { labels, labelToId };
-  if (labels.length > 0) {
-    conceptCache.set(lectureId, cached);
-  }
-  return cached;
 }
 
 export async function POST(
@@ -88,18 +44,16 @@ export async function POST(
     }
   );
 
-  // Step 4: Call Flask attendance-boost (skip if no concepts detected)
+  // Step 4: Fire-and-forget attendance-boost (non-blocking — no need to await)
   if (detectedConcepts.length > 0) {
     const studentIds = getStudentsInLecture(lectureId);
     if (studentIds.length > 0) {
-      try {
-        await flaskPost("/api/mastery/attendance-boost", {
-          concept_ids: detectedConcepts.map((c) => c.id),
-          student_ids: studentIds,
-        });
-      } catch {
-        // Flask endpoint may not exist yet — silently skip
-      }
+      flaskPost("/api/mastery/attendance-boost", {
+        concept_ids: detectedConcepts.map((c) => c.id),
+        student_ids: studentIds,
+      }).catch((err) =>
+        console.warn("attendance-boost failed (non-critical):", err)
+      );
     }
   }
 

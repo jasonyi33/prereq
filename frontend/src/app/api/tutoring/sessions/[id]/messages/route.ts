@@ -112,7 +112,7 @@ export async function POST(
     max_tokens: 512,
     system: systemPrompt,
     messages: conversationHistory,
-  });
+  }, { timeout: 15000 });
 
   const assistantContent =
     aiMessage.content[0].type === "text"

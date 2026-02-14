@@ -108,14 +108,15 @@ def get_mastery(student_id):
 def update_mastery(student_id, concept_id):
     data = request.json
 
-    # Get current mastery
-    current = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq('concept_id',
+    # Get current mastery (fetch confidence and attempts in one query)
+    current = supabase.table('student_mastery').select('confidence, attempts').eq('student_id', student_id).eq('concept_id',
                                                                                                      concept_id).execute().data
 
     if not current:
         return jsonify({'error': 'Mastery record not found'}), 404
 
     old_confidence = current[0]['confidence']
+    old_attempts = current[0]['attempts']
     old_color = confidence_to_color(old_confidence)
 
     # Calculate new confidence
@@ -135,12 +136,10 @@ def update_mastery(student_id, concept_id):
 
     new_color = confidence_to_color(new_confidence)
 
-    # Update
+    # Update (no nested query — reuse attempts from the first read)
     supabase.table('student_mastery').update({
         'confidence': new_confidence,
-        'attempts': supabase.table('student_mastery').select('attempts').eq('student_id', student_id).eq('concept_id',
-                                                                                                         concept_id).execute().data[
-                        0]['attempts'] + (1 if 'eval_result' in data else 0)
+        'attempts': old_attempts + (1 if 'eval_result' in data else 0)
     }).eq('student_id', student_id).eq('concept_id', concept_id).execute()
 
     return jsonify({
@@ -158,23 +157,25 @@ def attendance_boost():
     student_ids = data['student_ids']
     concept_ids = data['concept_ids']
 
-    updated = 0
-    for student_id in student_ids:
-        for concept_id in concept_ids:
-            # Get current confidence
-            current = supabase.table('student_mastery').select('confidence').eq(
-                'student_id', student_id
-            ).eq('concept_id', concept_id).execute().data
+    if not student_ids or not concept_ids:
+        return jsonify({'updated': 0}), 200
 
-            if current:
-                old_conf = current[0]['confidence']
-                # Add 0.05, but cap at 0.3 for passive boosts
-                new_conf = min(old_conf + 0.05, 0.3) if old_conf < 0.3 else old_conf
+    # Batch read: fetch all relevant mastery rows in one query
+    all_mastery = supabase.table('student_mastery').select('id, student_id, concept_id, confidence').in_(
+        'student_id', student_ids
+    ).in_('concept_id', concept_ids).execute().data
 
-                if new_conf != old_conf:
-                    supabase.table('student_mastery').update({
-                        'confidence': new_conf
-                    }).eq('student_id', student_id).eq('concept_id', concept_id).execute()
-                    updated += 1
+    # Calculate which rows need updating
+    to_update = []
+    for row in all_mastery:
+        old_conf = row['confidence']
+        if old_conf < 0.3:
+            new_conf = min(old_conf + 0.05, 0.3)
+            if new_conf != old_conf:
+                to_update.append({'id': row['id'], 'confidence': new_conf})
 
-    return jsonify({'updated': updated}), 200
+    # Batch update using upsert
+    if to_update:
+        supabase.table('student_mastery').upsert(to_update).execute()
+
+    return jsonify({'updated': len(to_update)}), 200

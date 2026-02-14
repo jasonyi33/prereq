@@ -74,7 +74,7 @@ export async function detectConcepts(
     model: "claude-haiku-4-5-20251001",
     max_tokens: 256,
     messages: [{ role: "user", content: prompt }],
-  });
+  }, { timeout: 5000 });
 
   const content = message.content[0];
   if (content.type !== "text") return [];

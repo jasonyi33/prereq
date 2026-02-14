@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateQuestion } from "@/lib/prompts/question-generation";
+import { getConceptMap } from "@/lib/concept-cache";
 import { flaskGet, flaskPost } from "@/lib/flask";
 
 export async function POST(
@@ -10,27 +11,18 @@ export async function POST(
   const body = await request.json();
   let { conceptId } = body as { conceptId?: string };
 
-  // Get the lecture to find the course_id
-  let lecture: { id: string; course_id: string; title: string; status: string };
+  // Fetch concept map (cached — avoids redundant lecture + graph fetches)
+  let conceptMap;
   try {
-    lecture = await flaskGet(`/api/lectures/${lectureId}`);
+    conceptMap = await getConceptMap(lectureId);
   } catch {
     return NextResponse.json(
-      { error: "Lecture not found" },
+      { error: "Lecture or course graph not found" },
       { status: 404 }
     );
   }
 
-  // Fetch the course graph (needed for fallback and concept lookup)
-  let graph: { nodes: { id: string; label: string; description?: string }[] };
-  try {
-    graph = await flaskGet(`/api/courses/${lecture.course_id}/graph`);
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to fetch course graph" },
-      { status: 502 }
-    );
-  }
+  const { nodes } = conceptMap;
 
   // If no conceptId provided, use the most recently detected concept
   if (!conceptId) {
@@ -40,8 +32,6 @@ export async function POST(
       );
       conceptId = recent.concept_id;
     } catch {
-      // Fallback: pick a random concept from the course graph
-      const nodes = graph.nodes || [];
       if (nodes.length === 0) {
         return NextResponse.json(
           { error: "No concepts available in this course" },
@@ -52,7 +42,7 @@ export async function POST(
     }
   }
 
-  const concept = graph.nodes?.find((n) => n.id === conceptId);
+  const concept = nodes.find((n) => n.id === conceptId);
 
   if (!concept) {
     return NextResponse.json(
@@ -62,19 +52,15 @@ export async function POST(
   }
 
   try {
-    // Fetch last 5 transcript chunks for context
+    // Fetch transcript chunks and generate question in parallel
     let recentTranscript = "";
-    try {
-      const chunks = await flaskGet<{ text: string; timestamp_sec: number }[]>(
-        `/api/lectures/${lectureId}/transcript-chunks?limit=5`
-      );
-      recentTranscript = (chunks || [])
-        .reverse()
-        .map((c) => c.text)
-        .join(" ");
-    } catch {
-      // No transcript yet — generate question without transcript context
-    }
+    const transcriptPromise = flaskGet<{ text: string; timestamp_sec: number }[]>(
+      `/api/lectures/${lectureId}/transcript-chunks?limit=5`
+    ).then((chunks) =>
+      (chunks || []).reverse().map((c) => c.text).join(" ")
+    ).catch(() => "");
+
+    recentTranscript = await transcriptPromise;
 
     // Generate the question via Claude Sonnet
     const { question, expectedAnswer } = await generateQuestion(
