@@ -6,6 +6,8 @@ import hashlib
 import tempfile
 import requests
 
+from ..services.create_kg import create_kg
+
 create = Blueprint(
     "create",
     __name__,
@@ -68,7 +70,7 @@ def upload_pdf():
         tmp_path = tmp.name
 
     # TODO: Implement
-    # result = func(tmp_path)
+    result = create_kg(tmp_path)
 
     os.remove(tmp_path)  # Clean up
 
