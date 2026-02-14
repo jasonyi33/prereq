@@ -2,6 +2,9 @@ import anthropic
 import os
 import json
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def generate_learning_page(concept_label: str, concept_description: str,
                            past_mistakes: list, current_confidence: float) -> dict:
