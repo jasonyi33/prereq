@@ -6,6 +6,25 @@ from datetime import datetime
 pages = Blueprint('pages', __name__)
 
 
+@pages.route('/api/debug/test-claude', methods=['GET'])
+def test_claude():
+    """Debug endpoint to test Claude directly"""
+    import anthropic
+    import os
+
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=100,
+        messages=[{"role": "user", "content": "Return only JSON: {\"test\": \"hello\"}"}]
+    )
+
+    return jsonify({
+        "raw_response": message.content[0].text,
+        "response_length": len(message.content[0].text),
+        "api_key_set": bool(os.getenv("ANTHROPIC_API_KEY"))
+    }), 200
 
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
