@@ -20,7 +20,7 @@ def confidence_to_color(confidence):
 @heatmap.route('/api/courses/<course_id>/heatmap', methods=['GET'])
 def get_heatmap(course_id):
     # Get all concepts for the course
-    concepts = supabase.table('concept_nodes').select('id, label').eq('course_id', course_id).execute().data
+    concepts = supabase.table('concept_nodes').select('id, label, category').eq('course_id', course_id).execute().data
 
     # Get all students in the course
     students = supabase.table('students').select('id').eq('course_id', course_id).execute().data
@@ -52,6 +52,7 @@ def get_heatmap(course_id):
         heatmap_data.append({
             "id": concept_id,
             "label": concept['label'],
+            "category": concept.get('category', ''),
             "distribution": distribution,
             "avg_confidence": round(avg_confidence, 2)
         })
