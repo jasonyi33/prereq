@@ -1,5 +1,13 @@
 FROM node:20-slim AS base
 
+# Install libstdc++6 from Debian testing (trixie) — the @zoom/rtms native
+# binary needs GLIBCXX_3.4.32 which requires GCC 13+, not available in Bookworm
+RUN echo "deb http://deb.debian.org/debian trixie main" > /etc/apt/sources.list.d/trixie.list && \
+    apt-get update && \
+    apt-get install -y -t trixie libstdc++6 && \
+    rm -f /etc/apt/sources.list.d/trixie.list && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Install dependencies
