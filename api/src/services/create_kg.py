@@ -64,28 +64,35 @@ TEMPORAL ORDERING:
 - But only create edges where there's a genuine prerequisite relationship
 - A topic from Ch 2 can have no incoming edges if it doesn't require Ch 1 concepts
 
-OUTPUT FORMAT (strict markdown):
+Return ONLY valid JSON with this exact structure:
+{
+  "concepts": [
+    {
+      "label": "Topic Name",
+      "description": "...",
+      "category": "Category Name",
+      "difficulty": 3
+    }
+  ],
+  "edges": [
+    {
+      "source_label": "Prerequisite Topic",
+      "target_label": "Dependent Topic",
+      "relationship": "prerequisite"
+    }
+  ]
+}
 
-## Nodes
-- linear_reg: Linear Regression & Normal Equations
-- gradient_descent: Gradient Descent Optimization
-- logistic_reg: Logistic Regression & Classification
-- neural_nets: Neural Networks & Deep Learning
-...
-
-## Edges
-- linear_reg -> logistic_reg
-- gradient_descent -> linear_reg
-- gradient_descent -> logistic_reg
-- linear_reg -> neural_nets
-...
-
-REQUIREMENTS:
-- MUST be a valid DAG (no cycles)
+Requirements:
+- 20-30 concept nodes covering all major topics
+- Edges form a DAG (no cycles)
 - Use concise snake_case IDs (e.g., linear_reg, svm, k_means)
-- Node descriptions should be 2-8 words, capturing the main concept
-- 20-30 nodes total
-- Only include edges that represent genuine prerequisite relationships"""
+- Each edge: source is prerequisite for target
+- Only include edges that represent genuine prerequisite relationships
+- Difficulty: 1-5 scale
+
+Return ONLY the JSON object.
+"""
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -113,33 +120,19 @@ REQUIREMENTS:
 
     return message.content[0].text
 
+
 def parse_kg(markdown: str) -> dict:
-    """Parse markdown KG into dictionary format"""
-    lines = markdown.strip().split('\n')
-    nodes = {}
-    edges = []
+    import json
+    text = markdown.strip()
 
-    section = None
-    for line in lines:
-        line = line.strip()
-        if line == "## Nodes":
-            section = "nodes"
-        elif line == "## Edges":
-            section = "edges"
-        elif line.startswith('- ') and section == "nodes":
-            # Parse: - node_id: Module Name
-            parts = line[2:].split(': ', 1)
-            if len(parts) == 2:
-                node_id = parts[0].strip()
-                node_info = parts[1].strip()
-                nodes[node_id] = node_info
-        elif line.startswith('- ') and section == "edges":
-            # Parse: - source -> target
-            parts = line[2:].split(' -> ')
-            if len(parts) == 2:
-                edges.append((parts[0].strip(), parts[1].strip()))
+    # Strip markdown code blocks if present
+    if '```' in text:
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+        text = text.strip()
 
-    return {"nodes": nodes, "edges": edges}
+    return json.loads(text)
 
 
 def calculate_importance(graph: dict) -> dict:

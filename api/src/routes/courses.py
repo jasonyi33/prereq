@@ -97,7 +97,6 @@ def upload_course_pdf(course_id):
             'course_id': course_id,
             'label': label,
             'description': description,
-            'importance': graph_data['importance'].get(label, 0.5)
         }).execute()
         node_id_map[label] = result.data[0]['id']
 
