@@ -239,7 +239,7 @@ export default function SidePanel({
                       confidence < 0.4 ? "text-orange-700" : confidence < 0.55 ? "text-yellow-700" : "text-lime-700"
                     }`}
                   >
-                    {confidence < 0.4 ? "Needs Attention" : confidence < 0.55 ? "In Progress" : "Almost There"}
+                    {confidence < 0.4 ? "Developing" : confidence < 0.55 ? "Building" : "On Track"}
                   </h3>
                   <p className="text-gray-500 text-xs mt-1">Review these resources to strengthen your understanding.</p>
                 </div>
