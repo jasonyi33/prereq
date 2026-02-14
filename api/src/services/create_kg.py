@@ -63,6 +63,7 @@ EDGE GUIDELINES:
 TEMPORAL ORDERING:
 - Early course topics (Ch 1-3) should generally come before later topics (Ch 7-17)
 - But only create edges where there's a genuine prerequisite relationship
+- - For example: gradient descent should come before back prop because you need to know gradient descent for backprop
 - A topic from Ch 2 can have no incoming edges if it doesn't require Ch 1 concepts
 
 Return ONLY valid JSON with this exact structure:
