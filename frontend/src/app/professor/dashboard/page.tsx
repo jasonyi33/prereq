@@ -27,6 +27,7 @@ export default function ProfessorDashboard() {
   const [students, setStudents] = useState<StudentSummary[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
   const [demoStarting, setDemoStarting] = useState(false);
+  const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
 
   const socket = useSocket();
 
@@ -154,7 +155,8 @@ export default function ProfessorDashboard() {
           detectedConcepts: data.detectedConcepts,
         },
       ]);
-      if (data.detectedConcepts) {
+      if (data.detectedConcepts && data.detectedConcepts.length > 0) {
+        setActiveConceptId(data.detectedConcepts[data.detectedConcepts.length - 1].id);
         setTimelineConcepts((prev) => {
           const existing = new Set(prev.map((c) => c.id));
           const newConcepts = data.detectedConcepts!
@@ -170,6 +172,7 @@ export default function ProfessorDashboard() {
   useSocketEvent<{ conceptId: string; label: string }>(
     "lecture:concept-detected",
     useCallback((data) => {
+      setActiveConceptId(data.conceptId);
       setTimelineConcepts((prev) => {
         if (prev.some((c) => c.id === data.conceptId)) return prev;
         return [...prev, { id: data.conceptId, label: data.label }];
@@ -240,18 +243,30 @@ export default function ProfessorDashboard() {
     .map((c) => c.id);
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 relative overflow-hidden">
+      {/* Subtle background accents */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-emerald-200/15 blur-[100px] rounded-full" />
+      </div>
+
       {/* Header */}
-      <header className="flex items-center justify-between border-b px-4 py-2">
-        <h1 className="text-lg font-semibold">Professor Dashboard</h1>
-        {lectureId ? (
-          <span className="text-sm text-green-500">Live</span>
-        ) : (
+      <header className="relative z-10 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-slate-200 px-5 py-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-slate-800 tracking-tight">Professor Dashboard</h1>
+          {lectureId && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">Live</span>
+            </div>
+          )}
+        </div>
+        {!lectureId && (
           <Button
             size="sm"
-            variant="outline"
             onClick={handleStartDemo}
             disabled={!courseId || demoStarting}
+            className="bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 shadow-sm"
           >
             {demoStarting ? "Starting..." : "Start Demo"}
           </Button>
@@ -259,29 +274,29 @@ export default function ProfessorDashboard() {
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative z-10 flex flex-1 overflow-hidden gap-3 p-3">
         {/* Left: Transcript */}
-        <div className="w-1/4 border-r p-2 flex flex-col">
+        <div className="w-1/4 flex flex-col">
           <TranscriptFeed chunks={transcriptChunks} />
         </div>
 
         {/* Center: Heatmap */}
-        <div className="flex-1 p-2 flex flex-col">
-          <ConceptHeatmap concepts={heatmapData} totalStudents={totalStudents} />
+        <div className="flex-1 flex flex-col">
+          <ConceptHeatmap concepts={heatmapData} totalStudents={totalStudents} activeConceptId={activeConceptId} />
         </div>
 
         {/* Right: Student list */}
-        <div className="w-1/5 border-l p-2 flex flex-col">
+        <div className="w-1/5 flex flex-col">
           <StudentList students={students} />
         </div>
       </div>
 
       {/* Bottom: Timeline + Controls */}
-      <div className="border-t">
-        <div className="border-b px-4">
+      <div className="relative z-10 bg-white/70 backdrop-blur-sm border-t border-slate-200">
+        <div className="border-b border-slate-100 px-5">
           <ConceptTimeline concepts={timelineConcepts} />
         </div>
-        <div className="grid grid-cols-2 gap-2 p-2">
+        <div className="grid grid-cols-2 gap-3 p-3">
           <PollControls lectureId={lectureId} />
           <InterventionPanel lectureId={lectureId} strugglingConceptIds={strugglingConceptIds} />
         </div>

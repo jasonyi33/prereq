@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Badge } from "@/components/ui/badge";
 import { COLOR_HEX } from "@/lib/colors";
 
 export interface TimelineConcept {
@@ -26,20 +25,22 @@ export default function ConceptTimeline({ concepts }: ConceptTimelineProps) {
   return (
     <div
       ref={scrollRef}
-      className="flex items-center gap-2 overflow-x-auto py-2 px-1"
+      className="flex items-center gap-2 overflow-x-auto py-2.5 px-1"
     >
       {concepts.length === 0 && (
-        <span className="text-xs text-muted-foreground">No concepts detected yet</span>
+        <span className="text-xs text-slate-400">No concepts detected yet</span>
       )}
       {concepts.map((c, i) => (
-        <Badge
+        <span
           key={`${c.id}-${i}`}
-          variant="outline"
-          className="shrink-0 text-xs"
-          style={{ borderColor: COLOR_HEX[c.color || "gray"] }}
+          className="shrink-0 inline-flex items-center px-3 py-1 rounded-lg text-[11px] font-medium border text-slate-600 transition-all duration-200 hover:bg-slate-50"
+          style={{
+            borderColor: (COLOR_HEX[c.color || "gray"] || COLOR_HEX.gray) + "40",
+            backgroundColor: (COLOR_HEX[c.color || "gray"] || COLOR_HEX.gray) + "08",
+          }}
         >
           {c.label}
-        </Badge>
+        </span>
       ))}
     </div>
   );

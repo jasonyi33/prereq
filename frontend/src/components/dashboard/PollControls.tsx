@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { COLOR_HEX } from "@/lib/colors";
 import { nextApi } from "@/lib/api";
 
@@ -91,44 +89,64 @@ export default function PollControls({ lectureId }: PollControlsProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Poll Controls</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-slate-800 tracking-tight mb-3">
+        Poll Controls
+      </h3>
+      <div className="space-y-3">
         {poll.status === "idle" && (
-          <Button size="sm" onClick={handleGenerate} disabled={!lectureId || generating}>
+          <button
+            onClick={handleGenerate}
+            disabled={!lectureId || generating}
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+          >
             {generating ? "Generating..." : "Generate Question"}
-          </Button>
+          </button>
         )}
 
         {poll.status === "preview" && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">{poll.conceptLabel}</p>
-            <p className="text-sm">{poll.question}</p>
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">{poll.conceptLabel}</p>
+            <p className="text-sm text-slate-600 leading-relaxed">{poll.question}</p>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleActivate}>Send to Students</Button>
-              <Button size="sm" variant="outline" onClick={handleReset}>Discard</Button>
+              <button
+                onClick={handleActivate}
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 shadow-sm"
+              >
+                Send to Students
+              </button>
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-200"
+              >
+                Discard
+              </button>
             </div>
           </div>
         )}
 
         {poll.status === "active" && (
-          <div className="space-y-2">
-            <p className="text-sm">{poll.question}</p>
-            <p className="text-xs text-muted-foreground">
-              Waiting for responses...
-            </p>
-            <Button size="sm" variant="destructive" onClick={handleClose}>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{poll.question}</p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs text-slate-400">Waiting for responses...</span>
+            </div>
+            <button
+              onClick={handleClose}
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all duration-200 shadow-sm"
+            >
               Close Poll
-            </Button>
+            </button>
           </div>
         )}
 
         {poll.status === "closed" && poll.results && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Results ({poll.totalResponses} responses)</p>
-            <div className="flex h-4 w-full overflow-hidden rounded-sm">
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-700">
+              Results ({poll.totalResponses} responses)
+            </p>
+            <div className="flex h-5 w-full overflow-hidden rounded-lg bg-slate-100">
               {(["green", "yellow", "red"] as const).map((color) => {
                 const total = poll.results!.green + poll.results!.yellow + poll.results!.red;
                 const pct = total > 0 ? (poll.results![color] / total) * 100 : 0;
@@ -136,17 +154,21 @@ export default function PollControls({ lectureId }: PollControlsProps) {
                 return (
                   <div
                     key={color}
-                    style={{ width: `${pct}%`, backgroundColor: COLOR_HEX[color] }}
+                    className="h-full transition-all duration-500"
+                    style={{ width: `${pct}%`, backgroundColor: color === "yellow" ? "#f59e0b" : COLOR_HEX[color] }}
                   />
                 );
               })}
             </div>
-            <Button size="sm" variant="outline" onClick={handleReset}>
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-200"
+            >
               New Question
-            </Button>
+            </button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { nextApi } from "@/lib/api";
 
 interface Suggestion {
@@ -41,30 +39,30 @@ export default function InterventionPanel({
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Teaching Suggestions</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Button
-          size="sm"
+    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-slate-800 tracking-tight mb-3">
+        Teaching Suggestions
+      </h3>
+      <div className="space-y-3">
+        <button
           onClick={handleGetSuggestions}
           disabled={loading || !lectureId || strugglingConceptIds.length === 0}
+          className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
         >
           {loading ? "Loading..." : "Get Suggestions"}
-        </Button>
+        </button>
 
         {suggestions.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {suggestions.map((s) => (
-              <div key={s.conceptId} className="space-y-1">
-                <p className="text-sm font-medium">{s.conceptLabel}</p>
-                <p className="text-sm text-muted-foreground">{s.suggestion}</p>
+              <div key={s.conceptId} className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{s.conceptLabel}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{s.suggestion}</p>
               </div>
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
