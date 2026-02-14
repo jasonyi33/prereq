@@ -66,6 +66,7 @@ export async function POST(
   // Step 1: Detect concepts using Claude Haiku
   const { labels, labelToId } = await getConceptMap(lectureId);
   const detectedLabels = await detectConcepts(text, labels);
+  console.log(`[Concept Detection] "${text}" → detected: [${detectedLabels.join(", ")}] (from ${labels.length} known concepts)`);
 
   // Step 2: Resolve labels to UUIDs
   const detectedConcepts: { id: string; label: string }[] = [];
