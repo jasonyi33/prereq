@@ -75,10 +75,17 @@ def generate_page(student_id):
 
     # Generate page using Claude
     result = generate_learning_page(
-        concept['label'],  # FIX: Use concept directly
+        concept['label'],
         concept.get('description', ''),
         past_mistakes,
         current_confidence
+    )
+
+    # Get further reading links
+    from src.services.generate_content import get_further_reading
+    further_reading = get_further_reading(
+        concept['label'],
+        concept.get('description', '')
     )
 
     # Save to database
@@ -86,7 +93,8 @@ def generate_page(student_id):
         'student_id': student_id,
         'concept_id': concept_id,
         'title': result['title'],
-        'content': result['content']
+        'content': result['content'],
+        'further_reading': further_reading
     }).execute()
 
     return jsonify(page_resp.data[0]), 201
