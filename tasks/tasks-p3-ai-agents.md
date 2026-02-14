@@ -59,7 +59,7 @@ Update the file after completing each sub-task, not just after completing an ent
     - Identify prerequisite edges: `source_label` (prerequisite concept), `target_label` (dependent concept), `relationship` (always "prerequisite")
     - Return valid JSON matching: `{ "concepts": [...], "edges": [...] }`
   - [ ] 1.3 Include few-shot examples in the prompt so Claude understands the expected format
-  - [ ] 1.4 **HANDOFF: Copy the prompt text to Person 1** (or point them to this file). Person 1 will integrate it into `api/services/concept_extraction.py`. The prompt goes into the `messages` array as the user message, with the PDF text included.
+  - [ ] 1.4 **HANDOFF: Copy the prompt text to Person 1** (or point them to this file). Person 1 will integrate it into `api/services/concept_extraction.py`. The prompt goes into the `messages` array as a `text` content block alongside the base64 PDF `document` content block (Claude's document API). See `knowledge-graph/src/services/create_kg.py` for the multi-content message pattern.
   - [ ] 1.5 Verify: test the prompt manually via the Anthropic console or a quick script — paste a small sample PDF text, confirm Claude returns valid JSON with reasonable concepts and edges
 
 > **MERGE POINT 1:** After completing task 1.0, merge to `main` so Person 1 can access the prompt file. This aligns with everyone merging their initial scaffolding.
@@ -97,7 +97,7 @@ Update the file after completing each sub-task, not just after completing an ent
     - Call Claude Sonnet with the prompt
     - Insert a `poll_questions` row (status='draft') with the question, expected answer, concept_id, lecture_id
     - Return `{ pollId, question, expectedAnswer, conceptId, conceptLabel }`
-    - **DEPENDENCY: Person 4's DB pool** (`frontend/server/db.ts`) for reading transcript_chunks and writing poll_questions. **DEPENDENCY: Person 1's Flask graph endpoint** for concept data (or direct DB read).
+    - **DEPENDENCY: Person 4's Supabase client** (`frontend/server/db.ts`) for reading transcript_chunks and writing poll_questions. **DEPENDENCY: Person 1's Flask graph endpoint** for concept data (or direct Supabase read).
   - [ ] 3.4 Create `frontend/src/app/api/lectures/[id]/poll/[pollId]/activate/route.ts` (POST handler):
     - Update `poll_questions` row status to 'active'
     - Emit Socket.IO event `poll:new-question` to the lecture room with `{ pollId, question, conceptLabel }`. **DEPENDENCY: Person 4's `emitToLectureRoom()` helper.**

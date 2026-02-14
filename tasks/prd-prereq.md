@@ -53,7 +53,7 @@
 | --- | --- |
 | FR-1 | The system must allow a professor to create a new course with a name and description. |
 | FR-2 | The system must allow a professor to upload a PDF (course reader, syllabus, lecture notes) for a course. |
-| FR-3 | Upon PDF upload, the system must extract text from the PDF and send it to Claude (Sonnet) to generate a structured list of concept nodes (label, description, category, difficulty) and prerequisite edges between them. |
+| FR-3 | Upon PDF upload, the system must truncate the PDF to the first 10 pages (PyPDF2), encode it as base64, and send it to Claude (Sonnet) via the document API to generate a structured list of concept nodes (label, description, category, difficulty) and prerequisite edges between them. |
 | FR-4 | The generated concept nodes and edges must be stored in the database and form the course's knowledge graph. |
 | FR-5 | The system must expose an API endpoint that returns the full graph (nodes + edges) for a course, optionally overlaid with a specific student's mastery data. |
 | FR-6 | When a new student joins a course, the system must eagerly create a `student_mastery` row for every concept in the course with confidence 0.0 (unvisited). Person 1's student creation endpoint handles this. Similarly, when new concepts are added via PDF upload, mastery rows must be created for all existing students in the course. This avoids LEFT JOIN / COALESCE complexity on every read. |
@@ -255,7 +255,7 @@
 | **Frontend + Real-time** | Next.js 14 + Express + Socket.IO | 3000 | Person 2 (UI), Person 3 (AI routes), Person 4 (server/infra) | All frontend pages, Socket.IO WebSocket server, Zoom RTMS listener, Claude AI calls, Perplexity calls, poll management, tutoring chat |
 | **Knowledge Graph API** | Flask (Python) | 5000 | Person 1 | Knowledge graph CRUD, PDF upload + concept extraction via Claude, mastery update endpoints, graph query endpoints, heatmap aggregation |
 
-Both services connect to the same Postgres instance. The Next.js service calls the Flask API over HTTP for graph/mastery operations using the `FLASK_API_URL` environment variable (localhost:5000 locally, Render internal URL in production).
+Both services connect to Supabase via client libraries (`supabase-py` for Flask, `@supabase/supabase-js` for Next.js). The Next.js service calls the Flask API over HTTP for graph/mastery operations using the `FLASK_API_URL` environment variable (localhost:5000 locally, Cloud Run URL in production).
 
 ### Database Write Ownership
 
@@ -336,30 +336,30 @@ export default function KnowledgeGraph({ data, mastery }) {
 - `@anthropic-ai/sdk` (Claude API — [verified available](https://www.npmjs.com/package/@anthropic-ai/sdk))
 - `react-force-graph-2d` 1.29+ ([verified available](https://www.npmjs.com/package/react-force-graph-2d), published 7 days ago)
 - `recharts` (heatmap / charts)
+- `@supabase/supabase-js` (Supabase client for direct DB reads/writes from Next.js)
 - `express` (custom server for Socket.IO — [documented pattern](https://socket.io/how-to/use-with-nextjs))
 - `@zoom/rtms` 0.0.2 (if RTMS access obtained)
 
 **Knowledge Graph API (Flask):**
 - `flask` 3.x, `flask-cors`
-- `sqlalchemy` 2.x, `psycopg2-binary`
+- `supabase` (Supabase Python client)
 - `anthropic` Python SDK (for concept extraction)
-- `pdfplumber` (PDF text extraction — more reliable than PyPDF2 for complex layouts)
-- `python-dotenv`
+- `pypdf2` (PDF page truncation for Claude's document API)
+- `python-dotenv`, `gunicorn`
 
 **External APIs:**
 - [Anthropic Claude API](https://docs.anthropic.com/) — Model IDs: `claude-sonnet-4-5-20250929` (Sonnet), `claude-haiku-4-5-20251001` (Haiku). Verified available.
 - [Perplexity Sonar API](https://docs.perplexity.ai/) — $1/M tokens (Sonar), $3/$15 (Sonar Pro). Pay-as-you-go, requires prepaid credits.
 - [Deepgram](https://deepgram.com/pricing) — $200 free credits, no credit card. Real-time streaming supported.
 
-### Deployment on Render
+### Deployment
 
-- **Web Service 1:** Next.js app (Node.js runtime, build: `cd frontend && npm run build`, start: `node frontend/server/index.js`)
-- **Web Service 2:** Flask API (Python runtime, start: `cd api && python main.py`)
-- **Database:** Render managed PostgreSQL
-- Services communicate via [Render internal addresses](https://render.com/docs/multi-service-architecture) (private network, not public URLs)
-- Set `FLASK_API_URL` on the Next.js service to the Flask service's internal URL
-- Set `DATABASE_URL` on both services to the Postgres internal connection string
-- **Important:** Custom Express server prevents Vercel deployment. Render is the only supported deployment target.
+- **Frontend (Render):** Next.js app (Node.js runtime, build: `cd frontend && npm install && npm run build`, start: `cd frontend && npx tsx server/index.ts`)
+- **Flask API (Cloud Run):** Dockerfile in `api/`, start: `gunicorn app:app --bind 0.0.0.0:$PORT`
+- **Database:** Supabase (hosted, same URL in all environments)
+- Set `FLASK_API_URL` on the Render Next.js service to the Cloud Run Flask service URL
+- Set `SUPABASE_URL` and `SUPABASE_KEY` on both services
+- **Important:** Custom Express server prevents Vercel deployment. Render for frontend, Cloud Run for Flask API.
 
 ---
 
@@ -384,7 +384,7 @@ export default function KnowledgeGraph({ data, mastery }) {
 2. **CS229 course reader PDF:** Is the Stanford ML course reader PDF available? Or should we write a smaller synthetic syllabus (~5 pages)?
 3. **Perplexity Sonar credits:** Do we have an API key with prepaid credits? The API has no free tier — even Pro subscribers get only $5/month credit.
 4. **Deepgram account:** Someone needs to sign up for the $200 free credits (no card required).
-5. **Render account + credits:** Have vendor credits been requested from the Render booth?
+5. **Render + Cloud Run accounts:** Render for frontend deployment, Cloud Run for Flask API. Have vendor credits been requested?
 6. **CodeRabbit:** Set up on the GitHub repo?
 7. **Anthropic API key:** Who has the key? Is there a shared team key or individual keys?
 
@@ -407,6 +407,6 @@ export default function KnowledgeGraph({ data, mastery }) {
 | --- | --- |
 | **Zoom Education Track** (primary) | RTMS integration for live lecture transcription, entire app is a Zoom companion |
 | **Anthropic Claude Agent SDK** | Multi-turn tutoring agent (FR-35 through FR-42), concept extraction, question gen, response eval — 5 distinct Claude integrations |
-| **Render** | Both services deployed on Render with managed Postgres |
+| **Render** | Frontend deployed on Render, Flask API on Cloud Run, database on Supabase |
 | **Perplexity Sonar** | Resource search for student weak nodes (FR-33, FR-40) |
 | **Decagon** (stretch) | The tutoring agent is a conversational AI |

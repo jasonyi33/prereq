@@ -48,10 +48,12 @@ Skip tests for: UI components, Socket.IO event wiring, Claude prompt text (test 
              └──────────┬─────────────────────┘
                         ▼
               ┌──────────────────┐
-              │   PostgreSQL     │
+              │    Supabase      │
               │   (shared DB)    │
               └──────────────────┘
 ```
+
+**Existing prototype:** The `knowledge-graph/` directory contains a proof-of-concept for PDF → knowledge graph extraction using Supabase, PyPDF2, and Claude's document API — the same core stack. **Person 1 should port this into the canonical `api/` directory structure**, adapting the Supabase schema, adding all missing endpoints (courses, students, mastery, heatmap, graph queries), and switching Claude's output format from markdown to JSON. Reference `knowledge-graph/src/services/create_kg.py` for the Claude document API pattern, `knowledge-graph/src/routes/create.py` for the Supabase client pattern, and `knowledge-graph/result.txt` for a sample CS229 concept graph (27 nodes, 28 edges). The `knowledge-graph/` directory will be removed once `api/` is complete.
 
 **Team ownership:**
 - **Person 1 (Flask API):** `api/` directory — knowledge graph CRUD, PDF upload, concept extraction, mastery updates, seed scripts
@@ -64,10 +66,11 @@ Skip tests for: UI components, Socket.IO event wiring, Claude prompt text (test 
 ## How to Run Locally
 
 ```bash
-# 1. Start Postgres (use Docker or local install)
-docker run --name prereq-db -e POSTGRES_PASSWORD=prereq -e POSTGRES_DB=prereq -p 5432:5432 -d postgres:16
+# 1. Set up Supabase project
+# Create a project at https://supabase.com, then apply the schema from the
+# "Database Schema" section below using the Supabase SQL Editor (Dashboard → SQL Editor → paste and run).
 
-# 2. Copy env file and fill in API keys
+# 2. Copy env file and fill in API keys (including SUPABASE_URL and SUPABASE_KEY from Supabase project settings)
 cp .env.example .env
 
 # 3. Start Flask API (terminal 1)
@@ -75,7 +78,7 @@ cd api
 pip install -r requirements.txt
 python main.py
 # Runs on http://localhost:5000
-# Tables are auto-created on startup via SQLAlchemy create_all()
+# Tables must already exist in Supabase (see schema setup in step 1)
 
 # 4. Seed the database (terminal 1, after Flask is running)
 python scripts/seed_demo.py
@@ -89,9 +92,9 @@ npm run dev
 
 ### Technical Setup Notes
 
-- **Schema creation:** Flask auto-creates all tables on startup via SQLAlchemy `Base.metadata.create_all()`. No separate migration step needed. The schema must exist before Next.js writes to any table.
-- **Next.js DB client:** Use `pg` (node-postgres) for direct Postgres reads and writes from Next.js. Person 4 sets up a shared connection pool in `frontend/server/db.ts` that API routes import. No ORM — raw SQL queries.
-- **Path alias for server imports:** Person 4 adds `"@server/*": ["./server/*"]` to `paths` in `frontend/tsconfig.json` so API routes can import server modules cleanly: `import { query } from '@server/db'` and `import { emitToStudent } from '@server/socket-helpers'`.
+- **Schema creation:** Tables must be created in Supabase before either service starts. Use the Supabase SQL Editor (Dashboard → SQL Editor) to run the schema from the "Database Schema" section below. Do this once during project setup.
+- **Supabase clients:** Flask uses `supabase-py` and Next.js uses `@supabase/supabase-js`. Person 1 sets up the Python client in `api/db.py`. Person 4 sets up the JS client in `frontend/server/db.ts`. Both use `SUPABASE_URL` and `SUPABASE_KEY` env vars. No ORM — use Supabase client methods for all queries.
+- **Path alias for server imports:** Person 4 adds `"@server/*": ["./server/*"]` to `paths` in `frontend/tsconfig.json` so API routes can import server modules cleanly: `import { supabase } from '@server/db'` and `import { emitToStudent } from '@server/socket-helpers'`.
 - **`.env` loading:** The `.env` file lives at the project root. Flask loads it via `python-dotenv`. The Express custom server (`frontend/server/index.ts`) loads it via `dotenv` with `path: path.resolve(__dirname, '../../.env')` before Next.js initializes. This ensures all env vars are available to both API routes and the Socket.IO server.
 - **Eager mastery rows:** When Person 1's student creation endpoint adds a student, it also bulk-inserts `student_mastery` rows (confidence 0.0) for every concept in the course. When PDF upload creates new concepts, it bulk-inserts mastery rows for all existing students. This means reads never need LEFT JOIN / COALESCE logic.
 
@@ -101,7 +104,8 @@ npm run dev
 
 ```bash
 # .env (root level, shared by both services)
-DATABASE_URL=postgresql://postgres:prereq@localhost:5432/prereq
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
 ANTHROPIC_API_KEY=sk-ant-...
 PERPLEXITY_API_KEY=pplx-...
 DEMO_MODE=true
@@ -118,13 +122,13 @@ ZOOM_ACCOUNT_ID=...
 DEEPGRAM_API_KEY=...
 ```
 
-**On Render:** `FLASK_API_URL` should use the Flask service's internal URL (private network). `DATABASE_URL` should use the Postgres internal connection string.
+**On Render/Cloud Run:** `FLASK_API_URL` on the Render Next.js service should point to the Cloud Run Flask service URL (e.g., `https://prereq-api-xxxxx.run.app`). `SUPABASE_URL` and `SUPABASE_KEY` are the same in all environments (Supabase is a hosted service).
 
 ---
 
 ## Database Schema
 
-The Flask API owns the schema. Both services connect directly for reads. See "Database Write Ownership" below for who writes to what.
+The Flask API owns the schema. Both services connect to Supabase via client libraries. Apply this schema in the Supabase SQL Editor during project setup. See "Database Write Ownership" below for who writes to what.
 
 ```sql
 CREATE TABLE courses (
@@ -280,7 +284,7 @@ Each table is written to by exactly ONE service. Both can read anything.
 | --- | --- | --- | --- |
 | `POST` | `/api/courses/:id/upload` | `multipart/form-data` with PDF file | `{ concepts: [...], edges: [...] }` |
 
-Steps: (1) Extract text with `pdfplumber`. (2) Send to Claude Sonnet with concept extraction prompt (Person 3 authors this prompt). (3) Parse JSON response. (4) Bulk insert concept_nodes and concept_edges. (5) Return full graph.
+Steps: (1) Truncate PDF to first 10 pages with PyPDF2, encode as base64. (2) Send to Claude Sonnet via the document API with concept extraction prompt as a multi-content message (Person 3 authors the prompt text). (3) Parse JSON response. (4) Insert concept_nodes and concept_edges into Supabase. (5) Return full graph.
 
 ### Knowledge Graph
 
@@ -494,9 +498,9 @@ function confidenceToColor(confidence: number): string {
 
 ### 1. Concept Extraction (`api/services/concept_extraction.py`)
 - **Model:** `claude-sonnet-4-5-20250929`
-- **Input:** Raw PDF text (truncated to fit context)
+- **Input:** PDF document (base64-encoded via Claude's document API, truncated to first 10 pages with PyPDF2)
 - **Output:** `{ "concepts": [{ "label", "description", "category", "difficulty" }], "edges": [{ "source_label", "target_label", "relationship" }] }`
-- **Prompt authored by:** Person 3, implemented by Person 1
+- **Prompt authored by:** Person 3, implemented by Person 1. The prompt text is sent alongside the PDF in a multi-content message (document + text). See `knowledge-graph/src/services/create_kg.py` for the pattern.
 
 ### 2. Concept Detection (`frontend/src/lib/prompts/concept-detection.ts`)
 - **Model:** `claude-haiku-4-5-20251001`
@@ -579,12 +583,11 @@ The seed script (`scripts/seed_demo.py`) creates:
 
 ---
 
-## Deployment (Render)
+## Deployment
 
-- **Web Service 1:** Next.js (Node.js, build: `cd frontend && npm install && npm run build`, start: `cd frontend && npx tsx server/index.ts`)
-- **Web Service 2:** Flask (Python, start: `cd api && python main.py`)
-- **Database:** Render managed PostgreSQL
-- Use [Render internal addresses](https://render.com/docs/multi-service-architecture) for inter-service communication
-- Set `FLASK_API_URL` on Next.js service → Flask internal URL
-- Set `DATABASE_URL` on both → Postgres internal connection string
-- Custom Express server means this **cannot deploy on Vercel**. Render only.
+- **Frontend (Render):** Next.js (Node.js, build: `cd frontend && npm install && npm run build`, start: `cd frontend && npx tsx server/index.ts`)
+- **Flask API (Cloud Run):** Dockerfile in `api/`, start: `gunicorn app:app --bind 0.0.0.0:$PORT`
+- **Database:** Supabase (hosted, no deployment needed — same URL in all environments)
+- Set `FLASK_API_URL` on the Render Next.js service → Cloud Run Flask service URL (e.g., `https://prereq-api-xxxxx.run.app`)
+- Set `SUPABASE_URL` and `SUPABASE_KEY` on both services
+- Custom Express server means the frontend **cannot deploy on Vercel**. Render for frontend, Cloud Run for Flask API.
