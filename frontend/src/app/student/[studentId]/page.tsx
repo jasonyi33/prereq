@@ -16,30 +16,6 @@ const KnowledgeGraph = dynamic(() => import("@/components/graph/KnowledgeGraph")
   ssr: false,
 });
 
-// Hardcoded demo course ID
-const COURSE_ID = "demo-course";
-
-// Mock graph data until Flask endpoint is available
-const MOCK_NODES: GraphNode[] = [
-  { id: "c1", label: "Gradient Descent", color: "yellow", confidence: 0.5, category: "Optimization", description: "Iterative optimization algorithm" },
-  { id: "c2", label: "Backpropagation", color: "red", confidence: 0.15, category: "Neural Networks", description: "Algorithm for computing gradients in neural networks" },
-  { id: "c3", label: "Loss Functions", color: "green", confidence: 0.8, category: "ML Foundations", description: "Functions that measure model prediction error" },
-  { id: "c4", label: "Chain Rule", color: "yellow", confidence: 0.45, category: "Calculus", description: "Derivative of composite functions" },
-  { id: "c5", label: "Activation Functions", color: "red", confidence: 0.2, category: "Neural Networks", description: "Non-linear functions applied to neuron outputs" },
-  { id: "c6", label: "Linear Algebra", color: "green", confidence: 0.85, category: "Linear Algebra", description: "Study of vectors and matrices" },
-  { id: "c7", label: "Derivatives", color: "green", confidence: 0.75, category: "Calculus", description: "Rate of change of a function" },
-  { id: "c8", label: "SGD", color: "gray", confidence: 0, category: "Optimization", description: "Stochastic gradient descent" },
-];
-
-const MOCK_EDGES: GraphEdge[] = [
-  { source: "c7", target: "c4" },
-  { source: "c4", target: "c2" },
-  { source: "c6", target: "c1" },
-  { source: "c3", target: "c1" },
-  { source: "c1", target: "c8" },
-  { source: "c2", target: "c5" },
-];
-
 interface PollData {
   pollId: string;
   question: string;
@@ -52,20 +28,25 @@ export default function StudentView() {
   const studentId = params.studentId as string;
   const socket = useSocket();
 
-  const [nodes, setNodes] = useState<GraphNode[]>(MOCK_NODES);
-  const [edges] = useState<GraphEdge[]>(MOCK_EDGES);
+  const [nodes, setNodes] = useState<GraphNode[]>([]);
+  const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [activePoll, setActivePoll] = useState<PollData | null>(null);
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
+  const [lectureId, setLectureId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Try fetching real graph data
+  // Get courseId from localStorage
+  const courseId = typeof window !== "undefined" ? localStorage.getItem("courseId") : null;
+
+  // Fetch real graph data
   useEffect(() => {
+    if (!courseId) return;
     flaskApi
-      .get(`/api/courses/${COURSE_ID}/graph?student_id=${studentId}`)
-      .then((data) => {
+      .get(`/api/courses/${courseId}/graph?student_id=${studentId}`)
+      .then((data: { nodes: GraphNode[]; edges: { source_id?: string; target_id?: string; source?: string; target?: string }[] }) => {
         if (data.nodes && data.nodes.length > 0) {
           setNodes(
             data.nodes.map((n: GraphNode) => ({
@@ -74,20 +55,46 @@ export default function StudentView() {
             })),
           );
         }
+        if (data.edges) {
+          setEdges(
+            data.edges.map((e) => ({
+              source: e.source_id || e.source || "",
+              target: e.target_id || e.target || "",
+            })),
+          );
+        }
       })
-      .catch(() => {
-        // Use mock data
-      });
-  }, [studentId]);
+      .catch(() => {});
+  }, [courseId, studentId]);
+
+  // Find active lecture
+  useEffect(() => {
+    if (!courseId) return;
+    // Check localStorage first (set by professor's Start Demo)
+    const storedLecture = localStorage.getItem("lectureId");
+    if (storedLecture) {
+      setLectureId(storedLecture);
+      return;
+    }
+    // Otherwise, find the live lecture from API
+    flaskApi
+      .get(`/api/courses/${courseId}/lectures`)
+      .then((lectures: { id: string; status: string }[]) => {
+        const live = lectures.find((l) => l.status === "live");
+        if (live) setLectureId(live.id);
+      })
+      .catch(() => {});
+  }, [courseId]);
 
   // Join lecture room
   useEffect(() => {
+    if (!lectureId) return;
     socket.emit("lecture:join", {
-      lectureId: "mock-lecture-1",
+      lectureId,
       role: "student",
       studentId,
     });
-  }, [socket, studentId]);
+  }, [socket, lectureId, studentId]);
 
   // Measure container for graph sizing
   useEffect(() => {
@@ -121,7 +128,6 @@ export default function StudentView() {
     "lecture:concept-detected",
     useCallback((data) => {
       setActiveConceptId(data.conceptId);
-      // Clear glow after 5 seconds
       setTimeout(() => setActiveConceptId(null), 5000);
     }, []),
   );
@@ -168,7 +174,7 @@ export default function StudentView() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Knowledge Graph */}
         <div ref={containerRef} className="w-3/5 border-r">
-          {dimensions.width > 0 && (
+          {dimensions.width > 0 && nodes.length > 0 && (
             <KnowledgeGraph
               nodes={nodes}
               edges={edges}
@@ -177,6 +183,11 @@ export default function StudentView() {
               width={dimensions.width}
               height={dimensions.height}
             />
+          )}
+          {nodes.length === 0 && (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-muted-foreground">Loading graph...</p>
+            </div>
           )}
         </div>
 

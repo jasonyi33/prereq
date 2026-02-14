@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { COLOR_HEX } from "@/lib/colors";
+import { nextApi } from "@/lib/api";
 
 interface PollState {
   pollId: string | null;
@@ -27,35 +28,55 @@ export default function PollControls({ lectureId }: PollControlsProps) {
     results: null,
     totalResponses: 0,
   });
+  const [generating, setGenerating] = useState(false);
 
   async function handleGenerate() {
-    // TODO: POST /api/lectures/:id/poll/generate
-    console.log("Generate poll for lecture:", lectureId);
-    setPoll({
-      pollId: "mock-poll-1",
-      question: "What is the gradient of f(x) = x^2 at x = 3?",
-      conceptLabel: "Gradients",
-      status: "preview",
-      results: null,
-      totalResponses: 0,
-    });
+    if (!lectureId) return;
+    setGenerating(true);
+    try {
+      const data = await nextApi.post(`/api/lectures/${lectureId}/poll/generate`, {});
+      setPoll({
+        pollId: data.pollId,
+        question: data.question,
+        conceptLabel: data.conceptLabel,
+        status: "preview",
+        results: null,
+        totalResponses: 0,
+      });
+    } catch (err) {
+      console.error("Failed to generate poll:", err);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function handleActivate() {
-    // TODO: POST /api/lectures/:id/poll/:pollId/activate
-    console.log("Activate poll:", poll.pollId);
-    setPoll((p) => ({ ...p, status: "active" }));
+    if (!lectureId || !poll.pollId) return;
+    try {
+      await nextApi.post(`/api/lectures/${lectureId}/poll/${poll.pollId}/activate`, {});
+      setPoll((p) => ({ ...p, status: "active" }));
+    } catch (err) {
+      console.error("Failed to activate poll:", err);
+    }
   }
 
   async function handleClose() {
-    // TODO: POST /api/lectures/:id/poll/:pollId/close
-    console.log("Close poll:", poll.pollId);
-    setPoll((p) => ({
-      ...p,
-      status: "closed",
-      results: { green: 12, yellow: 8, red: 5 },
-      totalResponses: 25,
-    }));
+    if (!lectureId || !poll.pollId) return;
+    try {
+      const data = await nextApi.post(`/api/lectures/${lectureId}/poll/${poll.pollId}/close`, {});
+      setPoll((p) => ({
+        ...p,
+        status: "closed",
+        results: data.distribution ? {
+          green: data.distribution.green || 0,
+          yellow: data.distribution.yellow || 0,
+          red: data.distribution.red || 0,
+        } : null,
+        totalResponses: data.totalResponses || 0,
+      }));
+    } catch (err) {
+      console.error("Failed to close poll:", err);
+    }
   }
 
   function handleReset() {
@@ -76,8 +97,8 @@ export default function PollControls({ lectureId }: PollControlsProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {poll.status === "idle" && (
-          <Button size="sm" onClick={handleGenerate} disabled={!lectureId}>
-            Generate Question
+          <Button size="sm" onClick={handleGenerate} disabled={!lectureId || generating}>
+            {generating ? "Generating..." : "Generate Question"}
           </Button>
         )}
 
@@ -96,7 +117,7 @@ export default function PollControls({ lectureId }: PollControlsProps) {
           <div className="space-y-2">
             <p className="text-sm">{poll.question}</p>
             <p className="text-xs text-muted-foreground">
-              Responses: {poll.totalResponses}
+              Waiting for responses...
             </p>
             <Button size="sm" variant="destructive" onClick={handleClose}>
               Close Poll
@@ -109,7 +130,8 @@ export default function PollControls({ lectureId }: PollControlsProps) {
             <p className="text-sm font-medium">Results ({poll.totalResponses} responses)</p>
             <div className="flex h-4 w-full overflow-hidden rounded-sm">
               {(["green", "yellow", "red"] as const).map((color) => {
-                const pct = (poll.results![color] / poll.totalResponses) * 100;
+                const total = poll.results!.green + poll.results!.yellow + poll.results!.red;
+                const pct = total > 0 ? (poll.results![color] / total) * 100 : 0;
                 if (pct === 0) return null;
                 return (
                   <div
