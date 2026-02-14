@@ -2,19 +2,19 @@
 
 import { useEffect, useRef } from "react";
 
-interface BubbleNode {
+interface GlassNode {
   x: number;
   y: number;
   radius: number;
   opacity: number;
   speed: number;
   offset: number;
-  color: "blue" | "green" | "indigo" | "teal";
+  color: "blue" | "green" | "indigo" | "teal" | "purple";
 }
 
 export default function StarsBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const nodesRef = useRef<BubbleNode[]>([]);
+  const nodesRef = useRef<GlassNode[]>([]);
   const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -37,15 +37,14 @@ export default function StarsBackground() {
     updateCanvasSize();
     window.addEventListener("resize", updateCanvasSize);
 
-    const colors: BubbleNode["color"][] = ["blue", "green", "indigo", "teal"];
+    const colors: GlassNode["color"][] = ["blue", "green", "indigo", "teal", "purple"];
 
-    // Create glass bubble nodes — fewer but much larger
-    nodesRef.current = Array.from({ length: 18 }, () => ({
+    nodesRef.current = Array.from({ length: 24 }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
-      radius: Math.random() * 30 + 15,
-      opacity: Math.random() * 0.12 + 0.04,
-      speed: Math.random() * 0.15 + 0.05,
+      radius: Math.random() * 40 + 12,
+      opacity: Math.random() * 0.18 + 0.06,
+      speed: Math.random() * 0.12 + 0.03,
       offset: Math.random() * Math.PI * 2,
       color: colors[Math.floor(Math.random() * colors.length)],
     }));
@@ -53,8 +52,9 @@ export default function StarsBackground() {
     const colorMap = {
       blue: { r: 59, g: 130, b: 246 },
       green: { r: 34, g: 197, b: 94 },
-      indigo: { r: 99, g: 102, b: 241 },
-      teal: { r: 20, g: 184, b: 166 },
+      indigo: { r: 129, g: 140, b: 248 },
+      teal: { r: 45, g: 212, b: 191 },
+      purple: { r: 168, g: 85, b: 247 },
     };
 
     let time = 0;
@@ -66,19 +66,17 @@ export default function StarsBackground() {
       const dpr = window.devicePixelRatio || 1;
 
       nodesRef.current.forEach((node) => {
-        const sway = Math.sin(time * 0.006 + node.offset) * 0.4;
-        const breathe = Math.sin(time * 0.015 + node.offset) * 0.03;
-        const pulse = Math.sin(time * 0.01 + node.offset * 2) * 0.15;
+        const sway = Math.sin(time * 0.005 + node.offset) * 0.35;
+        const breathe = Math.sin(time * 0.012 + node.offset) * 0.04;
+        const pulse = Math.sin(time * 0.008 + node.offset * 2) * 0.2;
         const currentOpacity = node.opacity + breathe;
-        const currentRadius = node.radius * (1 + pulse * 0.1);
+        const currentRadius = node.radius * (1 + pulse * 0.08);
 
-        // Drift upward slowly, sway sideways
         node.y -= node.speed;
-        node.x += sway * 0.2;
+        node.x += sway * 0.15;
 
-        // Wrap around
-        if (node.y < -node.radius * 2) {
-          node.y = rect.height + node.radius * 2;
+        if (node.y < -node.radius * 3) {
+          node.y = rect.height + node.radius * 3;
           node.x = Math.random() * rect.width * dpr;
         }
 
@@ -86,45 +84,46 @@ export default function StarsBackground() {
         const px = node.x / dpr;
         const py = node.y / dpr;
 
-        // Outer glow
-        const glowGradient = ctx.createRadialGradient(px, py, currentRadius * 0.5, px, py, currentRadius * 2.5);
-        glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.6)})`);
+        // Large soft outer glow
+        const glowGradient = ctx.createRadialGradient(px, py, currentRadius * 0.3, px, py, currentRadius * 3);
+        glowGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.5)})`);
+        glowGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.15)})`);
         glowGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.fillStyle = glowGradient;
         ctx.beginPath();
-        ctx.arc(px, py, currentRadius * 2.5, 0, Math.PI * 2);
+        ctx.arc(px, py, currentRadius * 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Glass bubble fill
+        // Glass body — translucent fill with depth
         const fillGradient = ctx.createRadialGradient(
-          px - currentRadius * 0.2, py - currentRadius * 0.2, 0,
+          px - currentRadius * 0.25, py - currentRadius * 0.25, 0,
           px, py, currentRadius,
         );
-        fillGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 1.2)})`);
-        fillGradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.5)})`);
-        fillGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.15)})`);
+        fillGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.9)})`);
+        fillGradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.35)})`);
+        fillGradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 0.08)})`);
         ctx.fillStyle = fillGradient;
         ctx.beginPath();
         ctx.arc(px, py, currentRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // Ring
+        // Subtle glass rim
         ctx.beginPath();
         ctx.arc(px, py, currentRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 1.8)})`;
-        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${Math.max(0, currentOpacity * 1.5)})`;
+        ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Inner glass highlight (top-left bright spot)
+        // Inner specular highlight — top-left
         const hlGradient = ctx.createRadialGradient(
-          px - currentRadius * 0.3, py - currentRadius * 0.3, 0,
-          px - currentRadius * 0.3, py - currentRadius * 0.3, currentRadius * 0.5,
+          px - currentRadius * 0.3, py - currentRadius * 0.35, 0,
+          px - currentRadius * 0.3, py - currentRadius * 0.35, currentRadius * 0.45,
         );
-        hlGradient.addColorStop(0, `rgba(255, 255, 255, ${Math.max(0, currentOpacity * 0.8)})`);
+        hlGradient.addColorStop(0, `rgba(255, 255, 255, ${Math.max(0, currentOpacity * 1.0)})`);
         hlGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
         ctx.fillStyle = hlGradient;
         ctx.beginPath();
-        ctx.arc(px - currentRadius * 0.3, py - currentRadius * 0.3, currentRadius * 0.5, 0, Math.PI * 2);
+        ctx.arc(px - currentRadius * 0.3, py - currentRadius * 0.35, currentRadius * 0.45, 0, Math.PI * 2);
         ctx.fill();
       });
 
@@ -141,21 +140,19 @@ export default function StarsBackground() {
 
   return (
     <>
-      {/* Light gradient background */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          background: "linear-gradient(135deg, #f0f9ff 0%, #ffffff 40%, #f0fdf4 70%, #eef2ff 100%)",
-        }}
-      />
-      {/* Subtle radial accent */}
+      {/* Dark base */}
+      <div className="fixed inset-0 z-0 bg-[#0a0e1a]" />
+      {/* Subtle radial accent blurs */}
       <div
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
-          background: "radial-gradient(ellipse at top right, rgba(59, 130, 246, 0.06) 0%, transparent 50%), radial-gradient(ellipse at bottom left, rgba(34, 197, 94, 0.05) 0%, transparent 50%)",
+          background:
+            "radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%), " +
+            "radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%), " +
+            "radial-gradient(ellipse at 50% 60%, rgba(34, 197, 94, 0.04) 0%, transparent 40%)",
         }}
       />
-      {/* Bubble nodes canvas */}
+      {/* Glass nodes canvas */}
       <canvas
         ref={canvasRef}
         className="fixed inset-0 z-0 pointer-events-none"
