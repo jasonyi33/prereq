@@ -1,35 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@server/db";
+import { flaskGet, flaskPost } from "@/lib/flask";
+import { detectConcepts } from "@/lib/prompts/concept-detection";
 import { emitToLectureRoom, getStudentsInLecture } from "@server/socket-helpers";
-
-// Stub until Person 3 merges detectConcepts from frontend/src/lib/prompts/concept-detection.ts
-async function detectConcepts(text: string, labels: string[]): Promise<string[]> {
-  return [];
-}
 
 // Cache: lectureId → { labels: string[], labelToId: Map<string, string> }
 const conceptCache = new Map<string, { labels: string[]; labelToId: Map<string, string> }>();
+
+interface LectureData {
+  id: string;
+  course_id: string;
+  title: string;
+  status: string;
+}
+
+interface GraphNode {
+  id: string;
+  label: string;
+}
+
+interface GraphData {
+  nodes: GraphNode[];
+  edges: unknown[];
+}
+
+interface TranscriptChunk {
+  id: string;
+  lecture_id: string;
+  text: string;
+  timestamp_sec: number;
+  speaker_name: string | null;
+}
 
 async function getConceptMap(lectureId: string): Promise<{ labels: string[]; labelToId: Map<string, string> }> {
   if (conceptCache.has(lectureId)) {
     return conceptCache.get(lectureId)!;
   }
 
-  // Look up course_id for this lecture
-  const { data: lecture } = await supabase
-    .from("lecture_sessions")
-    .select("course_id")
-    .eq("id", lectureId)
-    .single();
-
-  if (!lecture) {
-    return { labels: [], labelToId: new Map() };
-  }
+  // Look up course_id for this lecture via Flask
+  const lecture = await flaskGet<LectureData>(`/api/lectures/${lectureId}`);
 
   // Fetch concepts from Flask
-  const flaskUrl = process.env.FLASK_API_URL || "http://localhost:5000";
-  const res = await fetch(`${flaskUrl}/api/courses/${lecture.course_id}/graph`);
-  const graph = await res.json();
+  const graph = await flaskGet<GraphData>(`/api/courses/${lecture.course_id}/graph`);
 
   const labelToId = new Map<string, string>();
   const labels: string[] = [];
@@ -52,51 +63,38 @@ export async function POST(
   const { id: lectureId } = await params;
   const { text, timestamp, speakerName } = await req.json();
 
-  // Step 1: Insert transcript chunk
-  const { data: chunk, error } = await supabase
-    .from("transcript_chunks")
-    .insert({
-      lecture_id: lectureId,
-      text,
-      timestamp_sec: timestamp,
-      speaker_name: speakerName || null,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Step 2: Detect concepts (stub returns [] until Person 3 merges)
+  // Step 1: Detect concepts using Claude Haiku
   const { labels, labelToId } = await getConceptMap(lectureId);
   const detectedLabels = await detectConcepts(text, labels);
 
-  // Step 3: Resolve labels to UUIDs, insert transcript_concepts
+  // Step 2: Resolve labels to UUIDs
   const detectedConcepts: { id: string; label: string }[] = [];
   for (const label of detectedLabels) {
     const conceptId = labelToId.get(label);
     if (conceptId) {
       detectedConcepts.push({ id: conceptId, label });
-      await supabase
-        .from("transcript_concepts")
-        .insert({ transcript_chunk_id: chunk.id, concept_id: conceptId });
     }
   }
+
+  // Step 3: Insert transcript chunk + link concepts via Flask (single call)
+  const chunk = await flaskPost<TranscriptChunk>(
+    `/api/lectures/${lectureId}/transcripts`,
+    {
+      text,
+      timestamp_sec: timestamp,
+      speaker_name: speakerName || null,
+      concept_ids: detectedConcepts.map((c) => c.id),
+    }
+  );
 
   // Step 4: Call Flask attendance-boost (skip if no concepts detected)
   if (detectedConcepts.length > 0) {
     const studentIds = getStudentsInLecture(lectureId);
     if (studentIds.length > 0) {
-      const flaskUrl = process.env.FLASK_API_URL || "http://localhost:5000";
       try {
-        await fetch(`${flaskUrl}/api/mastery/attendance-boost`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            concept_ids: detectedConcepts.map((c) => c.id),
-            student_ids: studentIds,
-          }),
+        await flaskPost("/api/mastery/attendance-boost", {
+          concept_ids: detectedConcepts.map((c) => c.id),
+          student_ids: studentIds,
         });
       } catch {
         // Flask endpoint may not exist yet — silently skip

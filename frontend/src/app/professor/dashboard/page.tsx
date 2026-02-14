@@ -9,45 +9,97 @@ import StudentList, { type StudentSummary } from "@/components/dashboard/Student
 import PollControls from "@/components/dashboard/PollControls";
 import InterventionPanel from "@/components/dashboard/InterventionPanel";
 import { useSocket, useSocketEvent } from "@/lib/socket";
-import { flaskApi } from "@/lib/api";
+import { flaskApi, nextApi } from "@/lib/api";
 
-// Hardcoded demo course
-const COURSE_ID = "demo-course";
-
-// Mock data until real endpoints are wired
-const MOCK_HEATMAP: HeatmapConcept[] = [
-  { id: "c1", label: "Gradient Descent", distribution: { green: 12, yellow: 8, red: 5, gray: 5 }, avg_confidence: 0.62 },
-  { id: "c2", label: "Backpropagation", distribution: { green: 5, yellow: 6, red: 14, gray: 5 }, avg_confidence: 0.32 },
-  { id: "c3", label: "Loss Functions", distribution: { green: 18, yellow: 7, red: 3, gray: 2 }, avg_confidence: 0.78 },
-  { id: "c4", label: "Chain Rule", distribution: { green: 10, yellow: 10, red: 5, gray: 5 }, avg_confidence: 0.55 },
-  { id: "c5", label: "Activation Functions", distribution: { green: 8, yellow: 9, red: 8, gray: 5 }, avg_confidence: 0.48 },
-];
-
-const MOCK_STUDENTS: StudentSummary[] = [
-  { id: "student-alex", name: "Alex", masteryDistribution: { green: 20, yellow: 8, red: 2, gray: 5 } },
-  { id: "student-jordan", name: "Jordan", masteryDistribution: { green: 12, yellow: 10, red: 8, gray: 5 } },
-  { id: "student-sam", name: "Sam", masteryDistribution: { green: 5, yellow: 8, red: 15, gray: 7 } },
-  { id: "student-taylor", name: "Taylor", masteryDistribution: { green: 15, yellow: 3, red: 12, gray: 5 } },
-];
-
-const MOCK_TRANSCRIPT: TranscriptChunk[] = [
-  { id: "t1", text: "Today we'll cover gradient descent and how it optimizes loss functions.", speakerName: "Professor", detectedConcepts: [{ id: "c1", label: "Gradient Descent" }, { id: "c3", label: "Loss Functions" }] },
-  { id: "t2", text: "The key idea is to compute the gradient of the loss with respect to each parameter.", speakerName: "Professor", detectedConcepts: [{ id: "c1", label: "Gradient Descent" }] },
-  { id: "t3", text: "For neural networks, we use backpropagation to efficiently compute these gradients.", speakerName: "Professor", detectedConcepts: [{ id: "c2", label: "Backpropagation" }] },
-];
+function confidenceToColor(confidence: number): string {
+  if (confidence === 0) return "gray";
+  if (confidence < 0.4) return "red";
+  if (confidence < 0.7) return "yellow";
+  return "green";
+}
 
 export default function ProfessorDashboard() {
-  const [lectureId] = useState<string | null>("mock-lecture-1");
-  const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>(MOCK_TRANSCRIPT);
-  const [timelineConcepts, setTimelineConcepts] = useState<TimelineConcept[]>([
-    { id: "c1", label: "Gradient Descent", color: "green" },
-    { id: "c3", label: "Loss Functions", color: "green" },
-    { id: "c2", label: "Backpropagation", color: "red" },
-  ]);
-  const [heatmapData, setHeatmapData] = useState<HeatmapConcept[]>(MOCK_HEATMAP);
-  const [students] = useState<StudentSummary[]>(MOCK_STUDENTS);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [lectureId, setLectureId] = useState<string | null>(null);
+  const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
+  const [timelineConcepts, setTimelineConcepts] = useState<TimelineConcept[]>([]);
+  const [heatmapData, setHeatmapData] = useState<HeatmapConcept[]>([]);
+  const [students, setStudents] = useState<StudentSummary[]>([]);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [demoStarting, setDemoStarting] = useState(false);
 
   const socket = useSocket();
+
+  // Load course ID from localStorage or fetch from API
+  useEffect(() => {
+    const stored = localStorage.getItem("courseId");
+    if (stored) {
+      setCourseId(stored);
+      return;
+    }
+    flaskApi
+      .get("/api/courses")
+      .then((courses: { id: string }[]) => {
+        if (courses.length > 0) {
+          setCourseId(courses[0].id);
+          localStorage.setItem("courseId", courses[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch heatmap data
+  useEffect(() => {
+    if (!courseId) return;
+    flaskApi
+      .get(`/api/courses/${courseId}/heatmap`)
+      .then((data: { concepts: HeatmapConcept[]; total_students: number }) => {
+        if (data.concepts) setHeatmapData(data.concepts);
+        if (data.total_students) setTotalStudents(data.total_students);
+      })
+      .catch(() => {});
+  }, [courseId]);
+
+  // Fetch students with mastery distributions
+  useEffect(() => {
+    if (!courseId) return;
+    flaskApi
+      .get(`/api/courses/${courseId}/students`)
+      .then(async (studentList: { id: string; name: string }[]) => {
+        const summaries: StudentSummary[] = await Promise.all(
+          studentList.map(async (s) => {
+            try {
+              const mastery: { confidence: number }[] = await flaskApi.get(
+                `/api/students/${s.id}/mastery`
+              );
+              const dist = { green: 0, yellow: 0, red: 0, gray: 0 };
+              for (const m of mastery) {
+                dist[confidenceToColor(m.confidence) as keyof typeof dist]++;
+              }
+              return { id: s.id, name: s.name, masteryDistribution: dist };
+            } catch {
+              return { id: s.id, name: s.name, masteryDistribution: { green: 0, yellow: 0, red: 0, gray: 0 } };
+            }
+          })
+        );
+        setStudents(summaries);
+      })
+      .catch(() => {});
+  }, [courseId]);
+
+  // Check for existing live lecture on mount
+  useEffect(() => {
+    if (!courseId) return;
+    flaskApi
+      .get(`/api/courses/${courseId}/lectures`)
+      .then((lectures: { id: string; status: string }[]) => {
+        const live = lectures.find((l) => l.status === "live");
+        if (live) {
+          setLectureId(live.id);
+        }
+      })
+      .catch(() => {});
+  }, [courseId]);
 
   // Join lecture room as professor
   useEffect(() => {
@@ -55,6 +107,24 @@ export default function ProfessorDashboard() {
       socket.emit("lecture:join", { lectureId, role: "professor" });
     }
   }, [socket, lectureId]);
+
+  // Start Demo: create lecture → simulator auto-starts (DEMO_MODE=true)
+  async function handleStartDemo() {
+    if (!courseId || demoStarting) return;
+    setDemoStarting(true);
+    try {
+      const data = await nextApi.post("/api/lectures", {
+        courseId,
+        title: "CS229 Lecture — Neural Networks & Backpropagation",
+      });
+      setLectureId(data.id);
+      localStorage.setItem("lectureId", data.id);
+    } catch (err) {
+      console.error("Failed to start demo:", err);
+    } finally {
+      setDemoStarting(false);
+    }
+  }
 
   // Socket: transcript:chunk
   useSocketEvent<{ text: string; timestamp: number; speakerName?: string; detectedConcepts?: { id: string; label: string }[] }>(
@@ -70,7 +140,6 @@ export default function ProfessorDashboard() {
           detectedConcepts: data.detectedConcepts,
         },
       ]);
-      // Add detected concepts to timeline
       if (data.detectedConcepts) {
         setTimelineConcepts((prev) => {
           const existing = new Set(prev.map((c) => c.id));
@@ -98,33 +167,57 @@ export default function ProfessorDashboard() {
   useSocketEvent<{ pollId: string; results: unknown }>(
     "poll:closed",
     useCallback(() => {
-      // PollControls handles its own state; this is for any additional dashboard updates
-    }, []),
+      // PollControls handles its own state; refresh heatmap
+      if (courseId) {
+        flaskApi
+          .get(`/api/courses/${courseId}/heatmap`)
+          .then((data: { concepts: HeatmapConcept[]; total_students: number }) => {
+            if (data.concepts) setHeatmapData(data.concepts);
+          })
+          .catch(() => {});
+      }
+    }, [courseId]),
   );
 
   // Socket: heatmap:updated — re-fetch from Flask
   useSocketEvent<{ conceptId: string }>(
     "heatmap:updated",
     useCallback(() => {
+      if (!courseId) return;
       flaskApi
-        .get(`/api/courses/${COURSE_ID}/heatmap`)
-        .then((data) => {
-          if (data.concepts) {
-            setHeatmapData(data.concepts);
-          }
+        .get(`/api/courses/${courseId}/heatmap`)
+        .then((data: { concepts: HeatmapConcept[]; total_students: number }) => {
+          if (data.concepts) setHeatmapData(data.concepts);
         })
-        .catch(() => {
-          // Keep existing data
-        });
-    }, []),
+        .catch(() => {});
+    }, [courseId]),
   );
 
-  // Socket: mastery:updated — could update student dots
+  // Socket: mastery:updated — refresh student mastery distributions
   useSocketEvent<{ studentId: string; conceptId: string; newColor: string }>(
     "mastery:updated",
-    useCallback(() => {
-      // In a full implementation, update the specific student's mastery distribution
-      // For now, the student list uses static mock data
+    useCallback((data) => {
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.id !== data.studentId) return s;
+          // Re-fetch this student's mastery to update distribution
+          flaskApi
+            .get(`/api/students/${s.id}/mastery`)
+            .then((mastery: { confidence: number }[]) => {
+              const dist = { green: 0, yellow: 0, red: 0, gray: 0 };
+              for (const m of mastery) {
+                dist[confidenceToColor(m.confidence) as keyof typeof dist]++;
+              }
+              setStudents((current) =>
+                current.map((cs) =>
+                  cs.id === s.id ? { ...cs, masteryDistribution: dist } : cs
+                )
+              );
+            })
+            .catch(() => {});
+          return s;
+        })
+      );
     }, []),
   );
 
@@ -137,13 +230,18 @@ export default function ProfessorDashboard() {
       {/* Header */}
       <header className="flex items-center justify-between border-b px-4 py-2">
         <h1 className="text-lg font-semibold">Professor Dashboard</h1>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => console.log("Start Demo")}
-        >
-          Start Demo
-        </Button>
+        {lectureId ? (
+          <span className="text-sm text-green-500">Live</span>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleStartDemo}
+            disabled={!courseId || demoStarting}
+          >
+            {demoStarting ? "Starting..." : "Start Demo"}
+          </Button>
+        )}
       </header>
 
       {/* Main content */}
@@ -155,7 +253,7 @@ export default function ProfessorDashboard() {
 
         {/* Center: Heatmap */}
         <div className="flex-1 p-2 flex flex-col">
-          <ConceptHeatmap concepts={heatmapData} totalStudents={30} />
+          <ConceptHeatmap concepts={heatmapData} totalStudents={totalStudents} />
         </div>
 
         {/* Right: Student list */}
