@@ -28,12 +28,12 @@ export default function ConceptTimeline({ concepts }: ConceptTimelineProps) {
       className="flex items-center gap-2 overflow-x-auto py-2.5 px-1"
     >
       {concepts.length === 0 && (
-        <span className="text-xs text-slate-400">No concepts detected yet</span>
+        <span className="text-xs text-gray-400">No concepts detected yet</span>
       )}
       {concepts.map((c, i) => (
         <span
           key={`${c.id}-${i}`}
-          className="shrink-0 inline-flex items-center px-3 py-1 rounded-lg text-[11px] font-medium border text-slate-600 transition-all duration-200 hover:bg-slate-50"
+          className="shrink-0 inline-flex items-center px-3 py-1 rounded-lg text-[11px] font-medium border text-gray-600 transition-all duration-200 hover:bg-gray-50"
           style={{
             borderColor: (COLOR_HEX[c.color || "gray"] || COLOR_HEX.gray) + "40",
             backgroundColor: (COLOR_HEX[c.color || "gray"] || COLOR_HEX.gray) + "08",

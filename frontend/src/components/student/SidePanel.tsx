@@ -150,16 +150,16 @@ export default function SidePanel({
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-white truncate">{selectedNode.label}</h2>
+            <h2 className="text-lg font-semibold text-gray-800 truncate">{selectedNode.label}</h2>
             {selectedNode.category && (
-              <span className="inline-flex items-center mt-1 px-2 py-0.5 text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full">
+              <span className="inline-flex items-center mt-1 px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200 rounded-full">
                 {selectedNode.category}
               </span>
             )}
           </div>
           <button
             onClick={onDeselectNode}
-            className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors text-slate-400 hover:text-slate-200 shrink-0 ml-2"
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 shrink-0 ml-2"
           >
             <X size={16} />
           </button>
@@ -168,12 +168,12 @@ export default function SidePanel({
         {/* Confidence bar */}
         <div className="space-y-1.5 mb-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Confidence</span>
+            <span className="text-xs font-medium text-gray-500">Confidence</span>
             <span className="text-xs font-semibold" style={{ color: colorHex }}>
               {confidencePct}%
             </span>
           </div>
-          <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${confidencePct}%`, backgroundColor: colorHex }}
@@ -182,17 +182,17 @@ export default function SidePanel({
         </div>
 
         {selectedNode.description && (
-          <p className="text-sm text-slate-400 leading-relaxed mb-4">{selectedNode.description}</p>
+          <p className="text-sm text-gray-500 leading-relaxed mb-4">{selectedNode.description}</p>
         )}
 
         {/* Green: mastery summary */}
         {isMastered && (
-          <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+          <div className="p-4 rounded-xl bg-green-50 border border-green-200">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="text-green-400 shrink-0 mt-0.5" size={20} />
+              <CheckCircle2 className="text-green-500 shrink-0 mt-0.5" size={20} />
               <div>
-                <h3 className="text-green-400 font-medium text-sm">Concept Mastered</h3>
-                <p className="text-slate-400 text-xs mt-1">
+                <h3 className="text-green-700 font-medium text-sm">Concept Mastered</h3>
+                <p className="text-gray-500 text-xs mt-1">
                   Great job! You&apos;ve demonstrated strong understanding.
                 </p>
               </div>
@@ -202,8 +202,8 @@ export default function SidePanel({
 
         {/* Gray: not yet covered */}
         {selectedNode.color === "gray" && (
-          <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
-            <p className="text-sm text-slate-500 italic">
+          <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
+            <p className="text-sm text-gray-400 italic">
               This concept hasn&apos;t been covered yet in lecture.
             </p>
           </div>
@@ -215,56 +215,56 @@ export default function SidePanel({
             <div
               className={`p-4 rounded-xl border ${
                 selectedNode.color === "red"
-                  ? "bg-red-500/10 border-red-500/20"
-                  : "bg-yellow-500/10 border-yellow-500/20"
+                  ? "bg-red-50 border-red-200"
+                  : "bg-yellow-50 border-yellow-200"
               }`}
             >
               <div className="flex items-start gap-3">
                 <AlertCircle
-                  className={`shrink-0 mt-0.5 ${selectedNode.color === "red" ? "text-red-400" : "text-yellow-400"}`}
+                  className={`shrink-0 mt-0.5 ${selectedNode.color === "red" ? "text-red-500" : "text-yellow-500"}`}
                   size={20}
                 />
                 <div>
                   <h3
-                    className={`font-medium text-sm ${selectedNode.color === "red" ? "text-red-400" : "text-yellow-400"}`}
+                    className={`font-medium text-sm ${selectedNode.color === "red" ? "text-red-700" : "text-yellow-700"}`}
                   >
                     {selectedNode.color === "red" ? "Needs Attention" : "In Progress"}
                   </h3>
-                  <p className="text-slate-400 text-xs mt-1">Review these resources to strengthen your understanding.</p>
+                  <p className="text-gray-500 text-xs mt-1">Review these resources to strengthen your understanding.</p>
                 </div>
               </div>
             </div>
 
             {/* Lecture Moments */}
             <div>
-              <h4 className="text-[10px] font-medium text-slate-200 uppercase tracking-wider mb-2">
+              <h4 className="text-[10px] font-medium text-gray-700 uppercase tracking-wider mb-2">
                 Lecture Moments
               </h4>
               {loadingTranscripts ? (
-                <p className="text-xs text-slate-500">Loading...</p>
+                <p className="text-xs text-gray-400">Loading...</p>
               ) : transcripts.length > 0 ? (
                 <div className="space-y-2">
                   {transcripts.map((t, i) => (
-                    <div key={i} className="text-xs border-l-2 border-blue-500/40 pl-2.5 py-1">
-                      <span className="font-mono text-blue-400 text-[10px]">
+                    <div key={i} className="text-xs border-l-2 border-blue-300 pl-2.5 py-1">
+                      <span className="font-mono text-blue-500 text-[10px]">
                         {formatTimestamp(t.timestamp_sec)}
                       </span>{" "}
-                      <span className="text-slate-400">{t.text}</span>
+                      <span className="text-gray-600">{t.text}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 italic">No lecture excerpts found.</p>
+                <p className="text-xs text-gray-400 italic">No lecture excerpts found.</p>
               )}
             </div>
 
             {/* Resources */}
             <div>
-              <h4 className="text-[10px] font-medium text-slate-200 uppercase tracking-wider mb-2">
+              <h4 className="text-[10px] font-medium text-gray-700 uppercase tracking-wider mb-2">
                 Recommended Resources
               </h4>
               {loadingResources ? (
-                <p className="text-xs text-slate-500">Loading...</p>
+                <p className="text-xs text-gray-400">Loading...</p>
               ) : resources.length > 0 ? (
                 <div className="space-y-2">
                   {resources.map((r, i) => (
@@ -273,9 +273,9 @@ export default function SidePanel({
                       href={r.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 transition-colors group"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors group"
                     >
-                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/30 group-hover:text-blue-300 transition-colors shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 group-hover:bg-blue-100 transition-colors shrink-0">
                         {r.type === "video" ? (
                           <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-current border-b-[4px] border-b-transparent ml-0.5" />
                         ) : (
@@ -283,19 +283,19 @@ export default function SidePanel({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-200 truncate">{r.title}</p>
-                        {r.snippet && <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{r.snippet}</p>}
+                        <p className="text-sm text-gray-700 truncate">{r.title}</p>
+                        {r.snippet && <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{r.snippet}</p>}
                       </div>
                     </a>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 italic">No resources found.</p>
+                <p className="text-xs text-gray-400 italic">No resources found.</p>
               )}
             </div>
 
             {/* Perplexity AI button */}
-            <button className="w-full py-3 px-4 rounded-lg bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 flex items-center justify-center gap-2 transition-all">
+            <button className="w-full py-3 px-4 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 flex items-center justify-center gap-2 transition-all">
               <Sparkles size={16} />
               <span>Ask Perplexity AI</span>
             </button>
@@ -306,31 +306,31 @@ export default function SidePanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-xl overflow-hidden shadow-xl">
+    <div className="h-full flex flex-col bg-white border border-gray-200/80 rounded-xl overflow-hidden">
       {/* Tab header */}
-      <div className="flex border-b border-slate-700/50">
+      <div className="flex border-b border-gray-200/80">
         <button
           onClick={() => setActiveTab("poll")}
           className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${
-            activeTab === "poll" ? "text-blue-400" : "text-slate-400 hover:text-slate-200"
+            activeTab === "poll" ? "text-gray-800" : "text-gray-400 hover:text-gray-500"
           }`}
         >
-          <BarChart2 size={16} />
+          <BarChart2 size={15} />
           <span>Live Poll</span>
           {activeTab === "poll" && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
+            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-800" />
           )}
         </button>
         <button
           onClick={() => setActiveTab("transcript")}
           className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${
-            activeTab === "transcript" ? "text-blue-400" : "text-slate-400 hover:text-slate-200"
+            activeTab === "transcript" ? "text-gray-800" : "text-gray-400 hover:text-gray-500"
           }`}
         >
-          <MessageSquare size={16} />
+          <MessageSquare size={15} />
           <span>Transcript</span>
           {activeTab === "transcript" && (
-            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
+            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-800" />
           )}
         </button>
       </div>
@@ -349,23 +349,23 @@ export default function SidePanel({
               className="h-full flex flex-col"
             >
               {activePoll ? (
-                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                  <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2 block">
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 block">
                     Current Question
                   </span>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200 rounded-full">
                       {activePoll.conceptLabel}
                     </span>
                   </div>
-                  <h3 className="text-base text-slate-200 font-medium mb-4 leading-snug">
+                  <h3 className="text-base text-gray-800 font-medium mb-4 leading-snug">
                     {activePoll.question}
                   </h3>
 
                   {!pollSubmitted ? (
                     <div className="space-y-3">
                       <textarea
-                        className="w-full bg-slate-900/80 border border-slate-700 rounded-lg p-3 text-slate-300 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none h-32 text-sm"
+                        className="w-full bg-white border border-gray-200 rounded-lg p-3 text-gray-700 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300/50 focus:border-gray-300 resize-none h-32 text-sm"
                         placeholder="Type your answer here..."
                         value={pollAnswer}
                         onChange={(e) => setPollAnswer(e.target.value)}
@@ -375,8 +375,8 @@ export default function SidePanel({
                         disabled={pollLoading || !pollAnswer.trim()}
                         className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
                           pollAnswer.trim()
-                            ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
-                            : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                            ? "bg-gray-800 hover:bg-gray-700 text-white"
+                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}
                       >
                         <Send size={14} />
@@ -385,13 +385,13 @@ export default function SidePanel({
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm flex items-center gap-2">
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm flex items-center gap-2">
                         <CheckCircle2 size={16} />
                         Answer submitted!
                       </div>
                       {pollFeedback && (
-                        <div className="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg">
-                          <p className="text-sm text-slate-300 italic">{pollFeedback}</p>
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                          <p className="text-sm text-gray-600 italic">{pollFeedback}</p>
                         </div>
                       )}
                     </div>
@@ -399,11 +399,11 @@ export default function SidePanel({
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <div className="w-12 h-12 rounded-full bg-slate-800/50 border border-slate-700/50 flex items-center justify-center mb-3">
-                    <BarChart2 className="w-5 h-5 text-slate-500" />
+                  <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center mb-3">
+                    <BarChart2 className="w-5 h-5 text-gray-400" />
                   </div>
-                  <p className="text-sm text-slate-400">No active poll</p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-sm text-gray-500">No active poll</p>
+                  <p className="text-xs text-gray-400 mt-1">
                     A poll will appear here when the professor starts one
                   </p>
                 </div>
@@ -419,11 +419,11 @@ export default function SidePanel({
             >
               {transcriptChunks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                  <div className="w-12 h-12 rounded-full bg-slate-800/50 border border-slate-700/50 flex items-center justify-center mb-3">
-                    <Mic className="w-5 h-5 text-slate-500" />
+                  <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center mb-3">
+                    <Mic className="w-5 h-5 text-gray-400" />
                   </div>
-                  <p className="text-sm text-slate-400">Waiting for transcript...</p>
-                  <p className="text-xs text-slate-500 mt-1">Audio will appear here once the lecture starts</p>
+                  <p className="text-sm text-gray-500">Waiting for transcript...</p>
+                  <p className="text-xs text-gray-400 mt-1">Audio will appear here once the lecture starts</p>
                 </div>
               ) : (
                 transcriptChunks.map((chunk, i) => {
@@ -432,20 +432,20 @@ export default function SidePanel({
                     <div
                       key={chunk.id}
                       className={`p-3 rounded-lg transition-colors ${
-                        isLatest ? "bg-blue-500/10 border border-blue-500/20" : "hover:bg-slate-800/30"
+                        isLatest ? "bg-gray-50 border border-gray-200" : "hover:bg-gray-50"
                       }`}
                     >
                       {chunk.timestamp != null && (
-                        <span className="text-xs font-mono text-slate-500 mb-1 block">
+                        <span className="text-xs font-mono text-gray-400 mb-1 block">
                           {formatTimestamp(chunk.timestamp)}
                         </span>
                       )}
                       {chunk.speakerName && (
-                        <span className="font-medium text-slate-500 text-xs uppercase tracking-wide">
+                        <span className="font-medium text-gray-500 text-xs uppercase tracking-wide">
                           {chunk.speakerName}:{" "}
                         </span>
                       )}
-                      <p className={`text-sm leading-relaxed ${isLatest ? "text-blue-100" : "text-slate-400"}`}>
+                      <p className={`text-sm leading-relaxed ${isLatest ? "text-gray-800" : "text-gray-600"}`}>
                         {chunk.text}
                       </p>
                       {chunk.detectedConcepts && chunk.detectedConcepts.length > 0 && (

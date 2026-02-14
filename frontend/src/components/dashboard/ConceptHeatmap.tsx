@@ -50,9 +50,9 @@ function SummaryMetrics({
   return (
     <div className="flex items-center gap-2">
       {/* Class Mastery */}
-      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50">
+      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50">
         <svg width="22" height="22" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+          <circle cx="12" cy="12" r="10" fill="none" stroke="#e5e7eb" strokeWidth="3" />
           <circle
             cx="12"
             cy="12"
@@ -66,8 +66,8 @@ function SummaryMetrics({
           />
         </svg>
         <div className="leading-tight">
-          <div className="text-[9px] text-slate-400">Mastery</div>
-          <div className="text-xs font-semibold text-slate-700">{pct}%</div>
+          <div className="text-[9px] text-gray-400">Mastery</div>
+          <div className="text-xs font-semibold text-gray-700">{pct}%</div>
         </div>
       </div>
 
@@ -75,7 +75,7 @@ function SummaryMetrics({
       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50">
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
         <div className="leading-tight">
-          <div className="text-[9px] text-slate-400">Mastered</div>
+          <div className="text-[9px] text-gray-400">Mastered</div>
           <div className="text-xs font-semibold text-emerald-600">{masteredCount}</div>
         </div>
       </div>
@@ -84,17 +84,17 @@ function SummaryMetrics({
       <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50">
         <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
         <div className="leading-tight">
-          <div className="text-[9px] text-slate-400">Struggling</div>
+          <div className="text-[9px] text-gray-400">Struggling</div>
           <div className="text-xs font-semibold text-red-600">{strugglingCount}</div>
         </div>
       </div>
 
       {/* Students */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50">
-        <Users className="w-3.5 h-3.5 text-slate-400" />
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50">
+        <Users className="w-3.5 h-3.5 text-gray-400" />
         <div className="leading-tight">
-          <div className="text-[9px] text-slate-400">Students</div>
-          <div className="text-xs font-semibold text-slate-700">{totalStudents}</div>
+          <div className="text-[9px] text-gray-400">Students</div>
+          <div className="text-xs font-semibold text-gray-700">{totalStudents}</div>
         </div>
       </div>
     </div>
@@ -113,7 +113,7 @@ function GradientLegend() {
             "linear-gradient(to right, #e2e8f0, #fecaca, #fed7aa, #fef08a, #d9f99d, #bbf7d0, #86efac)",
         }}
       />
-      <div className="flex text-[9px] text-slate-400 gap-2 tabular-nums">
+      <div className="flex text-[9px] text-gray-400 gap-2 tabular-nums">
         <span>0%</span>
         <span>40%</span>
         <span>70%</span>
@@ -374,17 +374,17 @@ function CustomTooltip({ active, payload }: any) {
   const dist = concept.distribution;
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl rounded-xl p-3 min-w-[180px]">
-      <div className="text-sm font-semibold text-slate-800 mb-0.5">
+    <div className="bg-white/95 backdrop-blur-md border border-gray-200 shadow-xl rounded-xl p-3 min-w-[180px]">
+      <div className="text-sm font-medium text-gray-800 mb-0.5">
         {concept.label}
       </div>
       {concept.category && (
-        <div className="text-[10px] text-slate-400 mb-2">{concept.category}</div>
+        <div className="text-[10px] text-gray-400 mb-2">{concept.category}</div>
       )}
-      <div className="text-xs font-medium text-slate-600 mb-2">
+      <div className="text-xs font-medium text-gray-600 mb-2">
         Avg confidence: {pct}%
       </div>
-      <div className="space-y-1 text-[10px] text-slate-500">
+      <div className="space-y-1 text-[10px] text-gray-500">
         <div className="flex items-center gap-1.5">
           <div
             className="w-2 h-2 rounded-full"
@@ -456,11 +456,11 @@ export default function ConceptHeatmap({
   }, [concepts, sortMode]);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
+    <div className="flex h-full flex-col rounded-2xl bg-white border border-gray-200/80 overflow-hidden">
       {/* Header */}
       <div className="px-5 pt-4 pb-3 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800 tracking-tight">
+          <h3 className="text-sm font-medium text-gray-800 tracking-tight">
             Class Mastery Heatmap
           </h3>
           <SummaryMetrics concepts={concepts} totalStudents={totalStudents} />
@@ -468,13 +468,13 @@ export default function ConceptHeatmap({
 
         {/* Controls row */}
         <div className="flex items-center justify-between">
-          <div className="flex gap-0.5 p-0.5 rounded-lg bg-slate-100">
+          <div className="flex gap-0.5 p-0.5 rounded-lg bg-gray-100">
             <button
               onClick={() => setSortMode("category")}
               className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all duration-200 ${
                 sortMode === "category"
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-white text-gray-800 shadow-sm"
+                  : "text-gray-400 hover:text-gray-500"
               }`}
             >
               By Category
@@ -483,8 +483,8 @@ export default function ConceptHeatmap({
               onClick={() => setSortMode("struggling")}
               className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all duration-200 ${
                 sortMode === "struggling"
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-white text-gray-800 shadow-sm"
+                  : "text-gray-400 hover:text-gray-500"
               }`}
             >
               Most Struggling
@@ -498,7 +498,7 @@ export default function ConceptHeatmap({
       <div className="flex-1 min-h-0 px-2 pb-2">
         {concepts.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-slate-400">No concept data yet</p>
+            <p className="text-sm text-gray-400">No concept data yet</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

@@ -92,8 +92,8 @@ export default function PollControls({ lectureId }: PollControlsProps) {
   }
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5">
-      <h3 className="text-sm font-semibold text-slate-800 tracking-tight mb-3">
+    <div className="rounded-2xl bg-white border border-gray-200/80 p-5">
+      <h3 className="text-sm font-medium text-gray-800 tracking-tight mb-3">
         Poll Controls
       </h3>
       <div className="space-y-3">
@@ -102,7 +102,7 @@ export default function PollControls({ lectureId }: PollControlsProps) {
             <button
               onClick={handleGenerate}
               disabled={!lectureId || generating}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {generating ? "Generating..." : "Generate Question"}
             </button>
@@ -114,18 +114,18 @@ export default function PollControls({ lectureId }: PollControlsProps) {
 
         {poll.status === "preview" && (
           <div className="space-y-3">
-            <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">{poll.conceptLabel}</p>
-            <p className="text-sm text-slate-600 leading-relaxed">{poll.question}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{poll.conceptLabel}</p>
+            <p className="text-sm text-gray-600 leading-relaxed">{poll.question}</p>
             <div className="flex gap-2">
               <button
                 onClick={handleActivate}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 shadow-sm"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 transition-all duration-200"
               >
                 Send to Students
               </button>
               <button
                 onClick={handleReset}
-                className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-200"
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-200"
               >
                 Discard
               </button>
@@ -135,14 +135,14 @@ export default function PollControls({ lectureId }: PollControlsProps) {
 
         {poll.status === "active" && (
           <div className="space-y-3">
-            <p className="text-sm text-slate-600">{poll.question}</p>
+            <p className="text-sm text-gray-600">{poll.question}</p>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs text-slate-400">Waiting for responses...</span>
+              <span className="text-xs text-gray-400">Waiting for responses...</span>
             </div>
             <button
               onClick={handleClose}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all duration-200 shadow-sm"
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all duration-200"
             >
               Close Poll
             </button>
@@ -151,10 +151,10 @@ export default function PollControls({ lectureId }: PollControlsProps) {
 
         {poll.status === "closed" && poll.results && (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-700">
+            <p className="text-sm font-medium text-gray-700">
               Results ({poll.totalResponses} responses)
             </p>
-            <div className="flex h-5 w-full overflow-hidden rounded-lg bg-slate-100">
+            <div className="flex h-5 w-full overflow-hidden rounded-lg bg-gray-100">
               {(["green", "yellow", "red"] as const).map((color) => {
                 const total = poll.results!.green + poll.results!.yellow + poll.results!.red;
                 const pct = total > 0 ? (poll.results![color] / total) * 100 : 0;
@@ -170,7 +170,7 @@ export default function PollControls({ lectureId }: PollControlsProps) {
             </div>
             <button
               onClick={handleReset}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-200"
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all duration-200"
             >
               New Question
             </button>

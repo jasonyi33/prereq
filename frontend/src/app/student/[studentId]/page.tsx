@@ -39,8 +39,18 @@ export default function StudentView() {
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
   const [lectureId, setLectureId] = useState<string | null>(null);
 
-  // Get courseId from localStorage
-  const courseId = typeof window !== "undefined" ? localStorage.getItem("courseId") : null;
+  // Get courseId from localStorage (reactive — poll until available)
+  const [courseId, setCourseId] = useState<string | null>(null);
+  useEffect(() => {
+    const stored = localStorage.getItem("courseId");
+    if (stored) { setCourseId(stored); return; }
+    // If not set yet (race with navigation), poll briefly
+    const interval = setInterval(() => {
+      const v = localStorage.getItem("courseId");
+      if (v) { setCourseId(v); clearInterval(interval); }
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
 
   // Mastery summary counts
   const masteryCounts = useMemo(() => {
@@ -109,8 +119,8 @@ export default function StudentView() {
         });
     };
 
-    checkLiveLecture(); // check immediately
-    const interval = setInterval(checkLiveLecture, 5000); // then every 5s
+    checkLiveLecture();
+    const interval = setInterval(checkLiveLecture, 5000);
     return () => clearInterval(interval);
   }, [courseId]);
 
@@ -194,34 +204,24 @@ export default function StudentView() {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col bg-[#0f172a] text-slate-200 relative overflow-hidden font-sans selection:bg-indigo-500/30">
-      {/* Background atmosphere gradients */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-900/10 blur-[120px]" />
-        <div className="absolute top-[40%] left-[40%] w-[20%] h-[20%] rounded-full bg-teal-900/10 blur-[100px]" />
-      </div>
-
+    <div className="flex h-screen flex-col bg-gray-50 text-gray-800 relative overflow-hidden font-sans">
       {/* Header */}
-      <header className="relative z-10 h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm">P</span>
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold text-slate-200">Prereq</h1>
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs text-slate-500">Live Lecture</span>
-            </div>
+      <header className="relative z-10 h-14 flex items-center justify-between px-6 border-b border-gray-200/80 bg-white/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <h1 className="font-[family-name:var(--font-instrument-serif)] text-xl text-gray-800 tracking-tight">
+            prereq
+          </h1>
+          <div className="flex items-center gap-1.5 ml-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-xs text-gray-400">Live Lecture</span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(`/student/${studentId}/tutor`)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-indigo-900/20 transition-all hover:scale-105"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
           >
-            <GraduationCap size={16} />
+            <GraduationCap size={15} />
             <span>Start Tutoring</span>
           </button>
           {user && (
@@ -230,12 +230,12 @@ export default function StudentView() {
                 await signOut();
                 router.push("/");
               }}
-              className="px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+              className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
             >
               Sign out
             </button>
           )}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white shadow-inner border border-white/10">
+          <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-medium text-white">
             {(user?.email?.[0] || "S").toUpperCase()}
           </div>
         </div>
@@ -254,12 +254,10 @@ export default function StudentView() {
               onNodeClick={handleNodeClick}
             />
           ) : (
-            <div className="flex h-full items-center justify-center bg-slate-900/50 rounded-xl border border-slate-700/50">
+            <div className="flex h-full items-center justify-center bg-white rounded-xl border border-gray-200">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center animate-pulse">
-                  <span className="text-white font-bold text-lg">P</span>
-                </div>
-                <p className="text-sm text-slate-400">Loading graph...</p>
+                <p className="font-[family-name:var(--font-instrument-serif)] text-2xl text-gray-300 animate-pulse">prereq</p>
+                <p className="text-sm text-gray-400">Loading graph...</p>
               </div>
             </div>
           )}
@@ -267,22 +265,22 @@ export default function StudentView() {
           {/* Mastery summary pill */}
           {nodes.length > 0 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
-              <div className="flex items-center gap-3 px-4 py-2 bg-slate-900/80 backdrop-blur-sm rounded-full border border-slate-700/50 shadow-lg">
+              <div className="flex items-center gap-3 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.green }} />
-                  <span className="text-xs font-medium text-slate-400">{masteryCounts.green}</span>
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.green}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.yellow }} />
-                  <span className="text-xs font-medium text-slate-400">{masteryCounts.yellow}</span>
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.yellow}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.red }} />
-                  <span className="text-xs font-medium text-slate-400">{masteryCounts.red}</span>
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.red}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.gray }} />
-                  <span className="text-xs font-medium text-slate-400">{masteryCounts.gray}</span>
+                  <span className="text-xs font-medium text-gray-600">{masteryCounts.gray}</span>
                 </div>
               </div>
             </div>
