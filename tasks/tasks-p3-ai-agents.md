@@ -64,33 +64,33 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 1:** After completing task 1.0, merge to `main` so Person 1 can access the prompt file. This aligns with everyone merging their initial scaffolding.
 
-- [ ] 2.0 Build concept detection logic in the transcript route (shared with Person 4)
-  - [ ] 2.1 Create `frontend/src/lib/prompts/concept-detection.ts`. Export:
+- [x] 2.0 Build concept detection logic in the transcript route (shared with Person 4)
+  - [x] 2.1 Create `frontend/src/lib/prompts/concept-detection.ts`. Export:
     - `buildConceptDetectionPrompt(transcriptChunk: string, conceptLabels: string[]): string` — the prompt
     - `parseConceptDetectionResponse(response: string): string[]` — parses Claude's JSON output into an array of detected concept labels
-  - [ ] 2.2 The prompt must instruct Claude Haiku to:
+  - [x] 2.2 The prompt must instruct Claude Haiku to:
     - Read the transcript chunk
     - Identify which of the provided concept labels are being discussed
     - Return `{ "detected_concepts": ["label1", "label2"] }` (empty array if none)
     - Be conservative — only return concepts that are clearly being taught, not just mentioned
-  - [ ] 2.3 **Write test** in `frontend/src/lib/prompts/__tests__/parsing.test.ts` for `parseConceptDetectionResponse()`:
+  - [x] 2.3 **Write test** in `frontend/src/lib/prompts/__tests__/parsing.test.ts` for `parseConceptDetectionResponse()`:
     - Valid JSON with 2 concepts → returns array of 2
     - Valid JSON with empty array → returns empty array
     - Malformed JSON → returns empty array (graceful fallback)
     - JSON with unexpected keys → still extracts `detected_concepts`
-  - [ ] 2.4 Export a `detectConcepts(text: string, conceptLabels: string[]): Promise<string[]>` function that makes the Claude Haiku call and returns parsed labels. **DEPENDENCY: Person 4 will import this function in the transcript route handler.** Coordinate the import path.
-  - [ ] 2.5 Verify: test with a sample transcript chunk and a list of ML concept labels, confirm reasonable detection
+  - [x] 2.4 Export a `detectConcepts(text: string, conceptLabels: string[]): Promise<string[]>` function that makes the Claude Haiku call and returns parsed labels. **DEPENDENCY: Person 4 will import this function in the transcript route handler.** Coordinate the import path.
+  - [x] 2.5 Verify: test with a sample transcript chunk and a list of ML concept labels, confirm reasonable detection
 
-- [ ] 3.0 Build poll question generation endpoint
-  - [ ] 3.1 Create `frontend/src/lib/prompts/question-generation.ts`. Export:
+- [x] 3.0 Build poll question generation endpoint
+  - [x] 3.1 Create `frontend/src/lib/prompts/question-generation.ts`. Export:
     - `buildQuestionGenerationPrompt(conceptLabel: string, conceptDescription: string, recentTranscript: string): string`
     - `parseQuestionGenerationResponse(response: string): { question: string, expectedAnswer: string }`
-  - [ ] 3.2 The prompt must instruct Claude Sonnet to:
+  - [x] 3.2 The prompt must instruct Claude Sonnet to:
     - Generate a natural language question about the concept that tests real understanding (not trivia)
     - The question should be answerable in 2-3 sentences
     - Return `{ "question": "...", "expected_answer": "..." }`
     - Reference the recent lecture context if possible
-  - [ ] 3.3 Create `frontend/src/app/api/lectures/[id]/poll/generate/route.ts` (POST handler):
+  - [x] 3.3 Create `frontend/src/app/api/lectures/[id]/poll/generate/route.ts` (POST handler):
     - Accept `{ conceptId? }`. If no conceptId, use the most recently detected concept for this lecture (query `transcript_concepts` joined with `concept_nodes`, ordered by most recent).
     - Fetch the concept's label and description from the DB (or from Flask `GET /api/courses/:id/graph`)
     - Fetch the last 5 transcript chunks for this lecture from the DB
@@ -98,30 +98,30 @@ Update the file after completing each sub-task, not just after completing an ent
     - Insert a `poll_questions` row (status='draft') with the question, expected answer, concept_id, lecture_id
     - Return `{ pollId, question, expectedAnswer, conceptId, conceptLabel }`
     - **DEPENDENCY: Person 4's Supabase client** (`frontend/server/db.ts`) for reading transcript_chunks and writing poll_questions. **DEPENDENCY: Person 1's Flask graph endpoint** for concept data (or direct Supabase read).
-  - [ ] 3.4 Create `frontend/src/app/api/lectures/[id]/poll/[pollId]/activate/route.ts` (POST handler):
+  - [x] 3.4 Create `frontend/src/app/api/lectures/[id]/poll/[pollId]/activate/route.ts` (POST handler):
     - Update `poll_questions` row status to 'active'
     - Emit Socket.IO event `poll:new-question` to the lecture room with `{ pollId, question, conceptLabel }`. **DEPENDENCY: Person 4's `emitToLectureRoom()` helper.**
     - If `DEMO_MODE` is set, call Person 4's `onPollActivated(pollId, question, conceptLabel)` function from `@server/auto-responder` to trigger auto-responses for simulated students. **DEPENDENCY: Person 4 exports this function** (P4 task 6.1).
     - Return `{ status: "active" }`
-  - [ ] 3.5 **Write test** for `parseQuestionGenerationResponse()`: valid JSON → returns question + expected answer, malformed JSON → throws or returns default
-  - [ ] 3.6 Verify: call the generate endpoint, confirm a poll_questions row is created, activate it and confirm Socket.IO event fires
+  - [x] 3.5 **Write test** for `parseQuestionGenerationResponse()`: valid JSON → returns question + expected answer, malformed JSON → throws or returns default
+  - [x] 3.6 Verify: call the generate endpoint, confirm a poll_questions row is created, activate it and confirm Socket.IO event fires
 
-- [ ] 4.0 Build poll response evaluation endpoint
-  - [ ] 4.1 Create `frontend/src/lib/prompts/response-evaluation.ts`. Export:
+- [x] 4.0 Build poll response evaluation endpoint
+  - [x] 4.1 Create `frontend/src/lib/prompts/response-evaluation.ts`. Export:
     - `buildResponseEvaluationPrompt(question: string, expectedAnswer: string, studentAnswer: string): string`
     - `parseResponseEvaluationResponse(response: string): { eval_result: 'correct'|'partial'|'wrong', feedback: string, reasoning: string }`
-  - [ ] 4.2 The prompt must instruct Claude Haiku to:
+  - [x] 4.2 The prompt must instruct Claude Haiku to:
     - Compare the student's answer against the expected answer
     - Return `{ "eval_result": "correct"|"partial"|"wrong", "feedback": "...", "reasoning": "..." }`
     - `feedback` should be a student-facing nudge (encouraging, not grading), 1-2 sentences
     - `eval_result` must be exactly one of the three values — NOT a color, NOT a number
-  - [ ] 4.3 **Write test** for `parseResponseEvaluationResponse()`:
+  - [x] 4.3 **Write test** for `parseResponseEvaluationResponse()`:
     - Valid "correct" response → parses correctly
     - Valid "partial" response → parses correctly
     - Valid "wrong" response → parses correctly
     - Response with extra keys → still extracts the 3 required fields
     - Malformed JSON → returns a safe default `{ eval_result: "partial", feedback: "...", reasoning: "..." }`
-  - [ ] 4.4 Create `frontend/src/app/api/polls/[pollId]/respond/route.ts` (POST handler):
+  - [x] 4.4 Create `frontend/src/app/api/polls/[pollId]/respond/route.ts` (POST handler):
     - Accept `{ studentId, answer }`
     - Look up the poll question from DB (get question text, expected answer, concept_id)
     - Call Claude Haiku with the evaluation prompt
@@ -132,7 +132,7 @@ Update the file after completing each sub-task, not just after completing an ent
     - Emit `mastery:updated` to the specific student via `emitToStudent(studentId, ...)`. **DEPENDENCY: Person 4's Socket.IO helpers.**
     - Emit `heatmap:updated` with `{ conceptId }` to the professor via `emitToProfessor(lectureId, ...)`. The frontend re-fetches the full heatmap from Flask on this event — no need to compute the distribution here.
     - Return `{ evaluation: { eval_result, feedback, reasoning }, updated: { concept_id, old_color, new_color, confidence } }`
-  - [ ] 4.5 Verify: submit a student answer, confirm evaluation is stored, mastery is updated in Flask, Socket.IO events fire
+  - [x] 4.5 Verify: submit a student answer, confirm evaluation is stored, mastery is updated in Flask, Socket.IO events fire
 
 > **MERGE POINT 2:** After completing tasks 2.0–4.0, merge to `main`. This is critical — Person 4's auto-responder depends on the `POST /api/polls/:pollId/respond` endpoint being available. Coordinate with Person 1's Merge Point 2 (mastery endpoints) and Person 4's Socket.IO merge.
 
