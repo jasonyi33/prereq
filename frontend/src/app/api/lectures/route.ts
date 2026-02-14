@@ -14,6 +14,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // In demo mode, automatically start the transcript simulator
+  if (process.env.DEMO_MODE === "true") {
+    try {
+      const { startSimulator } = await import("@server/simulator");
+      startSimulator(data.id, data.course_id);
+    } catch {
+      // Simulator not available — that's fine
+    }
+  }
+
   return NextResponse.json({
     id: data.id,
     courseId: data.course_id,
