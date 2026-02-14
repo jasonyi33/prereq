@@ -40,6 +40,7 @@ const teacherLectures = new Map<string, string>();
 interface ZoomCredentials {
   zoom_client_id: string;
   zoom_client_secret: string;
+  zoom_secret_token: string;
 }
 
 const credentialCache = new Map<string, ZoomCredentials>();
@@ -54,7 +55,7 @@ async function getTeacherCredentials(teacherId: string): Promise<ZoomCredentials
 
   const { data } = await supabase
     .from("teachers")
-    .select("zoom_client_id, zoom_client_secret")
+    .select("zoom_client_id, zoom_client_secret, zoom_secret_token")
     .eq("id", teacherId)
     .single();
 
@@ -63,6 +64,7 @@ async function getTeacherCredentials(teacherId: string): Promise<ZoomCredentials
   const creds: ZoomCredentials = {
     zoom_client_id: data.zoom_client_id,
     zoom_client_secret: data.zoom_client_secret,
+    zoom_secret_token: data.zoom_secret_token || data.zoom_client_secret,
   };
   credentialCache.set(teacherId, creds);
   return creds;
@@ -132,10 +134,27 @@ async function postTranscript(lectureId: string, text: string, timestamp: number
   }
 }
 
+// --- Diagnostic log ---
+// Circular buffer of recent RTMS events for the /api/rtms/status endpoint
+interface DiagEvent {
+  time: string;
+  step: string;
+  detail?: string;
+}
+const diagLog: DiagEvent[] = [];
+function diag(step: string, detail?: string) {
+  const entry = { time: new Date().toISOString(), step, detail };
+  diagLog.push(entry);
+  if (diagLog.length > 100) diagLog.shift();
+  console.log(`[RTMS] ${step}${detail ? ` — ${detail}` : ""}`);
+}
+
 // --- Core RTMS connection logic ---
 
 async function startRtmsConnection(payload: any, teacherId: string | null): Promise<void> {
   const streamId = payload?.rtms_stream_id;
+  diag("startRtmsConnection", `streamId=${streamId}, teacherId=${teacherId}`);
+  diag("payload", JSON.stringify(payload).slice(0, 500));
 
   let clientId: string;
   let clientSecret: string;
@@ -145,60 +164,76 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     // Per-teacher credentials
     const creds = await getTeacherCredentials(teacherId);
     if (!creds) {
-      console.error(`[RTMS] No Zoom credentials for teacher ${teacherId}`);
+      diag("ABORT", `No Zoom credentials in DB for teacher ${teacherId}`);
       return;
     }
+    diag("credentials", `Found per-teacher creds, clientId=${creds.zoom_client_id.slice(0, 8)}...`);
     clientId = creds.zoom_client_id;
     clientSecret = creds.zoom_client_secret;
     courseId = await getTeacherCourseId(teacherId);
+    diag("courseId", courseId || "NOT FOUND");
   } else {
     // Global/demo mode
     clientId = process.env.ZOOM_CLIENT_ID || "";
     clientSecret = process.env.ZOOM_CLIENT_SECRET || "";
     if (!clientId || !clientSecret) {
-      console.error("[RTMS] No global Zoom credentials configured");
+      diag("ABORT", "No global Zoom credentials configured");
       return;
     }
+    diag("credentials", `Using global env creds, clientId=${clientId.slice(0, 8)}...`);
     courseId = await getDefaultCourseId();
+    diag("courseId", courseId || "NOT FOUND");
   }
 
   if (!courseId) {
-    console.error("[RTMS] No course found — cannot create lecture");
+    diag("ABORT", "No course found — cannot create lecture");
     return;
   }
 
   const lectureId = await createLecture(courseId);
   if (!lectureId) {
-    console.error("[RTMS] Failed to create lecture");
+    diag("ABORT", "Failed to create lecture via Flask");
     return;
   }
+  diag("lecture", `Created lectureId=${lectureId}`);
 
   if (teacherId) {
     teacherLectures.set(teacherId, lectureId);
   }
 
-  const sdk = await getRtmsSdk();
+  let sdk: any;
+  try {
+    sdk = await getRtmsSdk();
+    diag("sdk", "@zoom/rtms SDK loaded successfully");
+  } catch (err: any) {
+    diag("ABORT", `SDK load failed: ${err.message}`);
+    return;
+  }
+
   const client = new sdk.Client();
   activeStreams.set(streamId, { client, teacherId, lectureId });
+  diag("client", `Created RTMS Client, activeStreams count=${activeStreams.size}`);
 
   let startTime = Date.now();
+  let transcriptCount = 0;
 
   client.onTranscriptData((data: Buffer, size: number, timestamp: number, metadata: any) => {
+    transcriptCount++;
     const text = data.toString("utf8");
     const elapsedSec = (Date.now() - startTime) / 1000;
     const speakerName = metadata?.userName || "Unknown";
 
-    console.log(`[RTMS] [${elapsedSec.toFixed(1)}s] ${speakerName}: ${text}`);
+    diag("transcript", `#${transcriptCount} [${elapsedSec.toFixed(1)}s] ${speakerName}: ${text.slice(0, 100)}`);
     postTranscript(lectureId, text, elapsedSec, speakerName);
   });
 
   client.onJoinConfirm((reason: number) => {
-    console.log(`[RTMS] Joined meeting (reason: ${reason})${teacherId ? ` [teacher: ${teacherId}]` : ""}`);
+    diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}`);
     startTime = Date.now();
   });
 
   client.onLeave((reason: number) => {
-    console.log(`[RTMS] Left meeting (reason: ${reason})`);
+    diag("leave", `reason=${reason}, streamId=${streamId}`);
     activeStreams.delete(streamId);
     if (teacherId) {
       teacherLectures.delete(teacherId);
@@ -212,6 +247,7 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
   process.env.ZM_RTMS_CLIENT = clientId;
   process.env.ZM_RTMS_SECRET = clientSecret;
 
+  diag("join", `Calling client.join() with streamId=${streamId}`);
   client.join(payload);
 
   // Restore previous env vars
@@ -220,7 +256,7 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
   if (prevSecret !== undefined) process.env.ZM_RTMS_SECRET = prevSecret;
   else delete process.env.ZM_RTMS_SECRET;
 
-  console.log(`[RTMS] Connecting to Zoom meeting stream...${teacherId ? ` [teacher: ${teacherId}]` : ""}`);
+  diag("join", "client.join() called — waiting for onJoinConfirm callback...");
 }
 
 // --- Webhook handler factory ---
@@ -231,10 +267,12 @@ function handleWebhook(teacherId: string | null, secret: string) {
     if (req.body?.event === "endpoint.url_validation") {
       const plainToken = req.body.payload?.plainToken;
       if (plainToken) {
+        diag("validation", `Webhook URL validation challenge received (teacher=${teacherId || "global"})`);
         const hashForValidate = createHmac("sha256", secret)
           .update(plainToken)
           .digest("hex");
         res.json({ plainToken, encryptedToken: hashForValidate });
+        diag("validation", "Responded with encrypted token");
         return;
       }
     }
@@ -243,24 +281,35 @@ function handleWebhook(teacherId: string | null, secret: string) {
     const payload = req.body?.payload;
     const streamId = payload?.rtms_stream_id;
 
-    console.log(`[RTMS] Webhook event: ${event}${teacherId ? ` [teacher: ${teacherId}]` : ""}`);
+    diag("webhook", `event=${event}, streamId=${streamId}, teacher=${teacherId || "global"}`);
 
     // Must respond 200 immediately
     res.status(200).send("OK");
 
     if (RTMS_STOP_EVENTS.includes(event)) {
-      console.log("[RTMS] Received stop webhook (ignoring — waiting for actual disconnect)");
+      const stream = activeStreams.get(streamId);
+      if (stream) {
+        diag("stop", `Calling client.leave() for streamId=${streamId}`);
+        try { stream.client.leave(); } catch {}
+        activeStreams.delete(streamId);
+        if (teacherId) teacherLectures.delete(teacherId);
+      } else {
+        diag("stop", `No active stream for streamId=${streamId} (already cleaned up?)`);
+      }
       return;
     }
 
-    if (!RTMS_EVENTS.includes(event)) return;
+    if (!RTMS_EVENTS.includes(event)) {
+      diag("webhook", `Ignoring unhandled event: ${event}`);
+      return;
+    }
     if (activeStreams.has(streamId)) {
-      console.log("[RTMS] Already connected to this stream");
+      diag("webhook", `Already connected to stream ${streamId}, skipping`);
       return;
     }
 
     startRtmsConnection(payload, teacherId).catch((err) => {
-      console.error("[RTMS] Error starting RTMS connection:", err);
+      diag("ERROR", `startRtmsConnection failed: ${err.message || err}`);
     });
   };
 }
@@ -287,8 +336,9 @@ function handleOAuth(teacherId: string | null) {
       }
       clientId = creds.zoom_client_id;
       clientSecret = creds.zoom_client_secret;
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-      redirectUri = `${appUrl}/auth/${teacherId}`;
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      const host = req.headers["host"];
+      redirectUri = `${protocol}://${host}/auth/${teacherId}`;
     } else {
       clientId = process.env.ZOOM_CLIENT_ID || "";
       clientSecret = process.env.ZOOM_CLIENT_SECRET || "";
@@ -328,6 +378,21 @@ function handleOAuth(teacherId: string | null) {
 // --- Setup ---
 
 export function setupRTMS(app: Express): void {
+  // --- Diagnostic endpoint ---
+  app.get("/api/rtms/status", (_req, res) => {
+    res.json({
+      activeStreams: Array.from(activeStreams.entries()).map(([id, s]) => ({
+        streamId: id,
+        teacherId: s.teacherId,
+        lectureId: s.lectureId,
+      })),
+      teacherLectures: Object.fromEntries(teacherLectures),
+      recentEvents: diagLog.slice(-30),
+      sdkLoaded: rtms !== null,
+      hasGlobalCreds: !!(process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET),
+    });
+  });
+
   // Legacy global env var setup (for backward compat / demo mode)
   if (process.env.ZOOM_CLIENT_ID) {
     process.env.ZM_RTMS_CLIENT = process.env.ZOOM_CLIENT_ID;
@@ -348,29 +413,43 @@ export function setupRTMS(app: Express): void {
 
   // Per-teacher webhook: POST /webhook/:teacherId
   app.post("/webhook/:teacherId", async (req, res) => {
-    const { teacherId } = req.params;
+    try {
+      const { teacherId } = req.params;
 
-    // For validation challenges, we need the teacher's secret
-    // For RTMS events, we also need credentials
-    const creds = await getTeacherCredentials(teacherId);
-    if (!creds) {
-      // If it's a validation challenge and we have no creds, we can't validate
-      if (req.body?.event === "endpoint.url_validation") {
-        res.status(404).json({ error: "No Zoom credentials found. Save credentials first." });
+      // For validation challenges, we need the teacher's secret
+      // For RTMS events, we also need credentials
+      const creds = await getTeacherCredentials(teacherId);
+      if (!creds) {
+        // If it's a validation challenge and we have no creds, we can't validate
+        if (req.body?.event === "endpoint.url_validation") {
+          res.status(404).json({ error: "No Zoom credentials found. Save credentials first." });
+          return;
+        }
+        res.status(200).send("OK");
+        console.warn(`[RTMS] No credentials for teacher ${teacherId}, ignoring event`);
         return;
       }
-      res.status(200).send("OK");
-      console.warn(`[RTMS] No credentials for teacher ${teacherId}, ignoring event`);
-      return;
-    }
 
-    handleWebhook(teacherId, creds.zoom_client_secret)(req, res);
+      handleWebhook(teacherId, creds.zoom_secret_token)(req, res);
+    } catch (err) {
+      console.error("[RTMS] Webhook handler error:", err);
+      if (!res.headersSent) {
+        res.status(500).send("Webhook handler failed — check server logs");
+      }
+    }
   });
 
   // Per-teacher OAuth: GET /auth/:teacherId
   app.get("/auth/:teacherId", async (req, res) => {
-    const { teacherId } = req.params;
-    await handleOAuth(teacherId)(req, res);
+    try {
+      const { teacherId } = req.params;
+      await handleOAuth(teacherId)(req, res);
+    } catch (err: any) {
+      console.error("[RTMS] OAuth callback error:", err);
+      if (!res.headersSent) {
+        res.status(500).send(`OAuth callback failed: ${err?.message || err}`);
+      }
+    }
   });
 
   console.log("[RTMS] Zoom RTMS integration initialized");

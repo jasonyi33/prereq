@@ -21,7 +21,9 @@ interface ZoomSettingsDialogProps {
 export default function ZoomSettingsDialog({ open, onOpenChange, teacherId }: ZoomSettingsDialogProps) {
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
+  const [secretToken, setSecretToken] = useState("");
   const [hasSecret, setHasSecret] = useState(false);
+  const [hasSecretToken, setHasSecretToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -38,10 +40,12 @@ export default function ZoomSettingsDialog({ open, onOpenChange, teacherId }: Zo
     setError("");
     flaskApi
       .get(`/api/teachers/${teacherId}/zoom-credentials`)
-      .then((data: { zoom_client_id: string; has_secret: boolean }) => {
+      .then((data: { zoom_client_id: string; has_secret: boolean; has_secret_token: boolean }) => {
         setClientId(data.zoom_client_id || "");
         setHasSecret(data.has_secret);
+        setHasSecretToken(data.has_secret_token);
         setClientSecret("");
+        setSecretToken("");
       })
       .catch(() => {});
   }, [open, teacherId]);
@@ -57,6 +61,7 @@ export default function ZoomSettingsDialog({ open, onOpenChange, teacherId }: Zo
       await flaskApi.put(`/api/teachers/${teacherId}/zoom-credentials`, {
         zoom_client_id: clientId.trim(),
         zoom_client_secret: clientSecret.trim(),
+        ...(secretToken.trim() && { zoom_secret_token: secretToken.trim() }),
       });
       setHasSecret(true);
       setSaved(true);
@@ -123,6 +128,21 @@ export default function ZoomSettingsDialog({ open, onOpenChange, teacherId }: Zo
                   value={clientSecret}
                   onChange={(e) => setClientSecret(e.target.value)}
                   placeholder={hasSecret ? "Enter new secret to update" : "Your Zoom Client Secret"}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <span className="text-xs font-medium text-slate-600">
+                  Secret Token {hasSecretToken && !secretToken && <span className="text-emerald-600">(saved)</span>}
+                </span>
+                <p className="text-[10px] text-slate-400">
+                  Found in Feature → Event Subscription → Secret Token
+                </p>
+                <Input
+                  type="password"
+                  value={secretToken}
+                  onChange={(e) => setSecretToken(e.target.value)}
+                  placeholder={hasSecretToken ? "Enter new token to update" : "Your Zoom Secret Token"}
                   className="mt-1"
                 />
               </div>

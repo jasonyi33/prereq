@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Sparkles } from "lucide-react";
-import NodeDetailPanel from "@/components/graph/NodeDetailPanel";
+import { GraduationCap } from "lucide-react";
 import type { GraphNode, GraphEdge } from "@/components/graph/KnowledgeGraph";
-import PollCard from "@/components/student/PollCard";
-import TranscriptFeed, { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
+import SidePanel from "@/components/student/SidePanel";
+import { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi } from "@/lib/api";
 import { confidenceToColor, COLOR_HEX } from "@/lib/colors";
@@ -39,8 +38,6 @@ export default function StudentView() {
   const [activePoll, setActivePoll] = useState<PollData | null>(null);
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
   const [lectureId, setLectureId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   // Get courseId from localStorage
   const courseId = typeof window !== "undefined" ? localStorage.getItem("courseId") : null;
@@ -127,18 +124,6 @@ export default function StudentView() {
     });
   }, [socket, lectureId, studentId]);
 
-  // Measure container for graph sizing
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      setDimensions({ width, height });
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
   // Socket events
   useSocketEvent<{ text: string; timestamp: number; detectedConcepts?: { id: string; label: string }[] }>(
     "transcript:chunk",
@@ -187,40 +172,57 @@ export default function StudentView() {
     ),
   );
 
-  const handleNodeClick = useCallback((node: GraphNode) => {
-    setSelectedNode(node);
-    const ancestors = getAncestors(node.id, edges);
-    ancestors.add(node.id);
-    setHighlightedNodeIds(ancestors);
-  }, [edges]);
+  // Toggle selection: click same node = deselect
+  const handleNodeClick = useCallback(
+    (node: GraphNode) => {
+      if (selectedNode?.id === node.id) {
+        setSelectedNode(null);
+        setHighlightedNodeIds(new Set());
+      } else {
+        setSelectedNode(node);
+        const ancestors = getAncestors(node.id, edges);
+        ancestors.add(node.id);
+        setHighlightedNodeIds(ancestors);
+      }
+    },
+    [edges, selectedNode?.id],
+  );
+
+  const handleDeselectNode = useCallback(() => {
+    setSelectedNode(null);
+    setHighlightedNodeIds(new Set());
+  }, []);
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 relative overflow-hidden">
-      {/* Background blur blobs */}
+    <div className="flex h-screen flex-col bg-[#0f172a] text-slate-200 relative overflow-hidden font-sans selection:bg-indigo-500/30">
+      {/* Background atmosphere gradients */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-emerald-200/15 blur-[100px] rounded-full" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-900/10 blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-900/10 blur-[120px]" />
+        <div className="absolute top-[40%] left-[40%] w-[20%] h-[20%] rounded-full bg-teal-900/10 blur-[100px]" />
       </div>
 
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between bg-white/70 backdrop-blur-sm border-b border-slate-200 px-4 py-3">
-        <div className="flex items-center gap-3">
+      <header className="relative z-10 h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+        <div className="flex items-center gap-4">
           <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm">P</span>
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-slate-800 tracking-tight leading-tight">Prereq</h1>
-            <p className="text-xs text-slate-500">Knowledge Graph</p>
+            <h1 className="text-sm font-semibold text-slate-200">Prereq</h1>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs text-slate-500">Live Lecture</span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => router.push(`/student/${studentId}/tutor`)}
-            className="group relative overflow-hidden px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold text-sm shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center gap-2"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-indigo-900/20 transition-all hover:scale-105"
           >
-            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-            <Sparkles className="w-4 h-4 relative" />
-            <span className="relative">Start Tutoring</span>
+            <GraduationCap size={16} />
+            <span>Start Tutoring</span>
           </button>
           {user && (
             <button
@@ -228,98 +230,78 @@ export default function StudentView() {
                 await signOut();
                 router.push("/");
               }}
-              className="px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
             >
               Sign out
             </button>
           )}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white shadow-inner border border-white/10">
+            {(user?.email?.[0] || "S").toUpperCase()}
+          </div>
         </div>
       </header>
 
       {/* Main content */}
-      <div className="relative z-10 flex flex-1 overflow-hidden gap-3 p-3">
-        {/* Left: Knowledge Graph */}
-        <div className="w-3/5 relative rounded-2xl overflow-hidden shadow-xl shadow-slate-200/50 border border-slate-200/80">
-          <div ref={containerRef} className="w-full h-full">
-            {dimensions.width > 0 && nodes.length > 0 && (
-              <KnowledgeGraph
-                nodes={nodes}
-                edges={edges}
-                activeConceptId={activeConceptId}
-                highlightedNodeIds={highlightedNodeIds}
-                onNodeClick={handleNodeClick}
-                width={dimensions.width}
-                height={dimensions.height}
-              />
-            )}
-            {nodes.length === 0 && (
-              <div className="flex h-full items-center justify-center bg-slate-900/95">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center animate-pulse">
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="text-sm text-slate-400">Loading graph...</p>
+      <main className="relative z-10 flex-1 flex gap-4 p-4 overflow-hidden">
+        {/* Graph area */}
+        <div className="flex-[3] h-full min-w-0 relative">
+          {nodes.length > 0 ? (
+            <KnowledgeGraph
+              nodes={nodes}
+              edges={edges}
+              activeConceptId={activeConceptId}
+              highlightedNodeIds={highlightedNodeIds}
+              onNodeClick={handleNodeClick}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-slate-900/50 rounded-xl border border-slate-700/50">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center animate-pulse">
+                  <span className="text-white font-bold text-lg">P</span>
                 </div>
+                <p className="text-sm text-slate-400">Loading graph...</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Mastery summary pill */}
           {nodes.length > 0 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
-              <div className="flex items-center gap-3 px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full border border-slate-200/80 shadow-lg">
+              <div className="flex items-center gap-3 px-4 py-2 bg-slate-900/80 backdrop-blur-sm rounded-full border border-slate-700/50 shadow-lg">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.green }} />
-                  <span className="text-xs font-medium text-slate-600">{masteryCounts.green}</span>
+                  <span className="text-xs font-medium text-slate-400">{masteryCounts.green}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.yellow }} />
-                  <span className="text-xs font-medium text-slate-600">{masteryCounts.yellow}</span>
+                  <span className="text-xs font-medium text-slate-400">{masteryCounts.yellow}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.red }} />
-                  <span className="text-xs font-medium text-slate-600">{masteryCounts.red}</span>
+                  <span className="text-xs font-medium text-slate-400">{masteryCounts.red}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_HEX.gray }} />
-                  <span className="text-xs font-medium text-slate-600">{masteryCounts.gray}</span>
+                  <span className="text-xs font-medium text-slate-400">{masteryCounts.gray}</span>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Floating overlay panel */}
-          {selectedNode && (
-            <div className="absolute top-4 left-4 w-96 max-h-[calc(100%-2rem)] overflow-y-auto z-40">
-              <NodeDetailPanel
-                node={selectedNode}
-                onClose={() => {
-                  setSelectedNode(null);
-                  setHighlightedNodeIds(new Set());
-                }}
-                lectureId={lectureId}
-                courseId={courseId}
-              />
-            </div>
-          )}
         </div>
 
-        {/* Right: Active Panel */}
-        <div className="w-2/5 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            {activePoll ? (
-              <PollCard
-                pollId={activePoll.pollId}
-                question={activePoll.question}
-                conceptLabel={activePoll.conceptLabel}
-                studentId={studentId}
-              />
-            ) : (
-              <TranscriptFeed chunks={transcriptChunks} />
-            )}
-          </div>
+        {/* Side panel */}
+        <div className="flex-[2] h-full min-w-[320px] max-w-[450px] relative z-10">
+          <SidePanel
+            activePoll={activePoll}
+            studentId={studentId}
+            transcriptChunks={transcriptChunks}
+            selectedNode={selectedNode}
+            onDeselectNode={handleDeselectNode}
+            lectureId={lectureId}
+            courseId={courseId}
+          />
         </div>
-      </div>
+      </main>
     </div>
   );
 }

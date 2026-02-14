@@ -28,7 +28,8 @@ app.use("/webhook/:teacherId", express.json());
 
 let clearCredentialCacheFn: ((teacherId: string) => void) | null = null;
 
-import("./rtms").then(({ setupRTMS, clearCredentialCache }) => {
+// Start RTMS import early, but don't block — we'll await it before registering the catch-all
+const rtmsReady = import("./rtms").then(({ setupRTMS, clearCredentialCache }) => {
   setupRTMS(app);
   clearCredentialCacheFn = clearCredentialCache;
 }).catch((err) => {
@@ -47,7 +48,10 @@ app.post("/api/zoom/clear-cache", express.json(), (req, res) => {
 const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();
 
-nextApp.prepare().then(() => {
+nextApp.prepare().then(async () => {
+  // Wait for RTMS routes to register BEFORE the Next.js catch-all
+  await rtmsReady;
+
   app.all("/{*path}", (req, res) => {
     return nextHandler(req, res);
   });

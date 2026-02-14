@@ -220,14 +220,19 @@ def update_zoom_credentials(teacher_id):
     data = request.json or {}
     zoom_client_id = data.get("zoom_client_id", "").strip()
     zoom_client_secret = data.get("zoom_client_secret", "").strip()
+    zoom_secret_token = data.get("zoom_secret_token", "").strip()
 
     if not zoom_client_id or not zoom_client_secret:
         return jsonify({"error": "Both zoom_client_id and zoom_client_secret are required"}), 400
 
-    supabase.table("teachers").update({
+    update_data = {
         "zoom_client_id": zoom_client_id,
         "zoom_client_secret": zoom_client_secret,
-    }).eq("id", teacher_id).execute()
+    }
+    if zoom_secret_token:
+        update_data["zoom_secret_token"] = zoom_secret_token
+
+    supabase.table("teachers").update(update_data).eq("id", teacher_id).execute()
 
     return jsonify({"ok": True}), 200
 
@@ -238,7 +243,7 @@ def get_zoom_credentials(teacher_id):
     """Get Zoom credential status for a teacher (never exposes the secret)."""
     auth_id = g.user["sub"]
 
-    teacher = supabase.table("teachers").select("id, auth_id, zoom_client_id, zoom_client_secret").eq("id", teacher_id).execute().data
+    teacher = supabase.table("teachers").select("id, auth_id, zoom_client_id, zoom_client_secret, zoom_secret_token").eq("id", teacher_id).execute().data
     if not teacher or teacher[0]["auth_id"] != auth_id:
         return jsonify({"error": "Forbidden"}), 403
 
@@ -246,4 +251,5 @@ def get_zoom_credentials(teacher_id):
     return jsonify({
         "zoom_client_id": row.get("zoom_client_id") or "",
         "has_secret": bool(row.get("zoom_client_secret")),
+        "has_secret_token": bool(row.get("zoom_secret_token")),
     }), 200
