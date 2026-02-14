@@ -1,5 +1,5 @@
 from flask import request, jsonify, Blueprint
-from ...db import supabase
+from ..db import supabase
 from ..services.create_kg import calculate_importance
 
 graph = Blueprint("graph", __name__)

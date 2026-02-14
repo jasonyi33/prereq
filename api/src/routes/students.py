@@ -2,7 +2,7 @@ from flask import request, jsonify, Blueprint
 import os
 from dotenv import load_dotenv
 
-from ...db import supabase
+from ..db import supabase
 
 load_dotenv()
 students = Blueprint("students", __name__)
