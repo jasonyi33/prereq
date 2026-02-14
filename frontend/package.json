@@ -6,7 +6,8 @@
     "dev": "tsx server/index.ts",
     "build": "next build",
     "start": "tsx server/index.ts",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npx vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
