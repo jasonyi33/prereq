@@ -59,13 +59,12 @@ Requirements:
         raise ValueError("Claude returned empty text")
 
     # Remove markdown code blocks if present
-    if '```' in response_text:
-        parts = response_text.split('```')
-        if len(parts) >= 3:
-            response_text = parts[1]
-            if response_text.startswith('json'):
-                response_text = response_text[4:]
-            response_text = response_text.strip()
+    if response_text.startswith('```'):
+        lines = response_text.split('\n')
+        lines = lines[1:]  # Remove first line (```json or ```)
+        if lines and lines[-1].strip() == '```':
+            lines = lines[:-1]  # Remove last line (```)
+        response_text = '\n'.join(lines).strip()
 
     return json.loads(response_text)
 
@@ -130,13 +129,12 @@ Requirements:
             raise ValueError("Claude returned empty text")
 
         # Remove markdown code blocks if present
-        if '```' in response_text:
-            parts = response_text.split('```')
-            if len(parts) >= 3:
-                response_text = parts[1]
-                if response_text.startswith('json'):
-                    response_text = response_text[4:]
-                response_text = response_text.strip()
+        if response_text.startswith('```'):
+            lines = response_text.split('\n')
+            lines = lines[1:]  # Remove first line (```json or ```)
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]  # Remove last line (```)
+            response_text = '\n'.join(lines).strip()
 
         return json.loads(response_text)
 
