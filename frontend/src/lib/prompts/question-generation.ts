@@ -39,12 +39,24 @@ export function parseQuestionGenerationResponse(
   response: string
 ): { question: string; expectedAnswer: string } {
   try {
-    const parsed = JSON.parse(response);
+    let cleaned = response.trim();
+
+    // Remove markdown code blocks if present
+    if (cleaned.startsWith('```')) {
+      const lines = cleaned.split('\n');
+      lines.shift(); // Remove first line (```json or ```)
+      if (lines[lines.length - 1].trim() === '```') {
+        lines.pop(); // Remove last line (```)
+      }
+      cleaned = lines.join('\n').trim();
+    }
+
+    const parsed = JSON.parse(cleaned);
     return {
       question: parsed.question || "",
       expectedAnswer: parsed.expected_answer || "",
     };
-  } catch {
+  } catch (error) {
     console.error(
       "Failed to parse question generation response:",
       response
