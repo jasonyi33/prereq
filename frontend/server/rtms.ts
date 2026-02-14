@@ -201,6 +201,10 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     teacherLectures.set(teacherId, lectureId);
   }
 
+  // Set SDK env vars BEFORE constructing Client — the SDK reads these at construction time
+  process.env.ZM_RTMS_CLIENT = clientId;
+  process.env.ZM_RTMS_SECRET = clientSecret;
+
   let sdk: any;
   try {
     sdk = await getRtmsSdk();
@@ -239,11 +243,6 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
       teacherLectures.delete(teacherId);
     }
   });
-
-  // Set SDK env vars for this client — the SDK reads these asynchronously
-  // during the WebSocket handshake, so they must persist beyond client.join()
-  process.env.ZM_RTMS_CLIENT = clientId;
-  process.env.ZM_RTMS_SECRET = clientSecret;
 
   diag("join", `Calling client.join() with streamId=${streamId}`);
   client.join(payload);
