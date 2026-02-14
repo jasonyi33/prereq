@@ -40,6 +40,7 @@ const teacherLectures = new Map<string, string>();
 interface ZoomCredentials {
   zoom_client_id: string;
   zoom_client_secret: string;
+  zoom_secret_token: string;
 }
 
 const credentialCache = new Map<string, ZoomCredentials>();
@@ -54,7 +55,7 @@ async function getTeacherCredentials(teacherId: string): Promise<ZoomCredentials
 
   const { data } = await supabase
     .from("teachers")
-    .select("zoom_client_id, zoom_client_secret")
+    .select("zoom_client_id, zoom_client_secret, zoom_secret_token")
     .eq("id", teacherId)
     .single();
 
@@ -63,6 +64,7 @@ async function getTeacherCredentials(teacherId: string): Promise<ZoomCredentials
   const creds: ZoomCredentials = {
     zoom_client_id: data.zoom_client_id,
     zoom_client_secret: data.zoom_client_secret,
+    zoom_secret_token: data.zoom_secret_token || data.zoom_client_secret,
   };
   credentialCache.set(teacherId, creds);
   return creds;
@@ -428,7 +430,7 @@ export function setupRTMS(app: Express): void {
         return;
       }
 
-      handleWebhook(teacherId, creds.zoom_client_secret)(req, res);
+      handleWebhook(teacherId, creds.zoom_secret_token)(req, res);
     } catch (err) {
       console.error("[RTMS] Webhook handler error:", err);
       if (!res.headersSent) {
