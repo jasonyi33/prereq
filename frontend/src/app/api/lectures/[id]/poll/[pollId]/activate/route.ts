@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@server/db";
 import { emitToLectureRoom } from "@server/socket-helpers";
+import { flaskPut, flaskGet } from "@/lib/flask";
 
 export async function POST(
   _request: NextRequest,
@@ -9,14 +9,10 @@ export async function POST(
   const { id: lectureId, pollId } = await params;
 
   // Update poll status to active
-  const { data: poll, error } = await supabase
-    .from("poll_questions")
-    .update({ status: "active" })
-    .eq("id", pollId)
-    .select("id, question, concept_id")
-    .single();
-
-  if (error || !poll) {
+  let poll: { id: string; status: string; question: string; concept_id: string };
+  try {
+    poll = await flaskPut(`/api/polls/${pollId}/status`, { status: "active" });
+  } catch {
     return NextResponse.json(
       { error: "Poll not found" },
       { status: 404 }
@@ -24,13 +20,15 @@ export async function POST(
   }
 
   // Get concept label for the Socket.IO event
-  const { data: concept } = await supabase
-    .from("concept_nodes")
-    .select("label")
-    .eq("id", poll.concept_id)
-    .single();
-
-  const conceptLabel = concept?.label || "";
+  let conceptLabel = "";
+  try {
+    const concept = await flaskGet<{ id: string; label: string }>(
+      `/api/concepts/${poll.concept_id}`
+    );
+    conceptLabel = concept.label;
+  } catch {
+    // concept lookup failed — use empty label
+  }
 
   // Emit to all students in the lecture room
   emitToLectureRoom(lectureId, "poll:new-question", {

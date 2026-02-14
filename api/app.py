@@ -8,6 +8,7 @@ from src.routes.students import students
 from src.routes.heatmap import heatmap
 from src.routes.lectures import lectures
 from src.routes.transcripts import transcripts
+from src.routes.concepts import concepts
 from src.routes.polls import polls
 from src.routes.tutoring import tutoring
 
@@ -21,6 +22,7 @@ app.register_blueprint(graph)
 app.register_blueprint(heatmap)
 app.register_blueprint(lectures)
 app.register_blueprint(transcripts)
+app.register_blueprint(concepts)
 app.register_blueprint(polls)
 app.register_blueprint(tutoring)
 
