@@ -3,8 +3,6 @@ from supabase import create_client, Client
 import os
 from werkzeug.utils import secure_filename
 import hashlib
-import tempfile
-import requests
 from dotenv import load_dotenv
 
 from ..services.create_kg import create_kg
