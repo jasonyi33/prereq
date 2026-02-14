@@ -10,7 +10,7 @@
 - `frontend/server/index.ts` - Express custom server entry point (integrates Next.js + Socket.IO)
 - `frontend/server/socket.ts` - Socket.IO server setup + room management handlers
 - `frontend/server/socket-helpers.ts` - Exported emit helpers (`emitToLectureRoom`, `emitToStudent`, `emitToProfessor`, `getStudentsInLecture`)
-- `frontend/server/db.ts` - `pg` connection pool (shared by all Next.js API routes)
+- `frontend/server/db.ts` - Supabase JS client (shared by all Next.js API routes)
 - `frontend/server/simulator.ts` - Transcript simulator for demo mode (timed POST calls)
 - `frontend/server/auto-responder.ts` - Demo auto-responder (listens for poll events, sends scripted answers)
 - `frontend/server/rtms.ts` - Zoom RTMS integration (stretch goal)
@@ -19,11 +19,12 @@
 - `frontend/package.json` - Dependencies
 - `frontend/tsconfig.json` - TypeScript config
 - `frontend/next.config.js` - Next.js configuration
-- `render.yaml` - Render deployment blueprint (both services + DB)
+- `render.yaml` - Render deployment blueprint (frontend only)
+- `api/Dockerfile` - Cloud Run deployment for Flask API
 
 ### Notes
 
-- Use `pg` (node-postgres) for the DB connection pool — no ORM, raw SQL queries. All Next.js API routes import the pool from `frontend/server/db.ts`.
+- Use `@supabase/supabase-js` for DB access from Next.js. All Next.js API routes import the Supabase client from `frontend/server/db.ts`.
 - The Express server MUST load `.env` from the project root BEFORE initializing Next.js: `require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })`.
 - The Socket.IO server instance must be accessible from Next.js API routes. Store it as a module-level singleton in `socket.ts` that `socket-helpers.ts` imports.
 - The transcript route is SHARED with Person 3. Person 4 creates the route file and handles: receiving the POST, storing the transcript chunk in DB, calling Person 3's `detectConcepts()` function, calling Flask attendance-boost, and emitting Socket.IO events. Person 3 exports the `detectConcepts()` function from `frontend/src/lib/prompts/concept-detection.ts`.
@@ -45,7 +46,7 @@ Update the file after completing each sub-task, not just after completing an ent
 
 - [ ] 1.0 Set up Express custom server with Next.js and Socket.IO
   - [ ] 1.1 Create the Next.js project if it doesn't exist: `npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir`. **Coordinate with Person 2** — Person 4 creates the project first, Person 2 adds UI scaffolding on top.
-  - [ ] 1.2 Install server dependencies: `cd frontend && npm install express socket.io socket.io-client @anthropic-ai/sdk pg dotenv tsx`
+  - [ ] 1.2 Install server dependencies: `cd frontend && npm install express socket.io socket.io-client @anthropic-ai/sdk @supabase/supabase-js dotenv tsx`
   - [ ] 1.3 Create `frontend/server/index.ts`:
     - Load `.env` from project root: `require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })`
     - Create Express app
@@ -61,13 +62,12 @@ Update the file after completing each sub-task, not just after completing an ent
 
 - [ ] 2.0 Set up shared Postgres connection pool and .env loading
   - [ ] 2.1 Create `frontend/server/db.ts`:
-    - Import `Pool` from `pg`
-    - Create and export a pool: `export const pool = new Pool({ connectionString: process.env.DATABASE_URL })`
-    - Export a helper: `export async function query(text: string, params?: any[]) { return pool.query(text, params) }`
+    - Import `createClient` from `@supabase/supabase-js`
+    - Create and export a Supabase client: `export const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!)`
     - Note: `.env` is already loaded by `server/index.ts` before this module is imported
-  - [ ] 2.2 Verify: in `server/index.ts`, after pool creation, run a test query (`SELECT NOW()`) and log the result to confirm DB connectivity
+  - [ ] 2.2 Verify: in `server/index.ts`, after Supabase client creation, run a test query (e.g., `supabase.from('courses').select('id').limit(1)`) and log the result to confirm Supabase connectivity
   - [ ] 2.3 Add a path alias in `frontend/tsconfig.json` so API routes can cleanly import server modules. Add `"@server/*": ["./server/*"]` to the `paths` object. This lets API routes use `import { query } from '@server/db'` and `import { emitToStudent } from '@server/socket-helpers'` instead of brittle relative paths.
-  - [ ] 2.4 Verify: create a simple API route that imports `{ query }` from `@server/db`, runs `SELECT NOW()`, and returns the result. Confirm the path alias works.
+  - [ ] 2.4 Verify: create a simple API route that imports `{ supabase }` from `@server/db`, runs a test query, and returns the result. Confirm the path alias works.
 
 > **MERGE POINT 1:** After completing tasks 0.0–2.0, merge to `main`. This is the foundation — Person 2 needs the Next.js project structure, Person 3 needs the DB pool and Socket.IO helpers. Coordinate so Person 1 also merges their Flask scaffolding at this point. After this merge, everyone has a working local dev setup.
 
@@ -141,7 +141,7 @@ Update the file after completing each sub-task, not just after completing an ent
 > **MERGE POINT 3:** After completing tasks 5.0–6.0, merge to `main`. This aligns with Person 2 merging Socket.IO wiring and Person 3 merging AI routes. After this merge, the full end-to-end demo should work: start demo → transcript flows → professor generates question → Sam (live) + 3 auto-responders answer → mastery updates → heatmap updates → tutoring.
 
 - [ ] 7.0 Configure Render deployment for both services
-  - [ ] 7.1 Create `render.yaml` at the project root (Render Blueprint):
+  - [ ] 7.1 Create `render.yaml` at the project root (Render Blueprint — frontend only):
     ```yaml
     services:
       - type: web
@@ -151,41 +151,37 @@ Update the file after completing each sub-task, not just after completing an ent
         startCommand: cd frontend && npx tsx server/index.ts
         envVars:
           - key: FLASK_API_URL
-            value: "http://prereq-api:10000"  # Render internal address — port 10000 is Render's default internal port
-          - key: DATABASE_URL
-            fromDatabase:
-              name: prereq-db
-              property: connectionString
+            sync: false  # Set to Cloud Run Flask service URL after deploying
+          - key: SUPABASE_URL
+            sync: false
+          - key: SUPABASE_KEY
+            sync: false
           - key: ANTHROPIC_API_KEY
             sync: false
           - key: PERPLEXITY_API_KEY
             sync: false
           - key: DEMO_MODE
             value: "true"
-      - type: web
-        name: prereq-api
-        runtime: python
-        buildCommand: cd api && pip install -r requirements.txt
-        startCommand: cd api && python main.py
-        envVars:
-          - key: DATABASE_URL
-            fromDatabase:
-              name: prereq-db
-              property: connectionString
-          - key: ANTHROPIC_API_KEY
-            sync: false
-    databases:
-      - name: prereq-db
-        plan: free
     ```
-  - [ ] 7.2 Ensure the Flask app binds to `0.0.0.0` and uses `PORT` env var (Render sets this)
-  - [ ] 7.3 Ensure the Express server uses `process.env.PORT` (Render sets this)
-  - [ ] 7.4 Build the Next.js production bundle: `cd frontend && npm run build`. Fix any build errors (common: SSR issues with react-force-graph-2d if not properly dynamic-imported).
-  - [ ] 7.5 Test production mode locally: `cd frontend && NODE_ENV=production npx tsx server/index.ts`. Confirm pages load and Socket.IO connects.
-  - [ ] 7.6 Deploy to Render: push to GitHub, connect the repo to Render, deploy using the blueprint
-  - [ ] 7.7 Verify: both services are running on Render. Flask health check responds. Frontend loads. Socket.IO connects. Run the seed script against the Render DB. Start a demo lecture and confirm end-to-end flow works.
+  - [ ] 7.2 Create `api/Dockerfile` for Cloud Run deployment (adapt from `knowledge-graph/Dockerfile`):
+    ```dockerfile
+    FROM python:3.12-slim
+    WORKDIR /app
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+    COPY . .
+    EXPOSE 8080
+    ENTRYPOINT ["sh", "-c", "gunicorn main:app --bind 0.0.0.0:$PORT"]
+    ```
+  - [ ] 7.3 Ensure the Flask app binds to `0.0.0.0` and uses `PORT` env var: `app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))`
+  - [ ] 7.4 Ensure the Express server uses `process.env.PORT` (Render sets this)
+  - [ ] 7.5 Build the Next.js production bundle: `cd frontend && npm run build`. Fix any build errors (common: SSR issues with react-force-graph-2d if not properly dynamic-imported).
+  - [ ] 7.6 Test production mode locally: `cd frontend && NODE_ENV=production npx tsx server/index.ts`. Confirm pages load and Socket.IO connects.
+  - [ ] 7.7 Deploy Flask API to Cloud Run: `gcloud run deploy prereq-api --source api/ --region us-central1 --allow-unauthenticated`. Set env vars: `SUPABASE_URL`, `SUPABASE_KEY`, `ANTHROPIC_API_KEY`.
+  - [ ] 7.8 Deploy frontend to Render: push to GitHub, connect the repo to Render, deploy using the blueprint. Set `FLASK_API_URL` to the Cloud Run service URL.
+  - [ ] 7.9 Verify: Flask health check responds on Cloud Run. Frontend loads on Render. Socket.IO connects. Run the seed script against Supabase. Start a demo lecture and confirm end-to-end flow works.
 
-> **MERGE POINT 4 (Final):** Merge deployment config to `main`. All 4 devs should be on `main` at this point for final demo rehearsal on the deployed environment.
+> **MERGE POINT 4 (Final):** Merge deployment config to `main`. All 4 devs should be on `main` at this point for final demo rehearsal on the deployed environment (Render frontend + Cloud Run Flask API + Supabase DB).
 
 - [ ] 8.0 Implement Zoom RTMS integration (if access obtained, otherwise skip)
   - [ ] 8.1 Install `@zoom/rtms` package: `npm install @zoom/rtms` (requires Node.js 20.3.0+)
