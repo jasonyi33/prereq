@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@server/db";
+import { flaskGet } from "@/lib/flask";
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from("courses")
-    .select("id")
-    .limit(1);
-
-  if (error) {
+  try {
+    const data = await flaskGet<{ status: string }>("/api/health");
+    return NextResponse.json(data);
+  } catch (error) {
     return NextResponse.json(
-      { status: "error", message: error.message },
+      { status: "error", message: error instanceof Error ? error.message : "Flask API unreachable" },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({ status: "ok", data });
 }

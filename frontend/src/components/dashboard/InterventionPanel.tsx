@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { nextApi } from "@/lib/api";
 
 interface Suggestion {
   conceptId: string;
@@ -23,24 +24,20 @@ export default function InterventionPanel({
   const [loading, setLoading] = useState(false);
 
   async function handleGetSuggestions() {
-    if (!lectureId) return;
+    if (!lectureId || strugglingConceptIds.length === 0) return;
     setLoading(true);
-    // TODO: POST /api/lectures/:id/interventions with { conceptIds }
-    console.log("Get suggestions for:", strugglingConceptIds);
-    // Mock response
-    setSuggestions([
-      {
-        conceptId: "mock-1",
-        conceptLabel: "Backpropagation",
-        suggestion: "Consider walking through a concrete example with a 2-layer network. Many students are confusing the chain rule application with the overall gradient flow.",
-      },
-      {
-        conceptId: "mock-2",
-        conceptLabel: "Gradient Descent",
-        suggestion: "Try a visual demonstration of learning rate effects. Students may benefit from seeing divergence with a high learning rate.",
-      },
-    ]);
-    setLoading(false);
+    try {
+      const data = await nextApi.post(`/api/lectures/${lectureId}/interventions`, {
+        conceptIds: strugglingConceptIds,
+      });
+      if (data.suggestions) {
+        setSuggestions(data.suggestions);
+      }
+    } catch (err) {
+      console.error("Failed to get suggestions:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
