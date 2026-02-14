@@ -1,0 +1,8 @@
+.env
+node_modules/
+api/.venv/
+api/__pycache__/
+api/src/__pycache__/
+api/src/routes/__pycache__/
+.playwright-mcp/
+frontend/.next/

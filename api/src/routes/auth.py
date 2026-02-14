@@ -77,9 +77,11 @@ def login():
     auth_id = user.id
 
     # Build profile response (same logic as get_me)
-    teacher = supabase.table("teachers").select("id, name, email").eq("auth_id", auth_id).execute().data
+    teacher = supabase.table("teachers").select("id, name, email, zoom_client_id").eq("auth_id", auth_id).execute().data
     if teacher:
         teacher_row = teacher[0]
+        zoom_configured = bool(teacher_row.pop("zoom_client_id", None))
+        teacher_row["zoom_configured"] = zoom_configured
         courses = supabase.table("courses").select("id, name, description, join_code").eq(
             "teacher_id", teacher_row["id"]
         ).execute().data
@@ -139,9 +141,11 @@ def get_me():
     auth_id = g.user["sub"]
 
     # Check if teacher
-    teacher = supabase.table("teachers").select("id, name, email").eq("auth_id", auth_id).execute().data
+    teacher = supabase.table("teachers").select("id, name, email, zoom_client_id").eq("auth_id", auth_id).execute().data
     if teacher:
         teacher_row = teacher[0]
+        zoom_configured = bool(teacher_row.pop("zoom_client_id", None))
+        teacher_row["zoom_configured"] = zoom_configured
         # Get teacher's courses
         courses = supabase.table("courses").select("id, name, description, join_code").eq(
             "teacher_id", teacher_row["id"]
@@ -200,3 +204,46 @@ def create_teacher_profile():
     }).execute()
 
     return jsonify(result.data[0]), 201
+
+
+@auth.route('/api/teachers/<teacher_id>/zoom-credentials', methods=['PUT'])
+@require_auth
+def update_zoom_credentials(teacher_id):
+    """Save Zoom RTMS credentials for a teacher."""
+    auth_id = g.user["sub"]
+
+    # Verify caller owns this teacher row
+    teacher = supabase.table("teachers").select("id, auth_id").eq("id", teacher_id).execute().data
+    if not teacher or teacher[0]["auth_id"] != auth_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    data = request.json or {}
+    zoom_client_id = data.get("zoom_client_id", "").strip()
+    zoom_client_secret = data.get("zoom_client_secret", "").strip()
+
+    if not zoom_client_id or not zoom_client_secret:
+        return jsonify({"error": "Both zoom_client_id and zoom_client_secret are required"}), 400
+
+    supabase.table("teachers").update({
+        "zoom_client_id": zoom_client_id,
+        "zoom_client_secret": zoom_client_secret,
+    }).eq("id", teacher_id).execute()
+
+    return jsonify({"ok": True}), 200
+
+
+@auth.route('/api/teachers/<teacher_id>/zoom-credentials', methods=['GET'])
+@require_auth
+def get_zoom_credentials(teacher_id):
+    """Get Zoom credential status for a teacher (never exposes the secret)."""
+    auth_id = g.user["sub"]
+
+    teacher = supabase.table("teachers").select("id, auth_id, zoom_client_id, zoom_client_secret").eq("id", teacher_id).execute().data
+    if not teacher or teacher[0]["auth_id"] != auth_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    row = teacher[0]
+    return jsonify({
+        "zoom_client_id": row.get("zoom_client_id") or "",
+        "has_secret": bool(row.get("zoom_client_secret")),
+    }), 200
