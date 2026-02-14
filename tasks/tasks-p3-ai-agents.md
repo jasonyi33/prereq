@@ -136,37 +136,37 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 2:** After completing tasks 2.0–4.0, merge to `main`. This is critical — Person 4's auto-responder depends on the `POST /api/polls/:pollId/respond` endpoint being available. Coordinate with Person 1's Merge Point 2 (mastery endpoints) and Person 4's Socket.IO merge.
 
-- [ ] 5.0 Build poll close endpoint with misconception summary
-  - [ ] 5.1 Create `frontend/src/lib/prompts/misconception-summary.ts`. Export:
+- [x] 5.0 Build poll close endpoint with misconception summary
+  - [x] 5.1 Create `frontend/src/lib/prompts/misconception-summary.ts`. Export:
     - `buildMisconceptionSummaryPrompt(question: string, responses: { answer: string, eval_result: string }[]): string`
     - `parseMisconceptionSummaryResponse(response: string): string` (returns a 1-2 sentence summary)
-  - [ ] 5.2 Create `frontend/src/app/api/lectures/[id]/poll/[pollId]/close/route.ts` (POST handler):
+  - [x] 5.2 Create `frontend/src/app/api/lectures/[id]/poll/[pollId]/close/route.ts` (POST handler):
     - Update `poll_questions` row status to 'closed'
     - Fetch all `poll_responses` for this poll
     - Compute distribution: query Flask `GET /api/courses/:id/heatmap`, filter to this poll's concept, and extract the `distribution` object (`{ green, yellow, red, gray }`). This gives accurate post-update colors (do NOT approximate from eval_results, since a student's prior confidence affects their final color).
     - Call Claude Haiku with the misconception summary prompt (all student answers + eval results)
     - Emit `poll:closed` to the lecture room with `{ pollId, results: { distribution, totalResponses, misconceptionSummary } }`
     - Return `{ status: "closed", distribution, totalResponses, misconceptionSummary }`
-  - [ ] 5.3 Create `frontend/src/app/api/polls/[pollId]/results/route.ts` (GET handler):
+  - [x] 5.3 Create `frontend/src/app/api/polls/[pollId]/results/route.ts` (GET handler):
     - Fetch poll responses, compute distribution of eval_results, return `{ totalResponses, distribution: { green, yellow, red } }`
-  - [ ] 5.4 Verify: close a poll, confirm misconception summary is generated, Socket.IO event fires
+  - [x] 5.4 Verify: close a poll, confirm misconception summary is generated, Socket.IO event fires
 
-- [ ] 6.0 Build tutoring session creation and message endpoints
-  - [ ] 6.1 Create `frontend/src/lib/prompts/tutoring.ts`. Export:
+- [x] 6.0 Build tutoring session creation and message endpoints
+  - [x] 6.1 Create `frontend/src/lib/prompts/tutoring.ts`. Export:
     - `buildTutoringSystemPrompt(courseName: string, weakConcepts: { label: string, description: string, confidence: number }[], transcriptExcerpts: { text: string, timestampSec: number }[]): string`
-  - [ ] 6.2 The system prompt must instruct Claude Sonnet to:
+  - [x] 6.2 The system prompt must instruct Claude Sonnet to:
     - Act as a patient tutor using the Socratic method (ask guiding questions, don't lecture)
     - Focus on the student's specific weak concepts (listed with descriptions)
     - Reference lecture timestamps when relevant (e.g., "At minute 12, the professor explained...")
     - Keep responses concise (2-4 sentences max per turn)
-  - [ ] 6.3 Create `frontend/src/lib/prompts/understanding-check.ts`. Export:
+  - [x] 6.3 Create `frontend/src/lib/prompts/understanding-check.ts`. Export:
     - `buildUnderstandingCheckPrompt(studentMessage: string, targetConcepts: { label: string, description: string }[]): string`
     - `parseUnderstandingCheckResponse(response: string): { understood: boolean, concept_label: string }`
-  - [ ] 6.4 **Write test** for `parseUnderstandingCheckResponse()`:
+  - [x] 6.4 **Write test** for `parseUnderstandingCheckResponse()`:
     - `{ understood: true, concept_label: "Chain Rule" }` → parses correctly
     - `{ understood: false, concept_label: "" }` → parses correctly
     - Malformed JSON → returns `{ understood: false, concept_label: "" }`
-  - [ ] 6.5 Create `frontend/src/app/api/tutoring/sessions/route.ts` (POST handler):
+  - [x] 6.5 Create `frontend/src/app/api/tutoring/sessions/route.ts` (POST handler):
     - Accept `{ studentId, lectureId? }`
     - Fetch the student's mastery from Flask `GET /api/students/:id/mastery`
     - Filter for weak concepts: confidence < 0.7 (red + yellow nodes)
@@ -176,7 +176,7 @@ Update the file after completing each sub-task, not just after completing an ent
     - Insert `tutoring_sessions` row with `target_concepts` UUID array
     - Insert the system message and assistant's opening message into `tutoring_messages`
     - Return `{ sessionId, targetConcepts: [{ id, label, confidence, color }], initialMessage: { role: "assistant", content: "..." } }`
-  - [ ] 6.6 Create `frontend/src/app/api/tutoring/sessions/[id]/messages/route.ts`:
+  - [x] 6.6 Create `frontend/src/app/api/tutoring/sessions/[id]/messages/route.ts`:
     - **GET handler:** Fetch all `tutoring_messages` for this session, ordered by `created_at`. Return `{ messages: [{ id, role, content, createdAt }] }`
     - **POST handler** — the full tutoring flow:
       1. Accept `{ content }` (student's message)
@@ -188,7 +188,7 @@ Update the file after completing each sub-task, not just after completing an ent
       7. Make a SECOND call to Claude Haiku with the understanding check prompt: pass the student's latest message and the target concepts. Parse response: `{ understood: boolean, concept_label: string }`
       8. If `understood` is true: resolve `concept_label` to a concept UUID (from the session's `target_concepts` list or a label→ID lookup), call Flask `PUT /api/students/:studentId/mastery/:conceptId` with `{ delta: 0.2 }`, set `concept_id` on the stored assistant `tutoring_messages` row, emit `mastery:updated` via Socket.IO
       9. Return `{ message: { role: "assistant", content: "..." }, masteryUpdates?: [{ conceptId, conceptLabel, oldColor, newColor, confidence }] }`
-  - [ ] 6.7 Verify: create a tutoring session, exchange 3-5 messages, confirm multi-turn context is maintained, confirm understanding check triggers mastery boost when student demonstrates understanding
+  - [x] 6.7 Verify: create a tutoring session, exchange 3-5 messages, confirm multi-turn context is maintained, confirm understanding check triggers mastery boost when student demonstrates understanding
 
 > **MERGE POINT 3:** After completing tasks 5.0–6.0, merge to `main`. This aligns with Person 2 merging UI and Person 4 merging the simulator. After this merge, the full demo loop should work end-to-end.
 
