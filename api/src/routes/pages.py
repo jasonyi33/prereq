@@ -8,6 +8,7 @@ pages = Blueprint('pages', __name__)
 
 
 @pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
+@pages.route('/api/students/<student_id>/pages/generate', methods=['POST'])
 def generate_page(student_id):
     """Generate personalized learning page based on mastery & past mistakes"""
     data = request.json
@@ -17,40 +18,42 @@ def generate_page(student_id):
         return jsonify({'error': 'concept_id required'}), 400
 
     # Get concept details
-    concept = supabase.table('concept_nodes').select('*').eq('id', concept_id).single().execute()
-    if not concept.data:
+    concept_resp = supabase.table('concept_nodes').select('*').eq('id', concept_id).single().execute()
+    if not concept_resp.data:
         return jsonify({'error': 'Concept not found'}), 404
 
+    concept = concept_resp.data  # FIX: Extract data here
+
     # Get student's current mastery
-    mastery = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq('concept_id',
-                                                                                                     concept_id).single().execute()
-    current_confidence = mastery.data['confidence'] if mastery.data else 0.0
+    mastery_resp = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq('concept_id',
+                                                                                                          concept_id).single().execute()
+    current_confidence = mastery_resp.data['confidence'] if mastery_resp.data else 0.0
 
     # Get past quiz mistakes
     past_mistakes = []
-    responses = supabase.table('quiz_responses').select('quiz_questions(question_text, explanation)').eq('is_correct',
-                                                                                                         False).execute()
+    responses_resp = supabase.table('quiz_responses').select('quiz_questions(question_text, explanation)').eq(
+        'is_correct', False).execute()
 
-    if responses.data:
-        past_mistakes = [r['quiz_questions']['explanation'] for r in responses.data if r.get('quiz_questions')]
+    if responses_resp.data:
+        past_mistakes = [r['quiz_questions']['explanation'] for r in responses_resp.data if r.get('quiz_questions')]
 
     # Generate page using Claude
     result = generate_learning_page(
-        concept['data']['label'],
-        concept['data'].get('description', ''),
+        concept['label'],  # FIX: Use concept directly
+        concept.get('description', ''),
         past_mistakes,
         current_confidence
     )
 
     # Save to database
-    page = supabase.table('learning_pages').insert({
+    page_resp = supabase.table('learning_pages').insert({
         'student_id': student_id,
         'concept_id': concept_id,
         'title': result['title'],
         'content': result['content']
     }).execute()
 
-    return jsonify(page.data[0]), 201
+    return jsonify(page_resp.data[0]), 201
 
 
 @pages.route('/api/pages/<page_id>', methods=['GET'])
@@ -83,48 +86,51 @@ def delete_page(page_id):
 # ==================== PRACTICE QUIZZES ====================
 
 @pages.route('/api/pages/<page_id>/quiz/generate', methods=['POST'])
+@pages.route('/api/pages/<page_id>/quiz/generate', methods=['POST'])
 def generate_quiz(page_id):
     """Generate practice quiz for a learning page"""
     # Get page details
-    page = supabase.table('learning_pages').select('*, concept_nodes(label, description)').eq('id',
-                                                                                              page_id).single().execute()
+    page_resp = supabase.table('learning_pages').select('*, concept_nodes(label, description)').eq('id',
+                                                                                                   page_id).single().execute()
 
-    if not page.data:
+    if not page_resp.data:
         return jsonify({'error': 'Page not found'}), 404
 
-    student_id = page.data['student_id']
-    concept_id = page.data['concept_id']
+    page = page_resp.data  # FIX: Extract data here
+
+    student_id = page['student_id']
+    concept_id = page['concept_id']
 
     # Get student mastery
-    mastery = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq('concept_id',
-                                                                                                     concept_id).single().execute()
-    current_confidence = mastery.data['confidence'] if mastery.data else 0.0
+    mastery_resp = supabase.table('student_mastery').select('confidence').eq('student_id', student_id).eq('concept_id',
+                                                                                                          concept_id).single().execute()
+    current_confidence = mastery_resp.data['confidence'] if mastery_resp.data else 0.0
 
     # Get past mistakes
     past_mistakes = []
-    responses = supabase.table('quiz_responses').select('quiz_questions(question_text, explanation)').eq('is_correct',
-                                                                                                         False).execute()
+    responses_resp = supabase.table('quiz_responses').select('quiz_questions(question_text, explanation)').eq(
+        'is_correct', False).execute()
 
-    if responses.data:
-        past_mistakes = [r['quiz_questions']['explanation'] for r in responses.data if r.get('quiz_questions')]
+    if responses_resp.data:
+        past_mistakes = [r['quiz_questions']['explanation'] for r in responses_resp.data if r.get('quiz_questions')]
 
     # Generate quiz using Claude
     result = generate_practice_quiz(
-        page.data['concept_nodes']['label'],
-        page.data['concept_nodes'].get('description', ''),
+        page['concept_nodes']['label'],  # FIX: Use page directly
+        page['concept_nodes'].get('description', ''),
         past_mistakes,
         current_confidence
     )
 
     # Create quiz
-    quiz = supabase.table('practice_quizzes').insert({
+    quiz_resp = supabase.table('practice_quizzes').insert({
         'page_id': page_id,
         'student_id': student_id,
         'concept_id': concept_id,
         'status': 'pending'
     }).execute()
 
-    quiz_id = quiz.data[0]['id']
+    quiz_id = quiz_resp.data[0]['id']
 
     # Insert questions
     for idx, q in enumerate(result['questions']):
@@ -138,9 +144,10 @@ def generate_quiz(page_id):
         }).execute()
 
     # Return quiz with questions
-    full_quiz = supabase.table('practice_quizzes').select('*, quiz_questions(*)').eq('id', quiz_id).single().execute()
+    full_quiz_resp = supabase.table('practice_quizzes').select('*, quiz_questions(*)').eq('id',
+                                                                                          quiz_id).single().execute()
 
-    return jsonify(full_quiz.data), 201
+    return jsonify(full_quiz_resp.data), 201
 
 
 @pages.route('/api/quizzes/<quiz_id>', methods=['GET'])
