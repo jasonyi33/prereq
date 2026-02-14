@@ -10,6 +10,9 @@ RUN echo "deb http://deb.debian.org/debian trixie main" > /etc/apt/sources.list.
 
 WORKDIR /app
 
+# Create logs directory for @zoom/rtms SDK internal logging
+RUN mkdir -p /app/logs
+
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci
