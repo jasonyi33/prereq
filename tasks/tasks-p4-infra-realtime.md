@@ -71,13 +71,13 @@ Update the file after completing each sub-task, not just after completing an ent
 
 > **MERGE POINT 1:** After completing tasks 0.0–2.0, merge to `main`. This is the foundation — Person 2 needs the Next.js project structure, Person 3 needs the DB pool and Socket.IO helpers. Coordinate so Person 1 also merges their Flask scaffolding at this point. After this merge, everyone has a working local dev setup.
 
-- [ ] 3.0 Implement Socket.IO room management and helper functions
-  - [ ] 3.1 Create `frontend/server/socket.ts`:
+- [x] 3.0 Implement Socket.IO room management and helper functions
+  - [x] 3.1 Create `frontend/server/socket.ts`:
     - Export a `setupSocket(io: Server)` function that registers event handlers
     - Handle `lecture:join` event: extract `{ lectureId, role, studentId? }` from the payload, join the socket to room `lecture:${lectureId}`. If role is 'professor', also join room `professor:${lectureId}`. If role is 'student', also join room `student:${studentId}`.
     - Maintain an in-memory map of `lectureId → Set<studentId>` to track which students are in each lecture (updated on join/disconnect)
     - Handle `disconnect`: remove the student from the lecture's student set
-  - [ ] 3.2 Create `frontend/server/socket-helpers.ts` — export these 4 functions (they all need access to the `io` instance, so import it from `socket.ts`):
+  - [x] 3.2 Create `frontend/server/socket-helpers.ts` — export these 4 functions (they all need access to the `io` instance, so import it from `socket.ts`):
     ```typescript
     export function emitToLectureRoom(lectureId: string, event: string, data: any): void
     // emits to room `lecture:${lectureId}`
@@ -91,14 +91,14 @@ Update the file after completing each sub-task, not just after completing an ent
     export function getStudentsInLecture(lectureId: string): string[]
     // returns the list of connected student IDs from the in-memory map
     ```
-  - [ ] 3.3 Verify: open two browser tabs, have one join as professor and one as student. Emit a test event from the server, confirm both receive it. Confirm `getStudentsInLecture()` returns the connected student ID.
+  - [x] 3.3 Verify: open two browser tabs, have one join as professor and one as student. Emit a test event from the server, confirm both receive it. Confirm `getStudentsInLecture()` returns the connected student ID.
 
-- [ ] 4.0 Build lecture creation and transcript ingestion endpoints
-  - [ ] 4.1 Create `frontend/src/app/api/lectures/route.ts` (POST handler):
+- [x] 4.0 Build lecture creation and transcript ingestion endpoints
+  - [x] 4.1 Create `frontend/src/app/api/lectures/route.ts` (POST handler):
     - Accept `{ courseId, title }`
     - Insert a `lecture_sessions` row (status='live', started_at=NOW())
     - Return `{ id, courseId, title, status: "live" }`
-  - [ ] 4.2 Create `frontend/src/app/api/lectures/[id]/transcript/route.ts` (POST handler) — **this is the SHARED route with Person 3**:
+  - [x] 4.2 Create `frontend/src/app/api/lectures/[id]/transcript/route.ts` (POST handler) — **this is the SHARED route with Person 3**:
     - Accept `{ text, timestamp, speakerName? }`
     - **Step 1 (Person 4):** Insert a `transcript_chunks` row with the text, timestamp, speaker_name, and lecture_id
     - **Step 2 (Person 3):** Call Person 3's `detectConcepts(text, conceptLabels)` function. This requires the concept label list — pre-fetch it from Flask `GET /api/courses/:courseId/graph` when the first transcript chunk arrives, then cache the label→ID map in memory for the lecture's duration.
@@ -108,8 +108,8 @@ Update the file after completing each sub-task, not just after completing an ent
       - `transcript:chunk` to lecture room: `{ text, timestamp, detectedConcepts: [{ id, label }] }`
       - `lecture:concept-detected` to lecture room for each concept: `{ conceptId, label }`
     - Return `{ chunkId, detectedConcepts: [{ id, label }] }`
-  - [ ] 4.3 **Coordination note:** Person 3 creates the `detectConcepts()` function in task P3 2.4. Until that's available, stub it: `async function detectConcepts(text: string, labels: string[]): Promise<string[]> { return []; }`. Replace with the real import after Person 3 merges.
-  - [ ] 4.4 Verify: POST a transcript chunk, confirm it's stored in DB, Socket.IO events fire. Once Person 3's detection is merged, confirm concepts are detected and linked.
+  - [x] 4.3 **Coordination note:** Person 3 creates the `detectConcepts()` function in task P3 2.4. Until that's available, stub it: `async function detectConcepts(text: string, labels: string[]): Promise<string[]> { return []; }`. Replace with the real import after Person 3 merges.
+  - [x] 4.4 Verify: POST a transcript chunk, confirm it's stored in DB, Socket.IO events fire. Once Person 3's detection is merged, confirm concepts are detected and linked.
 
 > **MERGE POINT 2:** After completing tasks 3.0–4.0, merge to `main`. Person 2 needs Socket.IO helpers to wire up real-time listeners. Person 3 needs the DB pool and emit helpers for their API routes. Coordinate with Person 1's Merge Point 2 (mastery endpoints).
 
