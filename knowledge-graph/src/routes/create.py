@@ -5,9 +5,11 @@ from werkzeug.utils import secure_filename
 import hashlib
 import tempfile
 import requests
+from dotenv import load_dotenv
 
 from ..services.create_kg import create_kg
 
+load_dotenv()
 create = Blueprint(
     "create",
     __name__,
@@ -38,52 +40,26 @@ def upload_pdf():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
-    # Generate hash for caching
+    # Check cache
     file_hash = get_file_hash(file)
-
-    # Check cache in Supabase
-    cached = supabase.table('pdf_cache').select('*').eq('file_hash', file_hash).execute()
+    cached = supabase.table('pdf_cache').select('result').eq('file_hash', file_hash).execute()
 
     if cached.data:
-        return jsonify({
-            'cached': True,
-            'result': cached.data[0]['result']
-        }), 200
+        return jsonify({'cached': True, 'result': cached.data[0]['result']}), 200
 
-    # Upload to Supabase Storage
+    # Process file
     filename = secure_filename(file.filename)
-    storage_path = f"{file_hash}/{filename}"
+    temp_path = f"/tmp/{file_hash}_{filename}"
+    file.save(temp_path)
 
-    file.seek(0)
-    supabase.storage.from_(BUCKET_NAME).upload(
-        storage_path,
-        file.read(),
-        file_options={"content-type": "application/pdf"}
-    )
+    result = create_kg(temp_path)
+    os.remove(temp_path)
 
-    # Get public URL
-    file_url = supabase.storage.from_(BUCKET_NAME).get_public_url(storage_path)
-
-    response = requests.get(file_url)
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-        tmp.write(response.content)
-        tmp_path = tmp.name
-
-    # TODO: Implement
-    result = create_kg(tmp_path)
-
-    os.remove(tmp_path)  # Clean up
-
-    # Cache result in database
+    # Add to cache
     supabase.table('pdf_cache').insert({
         'file_hash': file_hash,
         'filename': filename,
-        'storage_path': storage_path,
         'result': result
     }).execute()
 
-    return jsonify({
-        'cached': False,
-        'result': result,
-        'storage_path': storage_path
-    }), 200
+    return jsonify({'cached': False, 'result': result}), 200
