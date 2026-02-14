@@ -4,6 +4,7 @@ import { parseQuestionGenerationResponse } from "../question-generation";
 import { parseResponseEvaluationResponse } from "../response-evaluation";
 import { parseUnderstandingCheckResponse } from "../understanding-check";
 import { parseMisconceptionSummaryResponse } from "../misconception-summary";
+import { parseInterventionResponse } from "../intervention";
 
 describe("parseConceptDetectionResponse", () => {
   it("parses valid JSON with 2 concepts", () => {
@@ -199,5 +200,40 @@ describe("parseMisconceptionSummaryResponse", () => {
     expect(
       parseMisconceptionSummaryResponse("  Some summary.  ")
     ).toBe("Some summary.");
+  });
+});
+
+describe("parseInterventionResponse", () => {
+  it("parses valid JSON with suggestions", () => {
+    const input = JSON.stringify({
+      suggestions: [
+        { concept_label: "Chain Rule", suggestion: "Use a visual diagram." },
+        { concept_label: "Backpropagation", suggestion: "Walk through a code example." },
+      ],
+    });
+    const result = parseInterventionResponse(input);
+    expect(result).toHaveLength(2);
+    expect(result[0].concept_label).toBe("Chain Rule");
+    expect(result[0].suggestion).toBe("Use a visual diagram.");
+    expect(result[1].concept_label).toBe("Backpropagation");
+  });
+
+  it("returns empty array for malformed JSON", () => {
+    expect(parseInterventionResponse("not json")).toEqual([]);
+  });
+
+  it("returns empty array when suggestions key is missing", () => {
+    const input = JSON.stringify({ advice: [] });
+    expect(parseInterventionResponse(input)).toEqual([]);
+  });
+
+  it("handles missing fields in suggestion objects", () => {
+    const input = JSON.stringify({
+      suggestions: [{ concept_label: "Gradients" }],
+    });
+    const result = parseInterventionResponse(input);
+    expect(result).toHaveLength(1);
+    expect(result[0].concept_label).toBe("Gradients");
+    expect(result[0].suggestion).toBe("");
   });
 });
