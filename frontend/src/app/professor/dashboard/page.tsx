@@ -74,28 +74,12 @@ export default function ProfessorDashboard() {
       .catch(() => {});
   }, [courseId]);
 
-  // Fetch students with mastery distributions
+  // Fetch students with mastery distributions (single batch endpoint)
   useEffect(() => {
     if (!courseId) return;
     flaskApi
-      .get(`/api/courses/${courseId}/students`)
-      .then(async (studentList: { id: string; name: string }[]) => {
-        const summaries: StudentSummary[] = await Promise.all(
-          studentList.map(async (s) => {
-            try {
-              const mastery: { confidence: number }[] = await flaskApi.get(
-                `/api/students/${s.id}/mastery`
-              );
-              const dist = { green: 0, yellow: 0, red: 0, gray: 0 };
-              for (const m of mastery) {
-                dist[confidenceToColor(m.confidence) as keyof typeof dist]++;
-              }
-              return { id: s.id, name: s.name, masteryDistribution: dist };
-            } catch {
-              return { id: s.id, name: s.name, masteryDistribution: { green: 0, yellow: 0, red: 0, gray: 0 } };
-            }
-          })
-        );
+      .get(`/api/courses/${courseId}/students/summary?limit=30`)
+      .then((summaries: StudentSummary[]) => {
         setStudents(summaries);
       })
       .catch(() => {});

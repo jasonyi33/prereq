@@ -29,6 +29,40 @@ def get_students(course_id):
     return jsonify(result.data), 200
 
 
+@students.route('/api/courses/<course_id>/students/summary', methods=['GET'])
+@optional_auth
+def get_students_summary(course_id):
+    """Return students with mastery distributions computed server-side (2 queries total)."""
+    limit = request.args.get('limit', 30, type=int)
+
+    students_data = supabase.table('students').select('id, name').eq('course_id', course_id).limit(limit).execute().data
+    if not students_data:
+        return jsonify([]), 200
+
+    student_ids = [s['id'] for s in students_data]
+
+    # Fetch all mastery records for these students in one query (max ~30*33 = 990 rows)
+    all_mastery = supabase.table('student_mastery').select('student_id, confidence').in_('student_id', student_ids).execute().data
+
+    by_student = {}
+    for m in all_mastery:
+        by_student.setdefault(m['student_id'], []).append(m['confidence'])
+
+    result = []
+    for s in students_data:
+        confidences = by_student.get(s['id'], [])
+        dist = {'green': 0, 'yellow': 0, 'red': 0, 'gray': 0}
+        for conf in confidences:
+            dist[confidence_to_color(conf)] += 1
+        result.append({
+            'id': s['id'],
+            'name': s['name'],
+            'masteryDistribution': dist,
+        })
+
+    return jsonify(result), 200
+
+
 @students.route('/api/courses/<course_id>/students', methods=['POST'])
 @optional_auth
 def create_student(course_id):
