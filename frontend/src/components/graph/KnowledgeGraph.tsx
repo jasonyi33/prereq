@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useEffect, useMemo } from "react";
-import dynamic from "next/dynamic";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import * as d3 from "d3-force";
+import { motion } from "motion/react";
+import useMeasure from "react-use-measure";
 import { COLOR_HEX } from "@/lib/colors";
-
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
-  ssr: false,
-});
+import { RefreshCw } from "lucide-react";
 
 export interface GraphNode {
   id: string;
@@ -33,251 +32,312 @@ interface KnowledgeGraphProps {
   height?: number;
 }
 
+interface SimNode extends GraphNode {
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  index?: number;
+  level?: number;
+  relevance?: number;
+}
+
+interface SimLink {
+  source: string | SimNode;
+  target: string | SimNode;
+}
+
+const NODE_BASE_RADIUS = 30;
+
 export default function KnowledgeGraph({
   nodes,
   edges,
   activeConceptId,
   highlightedNodeIds,
   onNodeClick,
-  width,
-  height,
 }: KnowledgeGraphProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fgRef = useRef<any>(null);
-  const animationRef = useRef(0);
-  const hoveredRef = useRef<string | null>(null);
+  const [containerRef, bounds] = useMeasure();
+  const [simNodes, setSimNodes] = useState<SimNode[]>([]);
+  const [simLinks, setSimLinks] = useState<SimLink[]>([]);
+  const [tick, setTick] = useState(0);
+  const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
 
-  // Refs for reactive props so callbacks have stable references
-  const activeConceptRef = useRef(activeConceptId);
-  activeConceptRef.current = activeConceptId;
-
-  const highlightedRef = useRef(highlightedNodeIds);
-  highlightedRef.current = highlightedNodeIds;
-
+  // Stable refs for callbacks
   const onNodeClickRef = useRef(onNodeClick);
   onNodeClickRef.current = onNodeClick;
 
+  // Initialize data and compute topological levels for left-to-right layout
   useEffect(() => {
-    let frame: number;
-    const tick = () => {
-      animationRef.current = (animationRef.current + 1) % 120;
-      frame = requestAnimationFrame(tick);
+    if (nodes.length === 0) return;
+
+    const nodesCopy: SimNode[] = nodes.map((n) => ({
+      ...n,
+      relevance: (n.difficulty || 3) / 5,
+    }));
+    const linksCopy: SimLink[] = edges.map((e) => ({ source: e.source, target: e.target }));
+
+    // Build adjacency and compute levels via relaxed edge propagation
+    const levels: Record<string, number> = {};
+    nodesCopy.forEach((n) => { levels[n.id] = 0; });
+
+    for (let i = 0; i < nodesCopy.length; i++) {
+      linksCopy.forEach((l) => {
+        const s = typeof l.source === "object" ? l.source.id : l.source;
+        const t = typeof l.target === "object" ? l.target.id : l.target;
+        if (levels[s] !== undefined && levels[t] !== undefined) {
+          if (levels[t] < levels[s] + 1) {
+            levels[t] = levels[s] + 1;
+          }
+        }
+      });
+    }
+
+    nodesCopy.forEach((n) => {
+      n.level = levels[n.id];
+    });
+
+    setSimNodes(nodesCopy);
+    setSimLinks(linksCopy);
+  }, [nodes, edges]);
+
+  // Run d3 force simulation
+  useEffect(() => {
+    if (!bounds.width || !bounds.height || simNodes.length === 0) return;
+
+    const paddingX = 100;
+    const availableWidth = bounds.width - paddingX * 2;
+    const maxLevel = Math.max(...simNodes.map((n) => n.level || 0));
+
+    const getTargetX = (node: SimNode) => {
+      if (maxLevel === 0) return bounds.width / 2;
+      return paddingX + ((node.level || 0) / maxLevel) * availableWidth;
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+
+    const simulation = d3
+      .forceSimulation(simNodes)
+      .force(
+        "link",
+        d3
+          .forceLink<SimNode, SimLink>(simLinks)
+          .id((d) => d.id)
+          .distance(120),
+      )
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force(
+        "collide",
+        d3.forceCollide<SimNode>().radius((d) => ((d.relevance || 0.6) * 20 + NODE_BASE_RADIUS) * 1.5),
+      )
+      .force(
+        "x",
+        d3.forceX<SimNode>().x((d) => getTargetX(d)).strength(0.8),
+      )
+      .force("y", d3.forceY(bounds.height / 2).strength(0.1));
+
+    simulation.on("tick", () => {
+      setTick((t) => t + 1);
+    });
+
+    simulationRef.current = simulation;
+
+    return () => {
+      simulation.stop();
+    };
+  }, [bounds.width, bounds.height, simNodes.length]);
+
+  const handleReset = useCallback(() => {
+    if (simulationRef.current) {
+      simulationRef.current.alpha(1).restart();
+    }
   }, []);
 
-  const graphData = useMemo(() => ({
-    nodes: nodes.map((n) => ({ ...n })),
-    links: edges.map((e) => ({ source: e.source, target: e.target })),
-  }), [nodes, edges]);
+  const handleNodeClick = useCallback((node: SimNode) => {
+    if (onNodeClickRef.current) onNodeClickRef.current(node);
+  }, []);
 
-  const nodeCanvasObject = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const label = node.label || "";
-      const fontSize = 11 / globalScale;
-      const baseRadius = 8 / globalScale;
-      const hex = COLOR_HEX[node.color] || COLOR_HEX.gray;
-      const isActive = node.id === activeConceptRef.current;
-      const isHovered = node.id === hoveredRef.current;
-      const isHighlighted = highlightedRef.current?.has(node.id) ?? false;
+  // Determine which nodes/links are in the ancestor path
+  const activeSet = useMemo(() => {
+    const set = new Set<string>();
+    if (highlightedNodeIds) {
+      highlightedNodeIds.forEach((id) => set.add(id));
+    }
+    return set;
+  }, [highlightedNodeIds]);
 
-      // Outer glow (inspired by ParticleBackground radial gradient)
-      if (isActive || isHovered || isHighlighted) {
-        const pulse = isActive
-          ? 0.5 + 0.5 * Math.sin((animationRef.current / 120) * Math.PI * 2)
-          : isHighlighted ? 0.7 : 0.8;
-        const glowColor = isActive ? COLOR_HEX.active : hex;
-        const glowRadius = baseRadius * (2.5 + (isActive ? pulse * 0.8 : 0));
+  // Find the selected node (the one that's both in activeSet and triggered the selection)
+  const selectedNodeId = useMemo(() => {
+    if (!highlightedNodeIds || highlightedNodeIds.size === 0) return null;
+    // The selected node is the one where clicking triggered ancestor computation
+    // It's included in highlightedNodeIds (parent adds node.id to the set)
+    return null; // We don't have a direct selectedNodeId, we use activeSet for highlighting
+  }, [highlightedNodeIds]);
 
-        const gradient = ctx.createRadialGradient(
-          node.x, node.y, baseRadius * 0.5,
-          node.x, node.y, glowRadius,
-        );
-        gradient.addColorStop(0, glowColor + "60");
-        gradient.addColorStop(0.5, glowColor + "20");
-        gradient.addColorStop(1, glowColor + "00");
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, glowRadius, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-
-      // Node circle with gradient fill
-      const nodeGradient = ctx.createRadialGradient(
-        node.x - baseRadius * 0.3, node.y - baseRadius * 0.3, 0,
-        node.x, node.y, baseRadius,
-      );
-      const fillColor = isActive ? COLOR_HEX.active : hex;
-      nodeGradient.addColorStop(0, fillColor + "ff");
-      nodeGradient.addColorStop(1, fillColor + "cc");
-
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, baseRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = nodeGradient;
-      ctx.fill();
-
-      // Subtle border
-      ctx.strokeStyle = isActive ? COLOR_HEX.active : "#ffffff40";
-      ctx.lineWidth = 1.5 / globalScale;
-      ctx.stroke();
-
-      // Inner highlight for depth
-      ctx.beginPath();
-      ctx.arc(node.x - baseRadius * 0.2, node.y - baseRadius * 0.2, baseRadius * 0.4, 0, 2 * Math.PI);
-      ctx.fillStyle = "#ffffff20";
-      ctx.fill();
-
-      // Label with background for readability
-      ctx.font = `${isHovered ? "bold " : ""}${fontSize}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      const textY = node.y + baseRadius + 3 / globalScale;
-      const textWidth = ctx.measureText(label).width;
-      const padding = 2 / globalScale;
-
-      ctx.fillStyle = "#0f172a99";
-      ctx.beginPath();
-      ctx.roundRect(
-        node.x - textWidth / 2 - padding,
-        textY - padding,
-        textWidth + padding * 2,
-        fontSize + padding * 2,
-        2 / globalScale,
-      );
-      ctx.fill();
-
-      ctx.fillStyle = isHovered || isActive || isHighlighted ? "#ffffff" : "#cbd5e1";
-      ctx.fillText(label, node.x, textY);
-    },
-    [],
-  );
-
-  // Custom link rendering with glow effect (inspired by LiveDataFlowDiagram)
-  const linkCanvasObject = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const source = link.source;
-      const target = link.target;
-      if (!source || !target || source.x == null || target.x == null) return;
-
-      const sourceHex = COLOR_HEX[source.color] || COLOR_HEX.gray;
-      const targetHex = COLOR_HEX[target.color] || COLOR_HEX.gray;
-      const isActiveEdge = source.id === activeConceptRef.current || target.id === activeConceptRef.current;
-      const isHighlightedEdge = (highlightedRef.current?.has(source.id) && highlightedRef.current?.has(target.id)) ?? false;
-      const isBright = isActiveEdge || isHighlightedEdge;
-
-      // Edge line with gradient
-      const gradient = ctx.createLinearGradient(source.x, source.y, target.x, target.y);
-      gradient.addColorStop(0, sourceHex + (isBright ? "80" : "40"));
-      gradient.addColorStop(1, targetHex + (isBright ? "80" : "40"));
-
-      ctx.strokeStyle = gradient;
-      ctx.lineWidth = (isBright ? 2 : 1) / globalScale;
-
-      // Glow for active/highlighted edges
-      if (isActiveEdge) {
-        ctx.shadowBlur = 6 / globalScale;
-        ctx.shadowColor = COLOR_HEX.active + "60";
-      } else if (isHighlightedEdge) {
-        ctx.shadowBlur = 4 / globalScale;
-        ctx.shadowColor = sourceHex + "40";
-      }
-
-      ctx.beginPath();
-      ctx.moveTo(source.x, source.y);
-      ctx.lineTo(target.x, target.y);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-    },
-    [],
-  );
-
-  const handleNodeClick = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (node: any) => {
-      if (onNodeClickRef.current) onNodeClickRef.current(node as GraphNode);
-    },
-    [],
-  );
-
-  // Fallback: when clicking the background, manually check if a node is nearby.
-  // This catches cases where the shadow canvas hit-detection misses nodes.
-  const handleBackgroundClick = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (event: any) => {
-      const fg = fgRef.current;
-      if (!fg) return;
-      const coords = fg.screen2GraphCoords(event.offsetX, event.offsetY);
-      const HIT_RADIUS = 14; // graph units, matches nodePointerAreaPaint
-      let closest: { node: unknown; dist: number } | null = null;
-      for (const node of graphData.nodes) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const n = node as any;
-        if (n.x == null || n.y == null) continue;
-        const dx = coords.x - n.x;
-        const dy = coords.y - n.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < HIT_RADIUS && (!closest || dist < closest.dist)) {
-          closest = { node: n, dist };
-        }
-      }
-      if (closest && onNodeClickRef.current) {
-        onNodeClickRef.current(closest.node as GraphNode);
-      }
-    },
-    [graphData],
-  );
-
-  const handleNodeHover = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (node: any) => {
-      hoveredRef.current = node ? node.id : null;
-    },
-    [],
-  );
-
-  // Stable callback for pointer area (hit detection)
-  const nodePointerAreaPaint = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (node: any, color: string, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const r = 14 / globalScale;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-    },
-    [],
-  );
-
-  // No-op so links paint nothing on the shadow canvas (hit detection).
-  // Without this, default link hit areas occlude node hit areas, making
-  // nodes that sit on link paths unclickable.
-  const linkPointerAreaPaint = useCallback(() => {}, []);
-
-  // Stable callback for particle color
-  const particleColor = useCallback(() => COLOR_HEX.active + "aa", []);
+  // Suppress unused var warning — tick is read to trigger re-render
+  void tick;
+  void selectedNodeId;
 
   return (
-    <ForceGraph2D
-      ref={fgRef}
-      graphData={graphData}
-      width={width}
-      height={height}
-      nodeCanvasObject={nodeCanvasObject}
-      nodePointerAreaPaint={nodePointerAreaPaint}
-      linkCanvasObject={linkCanvasObject}
-      linkPointerAreaPaint={linkPointerAreaPaint}
-      onNodeClick={handleNodeClick}
-      onBackgroundClick={handleBackgroundClick}
-      onNodeHover={handleNodeHover}
-      linkDirectionalParticles={2}
-      linkDirectionalParticleWidth={3}
-      linkDirectionalParticleSpeed={0.004}
-      linkDirectionalParticleColor={particleColor}
-      backgroundColor="#0f172a"
-      cooldownTicks={100}
-    />
+    <div className="relative w-full h-full overflow-hidden bg-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 shadow-inner font-sans">
+      {/* Dot grid background */}
+      <div
+        className="absolute inset-0 opacity-20 pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(circle, #94a3b8 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+
+      {/* Container for measurement */}
+      <div ref={containerRef} className="w-full h-full">
+        {/* SVG layer for links */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" opacity="0.6" />
+            </marker>
+            <marker id="arrowhead-active" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#60a5fa" opacity="0.9" />
+            </marker>
+          </defs>
+
+          <g>
+            {simLinks.map((link, i) => {
+              const source = link.source as SimNode;
+              const target = link.target as SimNode;
+              if (!source.x || !target.x || !source.y || !target.y) return null;
+
+              const isSourceRel = activeSet.has(source.id);
+              const isTargetRel = activeSet.has(target.id);
+              const isPath = isSourceRel && isTargetRel;
+
+              // Check if this is a "prerequisite" relationship (dashed)
+              const isPrereq = true; // all edges are prerequisites in our data model
+
+              const dx = target.x - source.x;
+              const d = `M${source.x},${source.y} C${source.x + dx / 2},${source.y} ${target.x - dx / 2},${target.y} ${target.x},${target.y}`;
+
+              return (
+                <path
+                  key={`link-${i}`}
+                  d={d}
+                  stroke={isPath ? "#60a5fa" : "#475569"}
+                  strokeWidth={isPath ? 2 : 1.5}
+                  strokeDasharray={isPrereq ? "5,5" : "none"}
+                  opacity={isPath ? 0.8 : 0.2}
+                  fill="none"
+                  markerEnd={isPath ? "url(#arrowhead-active)" : "url(#arrowhead)"}
+                />
+              );
+            })}
+          </g>
+        </svg>
+
+        {/* DOM layer for nodes */}
+        <div className="absolute inset-0 pointer-events-none">
+          {simNodes.map((node) => {
+            if (node.x == null || node.y == null) return null;
+            const size = (node.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
+            const color = COLOR_HEX[node.color] || COLOR_HEX.gray;
+            const isInSet = activeSet.has(node.id);
+            const hasSelection = activeSet.size > 0;
+            const isDimmed = hasSelection && !isInSet;
+            const isActive = node.id === activeConceptId;
+
+            // Determine if this is the "clicked" node (the non-ancestor in the set that the others lead to)
+            // For glow purposes, use blue for activeConceptId, else mastery color
+            const glowColor = isActive ? COLOR_HEX.active : color;
+
+            return (
+              <motion.div
+                key={node.id}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{
+                  opacity: isDimmed ? 0.2 : 1,
+                  scale: isInSet && !isDimmed ? 1.05 : 1,
+                  x: node.x - size,
+                  y: node.y - size,
+                }}
+                transition={{ duration: 0.4, type: "spring", bounce: 0.3 }}
+                className="absolute rounded-full flex items-center justify-center cursor-pointer pointer-events-auto border transition-all duration-500 ease-out"
+                style={{
+                  width: size * 2,
+                  height: size * 2,
+                  background: `radial-gradient(130% 130% at 30% 30%, ${glowColor}15 0%, ${glowColor}05 40%, rgba(15, 23, 42, 0.8) 100%)`,
+                  borderColor: isInSet
+                    ? glowColor
+                    : isActive
+                      ? COLOR_HEX.active
+                      : "rgba(255,255,255,0.1)",
+                  boxShadow: isInSet
+                    ? `0 0 30px ${glowColor}80, inset 0 0 20px ${glowColor}40, 0 0 60px ${glowColor}40`
+                    : isActive
+                      ? `0 0 20px ${COLOR_HEX.active}60, inset 0 0 15px ${COLOR_HEX.active}30`
+                      : "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1)",
+                }}
+                onClick={() => handleNodeClick(node)}
+              >
+                {/* Glass reflections */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+                <div className="absolute top-[10%] left-[10%] w-[30%] h-[20%] bg-white/20 rounded-full blur-[3px]" />
+
+                {/* Text label */}
+                <div className="absolute inset-0 flex items-center justify-center p-2 text-center pointer-events-none">
+                  <p
+                    className={`text-[11px] font-medium leading-tight tracking-wide drop-shadow-lg transition-colors ${
+                      isInSet || isActive ? "text-white font-semibold" : "text-slate-300"
+                    }`}
+                  >
+                    {node.label}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Reset button */}
+      <div className="absolute bottom-4 right-4 flex gap-2">
+        <button
+          onClick={handleReset}
+          className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 backdrop-blur-md transition-colors"
+          title="Reset View"
+        >
+          <RefreshCw size={16} />
+        </button>
+      </div>
+
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 p-4 rounded-xl bg-slate-900/40 border border-slate-700/30 backdrop-blur-md shadow-lg">
+        <div className="flex flex-col gap-3 text-xs text-slate-400 font-medium">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-[2px] bg-slate-500 rounded-full" />
+            <span>Flow / Uses</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-[2px] bg-slate-500 border-b-2 border-dashed border-slate-500" />
+            <span>Prerequisite</span>
+          </div>
+          <div className="h-px bg-slate-700/50 my-1" />
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+              <span>Mastered</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+              <span>Partial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+              <span>Struggling</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+              <span>Not Started</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
