@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import TranscriptFeed, { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
 import ConceptHeatmap, { type HeatmapConcept } from "@/components/dashboard/ConceptHeatmap";
@@ -8,6 +8,11 @@ import ConceptTimeline, { type TimelineConcept } from "@/components/dashboard/Co
 import StudentList, { type StudentSummary } from "@/components/dashboard/StudentList";
 import PollControls from "@/components/dashboard/PollControls";
 import InterventionPanel from "@/components/dashboard/InterventionPanel";
+import { useSocket, useSocketEvent } from "@/lib/socket";
+import { flaskApi } from "@/lib/api";
+
+// Hardcoded demo course
+const COURSE_ID = "demo-course";
 
 // Mock data until real endpoints are wired
 const MOCK_HEATMAP: HeatmapConcept[] = [
@@ -33,14 +38,97 @@ const MOCK_TRANSCRIPT: TranscriptChunk[] = [
 
 export default function ProfessorDashboard() {
   const [lectureId] = useState<string | null>("mock-lecture-1");
-  const [transcriptChunks] = useState<TranscriptChunk[]>(MOCK_TRANSCRIPT);
-  const [timelineConcepts] = useState<TimelineConcept[]>([
+  const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>(MOCK_TRANSCRIPT);
+  const [timelineConcepts, setTimelineConcepts] = useState<TimelineConcept[]>([
     { id: "c1", label: "Gradient Descent", color: "green" },
     { id: "c3", label: "Loss Functions", color: "green" },
     { id: "c2", label: "Backpropagation", color: "red" },
   ]);
+  const [heatmapData, setHeatmapData] = useState<HeatmapConcept[]>(MOCK_HEATMAP);
+  const [students] = useState<StudentSummary[]>(MOCK_STUDENTS);
 
-  const strugglingConceptIds = MOCK_HEATMAP
+  const socket = useSocket();
+
+  // Join lecture room as professor
+  useEffect(() => {
+    if (lectureId) {
+      socket.emit("lecture:join", { lectureId, role: "professor" });
+    }
+  }, [socket, lectureId]);
+
+  // Socket: transcript:chunk
+  useSocketEvent<{ text: string; timestamp: number; speakerName?: string; detectedConcepts?: { id: string; label: string }[] }>(
+    "transcript:chunk",
+    useCallback((data) => {
+      setTranscriptChunks((prev) => [
+        ...prev,
+        {
+          id: `tc-${Date.now()}`,
+          text: data.text,
+          timestamp: data.timestamp,
+          speakerName: data.speakerName,
+          detectedConcepts: data.detectedConcepts,
+        },
+      ]);
+      // Add detected concepts to timeline
+      if (data.detectedConcepts) {
+        setTimelineConcepts((prev) => {
+          const existing = new Set(prev.map((c) => c.id));
+          const newConcepts = data.detectedConcepts!
+            .filter((c) => !existing.has(c.id))
+            .map((c) => ({ id: c.id, label: c.label }));
+          return [...prev, ...newConcepts];
+        });
+      }
+    }, []),
+  );
+
+  // Socket: lecture:concept-detected
+  useSocketEvent<{ conceptId: string; label: string }>(
+    "lecture:concept-detected",
+    useCallback((data) => {
+      setTimelineConcepts((prev) => {
+        if (prev.some((c) => c.id === data.conceptId)) return prev;
+        return [...prev, { id: data.conceptId, label: data.label }];
+      });
+    }, []),
+  );
+
+  // Socket: poll:closed
+  useSocketEvent<{ pollId: string; results: unknown }>(
+    "poll:closed",
+    useCallback(() => {
+      // PollControls handles its own state; this is for any additional dashboard updates
+    }, []),
+  );
+
+  // Socket: heatmap:updated — re-fetch from Flask
+  useSocketEvent<{ conceptId: string }>(
+    "heatmap:updated",
+    useCallback(() => {
+      flaskApi
+        .get(`/api/courses/${COURSE_ID}/heatmap`)
+        .then((data) => {
+          if (data.concepts) {
+            setHeatmapData(data.concepts);
+          }
+        })
+        .catch(() => {
+          // Keep existing data
+        });
+    }, []),
+  );
+
+  // Socket: mastery:updated — could update student dots
+  useSocketEvent<{ studentId: string; conceptId: string; newColor: string }>(
+    "mastery:updated",
+    useCallback(() => {
+      // In a full implementation, update the specific student's mastery distribution
+      // For now, the student list uses static mock data
+    }, []),
+  );
+
+  const strugglingConceptIds = heatmapData
     .filter((c) => c.distribution.red > c.distribution.green)
     .map((c) => c.id);
 
@@ -67,12 +155,12 @@ export default function ProfessorDashboard() {
 
         {/* Center: Heatmap */}
         <div className="flex-1 p-2 flex flex-col">
-          <ConceptHeatmap concepts={MOCK_HEATMAP} totalStudents={30} />
+          <ConceptHeatmap concepts={heatmapData} totalStudents={30} />
         </div>
 
         {/* Right: Student list */}
         <div className="w-1/5 border-l p-2 flex flex-col">
-          <StudentList students={MOCK_STUDENTS} />
+          <StudentList students={students} />
         </div>
       </div>
 
