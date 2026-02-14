@@ -48,19 +48,19 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ## Tasks
 
-- [ ] 0.0 Create feature branch
-  - [ ] 0.1 Run `git checkout -b feat/p3-ai-agents` from `main`
+- [x] 0.0 Create feature branch
+  - [x] 0.1 Run `git checkout -b feat/p3-ai-agents` from `main`
 
-- [ ] 1.0 Write concept extraction prompt and hand off to Person 1
-  - [ ] 1.1 Create `frontend/src/lib/prompts/concept-extraction.ts`. Export a function `buildConceptExtractionPrompt(pdfText: string): string` that returns the full prompt.
-  - [ ] 1.2 The prompt must instruct Claude to:
+- [x] 1.0 Write concept extraction prompt and hand off to Person 1
+  - [x] 1.1 Create `frontend/src/lib/prompts/concept-extraction.ts`. Export a function `buildConceptExtractionPrompt(pdfText: string): string` that returns the full prompt.
+  - [x] 1.2 The prompt must instruct Claude to:
     - Analyze the course material text
     - Extract 25-40 concept nodes with: `label` (short, unique name), `description` (1-2 sentences), `category` (grouping label like "Neural Networks"), `difficulty` (1-5 integer)
     - Identify prerequisite edges: `source_label` (prerequisite concept), `target_label` (dependent concept), `relationship` (always "prerequisite")
     - Return valid JSON matching: `{ "concepts": [...], "edges": [...] }`
-  - [ ] 1.3 Include few-shot examples in the prompt so Claude understands the expected format
-  - [ ] 1.4 **HANDOFF: Copy the prompt text to Person 1** (or point them to this file). Person 1 will integrate it into `api/services/concept_extraction.py`. The prompt goes into the `messages` array as a `text` content block alongside the base64 PDF `document` content block (Claude's document API). See `knowledge-graph/src/services/create_kg.py` for the multi-content message pattern.
-  - [ ] 1.5 Verify: test the prompt manually via the Anthropic console or a quick script — paste a small sample PDF text, confirm Claude returns valid JSON with reasonable concepts and edges
+  - [x] 1.3 Include few-shot examples in the prompt so Claude understands the expected format
+  - [x] 1.4 **HANDOFF: Copy the prompt text to Person 1** (or point them to this file). Person 1 will integrate it into `api/services/concept_extraction.py`. The prompt goes into the `messages` array as a `text` content block alongside the base64 PDF `document` content block (Claude's document API). See `knowledge-graph/src/services/create_kg.py` for the multi-content message pattern.
+  - [x] 1.5 Verify: test the prompt manually via the Anthropic console or a quick script — paste a small sample PDF text, confirm Claude returns valid JSON with reasonable concepts and edges
 
 > **MERGE POINT 1:** After completing task 1.0, merge to `main` so Person 1 can access the prompt file. This aligns with everyone merging their initial scaffolding.
 

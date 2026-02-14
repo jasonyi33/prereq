@@ -41,13 +41,13 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ## Tasks
 
-- [ ] 0.0 Create feature branch
-  - [ ] 0.1 Run `git checkout -b feat/p4-infra` from `main`
+- [x] 0.0 Create feature branch
+  - [x] 0.1 Run `git checkout -b feat/p4-infra` from `main`
 
-- [ ] 1.0 Set up Express custom server with Next.js and Socket.IO
-  - [ ] 1.1 Create the Next.js project if it doesn't exist: `npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir`. **Coordinate with Person 2** — Person 4 creates the project first, Person 2 adds UI scaffolding on top.
-  - [ ] 1.2 Install server dependencies: `cd frontend && npm install express socket.io socket.io-client @anthropic-ai/sdk @supabase/supabase-js dotenv tsx`
-  - [ ] 1.3 Create `frontend/server/index.ts`:
+- [x] 1.0 Set up Express custom server with Next.js and Socket.IO
+  - [x] 1.1 Create the Next.js project if it doesn't exist: `npx create-next-app@latest frontend --typescript --tailwind --eslint --app --src-dir`. **Coordinate with Person 2** — Person 4 creates the project first, Person 2 adds UI scaffolding on top.
+  - [x] 1.2 Install server dependencies: `cd frontend && npm install express socket.io socket.io-client @anthropic-ai/sdk @supabase/supabase-js dotenv tsx`
+  - [x] 1.3 Create `frontend/server/index.ts`:
     - Load `.env` from project root: `require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })`
     - Create Express app
     - Create HTTP server from Express
@@ -56,18 +56,18 @@ Update the file after completing each sub-task, not just after completing an ent
     - After Next.js is ready, add Express middleware to handle Next.js requests: `app.all('*', (req, res) => nextHandler(req, res))`
     - Start listening on `process.env.PORT || 3000`
     - Import and call socket setup from `./socket.ts`
-  - [ ] 1.4 Add scripts to `package.json`: `"dev": "tsx server/index.ts"`, `"build": "next build"`, `"start": "tsx server/index.ts"`. Using `tsx` for both dev and production avoids needing a separate TypeScript compilation step for the `server/` directory. No `tsconfig.server.json` needed — `tsx` handles it.
-  - [ ] 1.5 No separate `tsconfig.server.json` needed — `tsx` handles TypeScript execution for server files without a compilation step
-  - [ ] 1.6 Verify: `npm run dev` starts Express + Next.js + Socket.IO. Visit `http://localhost:3000`, confirm Next.js pages load. Open browser console, confirm Socket.IO connects (you can add a temp `connection` log in socket setup).
+  - [x] 1.4 Add scripts to `package.json`: `"dev": "tsx server/index.ts"`, `"build": "next build"`, `"start": "tsx server/index.ts"`. Using `tsx` for both dev and production avoids needing a separate TypeScript compilation step for the `server/` directory. No `tsconfig.server.json` needed — `tsx` handles it.
+  - [x] 1.5 No separate `tsconfig.server.json` needed — `tsx` handles TypeScript execution for server files without a compilation step
+  - [x] 1.6 Verify: `npm run dev` starts Express + Next.js + Socket.IO. Visit `http://localhost:3000`, confirm Next.js pages load. Open browser console, confirm Socket.IO connects (you can add a temp `connection` log in socket setup).
 
-- [ ] 2.0 Set up shared Postgres connection pool and .env loading
-  - [ ] 2.1 Create `frontend/server/db.ts`:
+- [x] 2.0 Set up shared Postgres connection pool and .env loading
+  - [x] 2.1 Create `frontend/server/db.ts`:
     - Import `createClient` from `@supabase/supabase-js`
     - Create and export a Supabase client: `export const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_KEY!)`
     - Note: `.env` is already loaded by `server/index.ts` before this module is imported
-  - [ ] 2.2 Verify: in `server/index.ts`, after Supabase client creation, run a test query (e.g., `supabase.from('courses').select('id').limit(1)`) and log the result to confirm Supabase connectivity
-  - [ ] 2.3 Add a path alias in `frontend/tsconfig.json` so API routes can cleanly import server modules. Add `"@server/*": ["./server/*"]` to the `paths` object. This lets API routes use `import { query } from '@server/db'` and `import { emitToStudent } from '@server/socket-helpers'` instead of brittle relative paths.
-  - [ ] 2.4 Verify: create a simple API route that imports `{ supabase }` from `@server/db`, runs a test query, and returns the result. Confirm the path alias works.
+  - [x] 2.2 Verify: in `server/index.ts`, after Supabase client creation, run a test query (e.g., `supabase.from('courses').select('id').limit(1)`) and log the result to confirm Supabase connectivity
+  - [x] 2.3 Add a path alias in `frontend/tsconfig.json` so API routes can cleanly import server modules. Add `"@server/*": ["./server/*"]` to the `paths` object. This lets API routes use `import { query } from '@server/db'` and `import { emitToStudent } from '@server/socket-helpers'` instead of brittle relative paths.
+  - [x] 2.4 Verify: create a simple API route that imports `{ supabase }` from `@server/db`, runs a test query, and returns the result. Confirm the path alias works.
 
 > **MERGE POINT 1:** After completing tasks 0.0–2.0, merge to `main`. This is the foundation — Person 2 needs the Next.js project structure, Person 3 needs the DB pool and Socket.IO helpers. Coordinate so Person 1 also merges their Flask scaffolding at this point. After this merge, everyone has a working local dev setup.
 
