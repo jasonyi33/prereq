@@ -1,6 +1,5 @@
 import tempfile
 
-import networkx as nx
 from PyPDF2 import PdfReader, PdfWriter
 import anthropic
 import os

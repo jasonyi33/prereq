@@ -1,10 +1,10 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from api.src.routes.courses import courses
-from api.src.routes.create import create
-from api.src.routes.graph import graph
-from api.src.routes.students import students
+from src.routes.courses import courses
+from src.routes.create import create
+from src.routes.graph import graph
+from src.routes.students import students
 
 app = Flask(__name__)
 CORS(app)
@@ -21,4 +21,4 @@ def health():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8080)

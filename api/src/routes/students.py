@@ -2,7 +2,7 @@ from flask import request, jsonify, Blueprint
 import os
 from dotenv import load_dotenv
 
-from ...db import supabase
+from ..db import supabase
 
 load_dotenv()
 students = Blueprint("students", __name__)
@@ -110,3 +110,31 @@ def update_mastery(student_id, concept_id):
         'new_color': new_color,
         'confidence': new_confidence
     }), 200
+
+
+@students.route('/api/mastery/attendance-boost', methods=['POST'])
+def attendance_boost():
+    data = request.json
+    student_ids = data['student_ids']
+    concept_ids = data['concept_ids']
+
+    updated = 0
+    for student_id in student_ids:
+        for concept_id in concept_ids:
+            # Get current confidence
+            current = supabase.table('student_mastery').select('confidence').eq(
+                'student_id', student_id
+            ).eq('concept_id', concept_id).execute().data
+
+            if current:
+                old_conf = current[0]['confidence']
+                # Add 0.05, but cap at 0.3 for passive boosts
+                new_conf = min(old_conf + 0.05, 0.3) if old_conf < 0.3 else old_conf
+
+                if new_conf != old_conf:
+                    supabase.table('student_mastery').update({
+                        'confidence': new_conf
+                    }).eq('student_id', student_id).eq('concept_id', concept_id).execute()
+                    updated += 1
+
+    return jsonify({'updated': updated}), 200
