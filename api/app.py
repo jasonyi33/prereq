@@ -1,19 +1,24 @@
-import os
-
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 
 from api.src.routes.courses import courses
+from api.src.routes.create import create
+from api.src.routes.graph import graph
 from api.src.routes.students import students
-from src.routes.create import create
 
-app = Flask(__name__, static_folder="", static_url_path="")
+app = Flask(__name__)
+CORS(app)
+
 app.register_blueprint(create)
 app.register_blueprint(courses)
 app.register_blueprint(students)
-CORS(app)
+app.register_blueprint(graph)
 
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok'}), 200
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)

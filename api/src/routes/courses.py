@@ -5,6 +5,8 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import hashlib
 
+from ...db import supabase
+
 from ..services.create_kg import create_kg, parse_kg, calculate_importance
 
 load_dotenv()
