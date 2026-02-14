@@ -1,6 +1,8 @@
+from dotenv import load_dotenv
 from flask import request, jsonify, Blueprint
 from ..db import supabase
 
+load_dotenv()
 heatmap = Blueprint("heatmap", __name__)
 
 
