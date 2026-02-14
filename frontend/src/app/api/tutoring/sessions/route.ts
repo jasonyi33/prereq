@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@server/db";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildTutoringSystemPrompt } from "@/lib/prompts/tutoring";
 import { confidenceToColor } from "@/lib/colors";
+import { flaskGet, flaskPost } from "@/lib/flask";
 
-const FLASK_API_URL =
-  process.env.FLASK_API_URL || "http://localhost:5000";
 const anthropic = new Anthropic();
 
 export async function POST(request: NextRequest) {
@@ -22,20 +20,19 @@ export async function POST(request: NextRequest) {
   }
 
   // Fetch student's mastery from Flask
-  const masteryRes = await fetch(
-    `${FLASK_API_URL}/api/students/${studentId}/mastery`
-  );
-  if (!masteryRes.ok) {
+  let masteryData: {
+    concept_id: string;
+    confidence: number;
+    color: string;
+  }[];
+  try {
+    masteryData = await flaskGet(`/api/students/${studentId}/mastery`);
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch student mastery" },
       { status: 500 }
     );
   }
-  const masteryData = (await masteryRes.json()) as {
-    concept_id: string;
-    confidence: number;
-    color: string;
-  }[];
 
   // Filter for weak concepts (confidence < 0.7)
   const weakConceptIds = masteryData
@@ -50,14 +47,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Fetch concept details for weak concepts
-  const { data: concepts } = await supabase
-    .from("concept_nodes")
-    .select("id, label, description")
-    .in("id", weakConceptIds);
+  // Fetch concept details for weak concepts via Flask
+  const concepts = await flaskGet<
+    { id: string; label: string; description: string }[]
+  >(`/api/concepts?ids=${weakConceptIds.join(",")}`);
 
   const conceptMap = new Map(
-    (concepts || []).map((c: { id: string; label: string; description: string }) => [c.id, c])
+    (concepts || []).map((c) => [c.id, c])
   );
 
   const weakConcepts = weakConceptIds
@@ -84,21 +80,17 @@ export async function POST(request: NextRequest) {
   // Fetch transcript excerpts if lectureId provided
   let transcriptExcerpts: { text: string; timestampSec: number }[] = [];
   if (lectureId) {
-    const { data: chunks } = await supabase
-      .from("transcript_concepts")
-      .select(
-        "concept_id, transcript_chunks!inner(text, timestamp_sec)"
-      )
-      .in("concept_id", weakConceptIds)
-      .limit(20);
+    const excerpts = await flaskGet<
+      { text: string; timestamp_sec: number }[]
+    >(
+      `/api/lectures/${lectureId}/transcript-excerpts?concept_ids=${weakConceptIds.join(",")}`
+    );
 
-    if (chunks) {
-      transcriptExcerpts = chunks.map(
-        (c: { transcript_chunks: { text: string; timestamp_sec: number } }) => ({
-          text: c.transcript_chunks.text,
-          timestampSec: c.transcript_chunks.timestamp_sec || 0,
-        })
-      );
+    if (excerpts) {
+      transcriptExcerpts = excerpts.map((c) => ({
+        text: c.text,
+        timestampSec: c.timestamp_sec || 0,
+      }));
     }
   }
 
@@ -127,38 +119,34 @@ export async function POST(request: NextRequest) {
       ? message.content[0].text
       : "Let's work through the concepts you found challenging. Which one would you like to start with?";
 
-  // Create tutoring session
-  const { data: session, error: sessionErr } = await supabase
-    .from("tutoring_sessions")
-    .insert({
+  // Create tutoring session via Flask
+  const session = await flaskPost<{ id: string }>(
+    "/api/tutoring/sessions",
+    {
       student_id: studentId,
       target_concepts: weakConceptIds,
-    })
-    .select()
-    .single();
+    }
+  );
 
-  if (sessionErr || !session) {
+  if (!session?.id) {
     return NextResponse.json(
       { error: "Failed to create tutoring session" },
       { status: 500 }
     );
   }
 
-  // Store system prompt as system message, and opening as assistant message
-  await supabase.from("tutoring_messages").insert([
-    { session_id: session.id, role: "system", content: systemPrompt },
-    {
-      session_id: session.id,
-      role: "user",
-      content:
-        "Hi, I just finished the lecture and I'd like some help with the concepts I struggled with.",
-    },
-    {
-      session_id: session.id,
-      role: "assistant",
-      content: openingContent,
-    },
-  ]);
+  // Store system prompt as system message, user greeting, and opening as assistant message
+  await flaskPost(`/api/tutoring/sessions/${session.id}/messages`, {
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content:
+          "Hi, I just finished the lecture and I'd like some help with the concepts I struggled with.",
+      },
+      { role: "assistant", content: openingContent },
+    ],
+  });
 
   return NextResponse.json({
     sessionId: session.id,

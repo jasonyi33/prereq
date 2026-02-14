@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@server/db";
 import { generateQuestion } from "@/lib/prompts/question-generation";
-
-const FLASK_API_URL =
-  process.env.FLASK_API_URL || "http://localhost:5000";
+import { flaskGet, flaskPost } from "@/lib/flask";
 
 export async function POST(
   request: NextRequest,
@@ -14,13 +11,10 @@ export async function POST(
   let { conceptId } = body as { conceptId?: string };
 
   // Get the lecture to find the course_id
-  const { data: lecture, error: lectureErr } = await supabase
-    .from("lecture_sessions")
-    .select("course_id")
-    .eq("id", lectureId)
-    .single();
-
-  if (lectureErr || !lecture) {
+  let lecture: { id: string; course_id: string; title: string; status: string };
+  try {
+    lecture = await flaskGet(`/api/lectures/${lectureId}`);
+  } catch {
     return NextResponse.json(
       { error: "Lecture not found" },
       { status: 404 }
@@ -29,19 +23,12 @@ export async function POST(
 
   // If no conceptId provided, use the most recently detected concept
   if (!conceptId) {
-    const { data: recentConcept } = await supabase
-      .from("transcript_concepts")
-      .select(
-        "concept_id, transcript_chunks!inner(lecture_id, created_at)"
-      )
-      .eq("transcript_chunks.lecture_id", lectureId)
-      .order("transcript_chunks(created_at)", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (recentConcept) {
-      conceptId = recentConcept.concept_id;
-    } else {
+    try {
+      const recent = await flaskGet<{ concept_id: string }>(
+        `/api/lectures/${lectureId}/recent-concept`
+      );
+      conceptId = recent.concept_id;
+    } catch {
       return NextResponse.json(
         { error: "No concepts detected yet in this lecture" },
         { status: 400 }
@@ -49,14 +36,11 @@ export async function POST(
     }
   }
 
-  // Fetch concept details from Flask
-  const graphRes = await fetch(
-    `${FLASK_API_URL}/api/courses/${lecture.course_id}/graph`
-  );
-  const graph = await graphRes.json();
-  const concept = graph.nodes?.find(
-    (n: { id: string }) => n.id === conceptId
-  );
+  // Fetch concept details from Flask graph endpoint
+  const graph = await flaskGet<{
+    nodes: { id: string; label: string; description?: string }[];
+  }>(`/api/courses/${lecture.course_id}/graph`);
+  const concept = graph.nodes?.find((n) => n.id === conceptId);
 
   if (!concept) {
     return NextResponse.json(
@@ -66,16 +50,13 @@ export async function POST(
   }
 
   // Fetch last 5 transcript chunks for context
-  const { data: chunks } = await supabase
-    .from("transcript_chunks")
-    .select("text")
-    .eq("lecture_id", lectureId)
-    .order("created_at", { ascending: false })
-    .limit(5);
+  const chunks = await flaskGet<{ text: string; timestamp_sec: number }[]>(
+    `/api/lectures/${lectureId}/transcript-chunks?limit=5`
+  );
 
   const recentTranscript = (chunks || [])
     .reverse()
-    .map((c: { text: string }) => c.text)
+    .map((c) => c.text)
     .join(" ");
 
   // Generate the question via Claude Sonnet
@@ -85,25 +66,17 @@ export async function POST(
     recentTranscript
   );
 
-  // Insert poll_questions row
-  const { data: poll, error: pollErr } = await supabase
-    .from("poll_questions")
-    .insert({
+  // Insert poll_questions row via Flask
+  const poll = await flaskPost<{ id: string }>(
+    "/api/polls",
+    {
       lecture_id: lectureId,
       concept_id: conceptId,
       question,
       expected_answer: expectedAnswer,
       status: "draft",
-    })
-    .select()
-    .single();
-
-  if (pollErr) {
-    return NextResponse.json(
-      { error: "Failed to create poll" },
-      { status: 500 }
-    );
-  }
+    }
+  );
 
   return NextResponse.json({
     pollId: poll.id,

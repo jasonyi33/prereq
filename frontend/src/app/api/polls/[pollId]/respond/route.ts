@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@server/db";
 import { emitToStudent, emitToProfessor } from "@server/socket-helpers";
 import { evaluateResponse } from "@/lib/prompts/response-evaluation";
-
-const FLASK_API_URL =
-  process.env.FLASK_API_URL || "http://localhost:5000";
+import { flaskGet, flaskPost, flaskPut } from "@/lib/flask";
 
 export async function POST(
   request: NextRequest,
@@ -24,13 +21,16 @@ export async function POST(
   }
 
   // Look up the poll question
-  const { data: poll, error: pollErr } = await supabase
-    .from("poll_questions")
-    .select("id, question, expected_answer, concept_id, lecture_id")
-    .eq("id", pollId)
-    .single();
-
-  if (pollErr || !poll) {
+  let poll: {
+    id: string;
+    question: string;
+    expected_answer: string;
+    concept_id: string;
+    lecture_id: string;
+  };
+  try {
+    poll = await flaskGet(`/api/polls/${pollId}`);
+  } catch {
     return NextResponse.json(
       { error: "Poll not found" },
       { status: 404 }
@@ -44,11 +44,9 @@ export async function POST(
     answer
   );
 
-  // Store the poll response
-  const { error: insertErr } = await supabase
-    .from("poll_responses")
-    .insert({
-      question_id: pollId,
+  // Store the poll response via Flask
+  try {
+    await flaskPost(`/api/polls/${pollId}/responses`, {
       student_id: studentId,
       answer,
       evaluation: {
@@ -57,9 +55,8 @@ export async function POST(
         reasoning: evaluation.reasoning,
       },
     });
-
-  if (insertErr) {
-    console.error("Failed to insert poll response:", insertErr);
+  } catch (e) {
+    console.error("Failed to insert poll response:", e);
   }
 
   // Update mastery via Flask — pass eval_result, Flask applies confidence rules
@@ -71,17 +68,10 @@ export async function POST(
   };
 
   try {
-    const masteryRes = await fetch(
-      `${FLASK_API_URL}/api/students/${studentId}/mastery/${poll.concept_id}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eval_result: evaluation.eval_result }),
-      }
+    masteryUpdate = await flaskPut(
+      `/api/students/${studentId}/mastery/${poll.concept_id}`,
+      { eval_result: evaluation.eval_result }
     );
-    if (masteryRes.ok) {
-      masteryUpdate = await masteryRes.json();
-    }
   } catch (e) {
     console.error("Failed to update mastery via Flask:", e);
   }
