@@ -27,10 +27,12 @@ export default function PollControls({ lectureId }: PollControlsProps) {
     totalResponses: 0,
   });
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleGenerate() {
     if (!lectureId) return;
     setGenerating(true);
+    setError(null);
     try {
       const data = await nextApi.post(`/api/lectures/${lectureId}/poll/generate`, {});
       setPoll({
@@ -41,8 +43,9 @@ export default function PollControls({ lectureId }: PollControlsProps) {
         results: null,
         totalResponses: 0,
       });
-    } catch (err) {
-      console.error("Failed to generate poll:", err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate question";
+      setError(message);
     } finally {
       setGenerating(false);
     }
@@ -95,13 +98,18 @@ export default function PollControls({ lectureId }: PollControlsProps) {
       </h3>
       <div className="space-y-3">
         {poll.status === "idle" && (
-          <button
-            onClick={handleGenerate}
-            disabled={!lectureId || generating}
-            className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-          >
-            {generating ? "Generating..." : "Generate Question"}
-          </button>
+          <>
+            <button
+              onClick={handleGenerate}
+              disabled={!lectureId || generating}
+              className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+            >
+              {generating ? "Generating..." : "Generate Question"}
+            </button>
+            {error && (
+              <p className="text-xs text-red-500 mt-1">{error}</p>
+            )}
+          </>
         )}
 
         {poll.status === "preview" && (

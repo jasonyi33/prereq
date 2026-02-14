@@ -239,7 +239,7 @@ export default function ProfessorDashboard() {
   );
 
   const strugglingConceptIds = heatmapData
-    .filter((c) => c.distribution.red > c.distribution.green)
+    .filter((c) => c.distribution.red > 0 || c.avg_confidence < 0.5)
     .map((c) => c.id);
 
   return (

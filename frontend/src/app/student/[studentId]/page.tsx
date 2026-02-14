@@ -11,6 +11,7 @@ import TranscriptFeed, { type TranscriptChunk } from "@/components/dashboard/Tra
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi } from "@/lib/api";
 import { confidenceToColor } from "@/lib/colors";
+import { getAncestors } from "@/lib/graph";
 
 const KnowledgeGraph = dynamic(() => import("@/components/graph/KnowledgeGraph"), {
   ssr: false,
@@ -31,6 +32,7 @@ export default function StudentView() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [activePoll, setActivePoll] = useState<PollData | null>(null);
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
@@ -173,6 +175,13 @@ export default function StudentView() {
     ),
   );
 
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    setSelectedNode(node);
+    const ancestors = getAncestors(node.id, edges);
+    ancestors.add(node.id);
+    setHighlightedNodeIds(ancestors);
+  }, [edges]);
+
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Header */}
@@ -190,13 +199,14 @@ export default function StudentView() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Knowledge Graph */}
-        <div ref={containerRef} className="w-3/5 border-r">
+        <div ref={containerRef} className="w-3/5 border-r relative">
           {dimensions.width > 0 && nodes.length > 0 && (
             <KnowledgeGraph
               nodes={nodes}
               edges={edges}
               activeConceptId={activeConceptId}
-              onNodeClick={setSelectedNode}
+              highlightedNodeIds={highlightedNodeIds}
+              onNodeClick={handleNodeClick}
               width={dimensions.width}
               height={dimensions.height}
             />
@@ -206,16 +216,25 @@ export default function StudentView() {
               <p className="text-sm text-muted-foreground">Loading graph...</p>
             </div>
           )}
+
+          {/* Floating overlay panel */}
+          {selectedNode && (
+            <div className="absolute top-4 left-4 w-96 max-h-[calc(100%-2rem)] overflow-y-auto z-40 shadow-lg rounded-lg">
+              <NodeDetailPanel
+                node={selectedNode}
+                onClose={() => {
+                  setSelectedNode(null);
+                  setHighlightedNodeIds(new Set());
+                }}
+                lectureId={lectureId}
+                courseId={courseId}
+              />
+            </div>
+          )}
         </div>
 
         {/* Right: Active Panel */}
         <div className="w-2/5 flex flex-col overflow-hidden">
-          {selectedNode && (
-            <div className="p-3 border-b">
-              <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
-            </div>
-          )}
-
           <div className="flex-1 overflow-y-auto p-3">
             {activePoll ? (
               <PollCard

@@ -29,58 +29,66 @@ export async function POST(
     );
   }
 
-  // Fetch heatmap from Flask
-  const heatmap = await flaskGet<{
-    concepts: {
-      id: string;
-      label: string;
-      distribution: { green: number; yellow: number; red: number; gray: number };
-      avg_confidence: number;
-    }[];
-  }>(`/api/courses/${lecture.course_id}/heatmap`);
+  try {
+    // Fetch heatmap from Flask
+    const heatmap = await flaskGet<{
+      concepts: {
+        id: string;
+        label: string;
+        distribution: { green: number; yellow: number; red: number; gray: number };
+        avg_confidence: number;
+      }[];
+    }>(`/api/courses/${lecture.course_id}/heatmap`);
 
-  // Also fetch concept descriptions
-  const concepts = await flaskGet<
-    { id: string; label: string; description: string }[]
-  >(`/api/concepts?ids=${conceptIds.join(",")}`);
+    // Also fetch concept descriptions
+    const concepts = await flaskGet<
+      { id: string; label: string; description: string }[]
+    >(`/api/concepts?ids=${conceptIds.join(",")}`);
 
-  const conceptMap = new Map(concepts.map((c) => [c.id, c]));
+    const conceptMap = new Map(concepts.map((c) => [c.id, c]));
 
-  // Filter heatmap to requested concepts and enrich with descriptions
-  const targetConcepts = conceptIds
-    .map((id) => {
-      const heatmapEntry = heatmap.concepts?.find((c) => c.id === id);
-      const conceptDetail = conceptMap.get(id);
-      if (!heatmapEntry || !conceptDetail) return null;
-      return {
-        label: heatmapEntry.label,
-        description: conceptDetail.description || "",
-        distribution: heatmapEntry.distribution,
-      };
-    })
-    .filter(Boolean) as {
-      label: string;
-      description: string;
-      distribution: { green: number; yellow: number; red: number; gray: number };
-    }[];
+    // Filter heatmap to requested concepts and enrich with descriptions
+    const targetConcepts = conceptIds
+      .map((id) => {
+        const heatmapEntry = heatmap.concepts?.find((c) => c.id === id);
+        const conceptDetail = conceptMap.get(id);
+        if (!heatmapEntry || !conceptDetail) return null;
+        return {
+          label: heatmapEntry.label,
+          description: conceptDetail.description || "",
+          distribution: heatmapEntry.distribution,
+        };
+      })
+      .filter(Boolean) as {
+        label: string;
+        description: string;
+        distribution: { green: number; yellow: number; red: number; gray: number };
+      }[];
 
-  if (targetConcepts.length === 0) {
+    if (targetConcepts.length === 0) {
+      return NextResponse.json(
+        { error: "No matching concepts found in heatmap" },
+        { status: 404 }
+      );
+    }
+
+    // Generate intervention suggestions via Claude Sonnet
+    const rawSuggestions = await generateInterventions(targetConcepts);
+
+    // Map concept labels back to IDs
+    const labelToId = new Map(concepts.map((c) => [c.label, c.id]));
+    const suggestions = rawSuggestions.map((s) => ({
+      conceptId: labelToId.get(s.concept_label) || "",
+      conceptLabel: s.concept_label,
+      suggestion: s.suggestion,
+    }));
+
+    return NextResponse.json({ suggestions });
+  } catch (err) {
+    console.error("Intervention generation failed:", err);
     return NextResponse.json(
-      { error: "No matching concepts found in heatmap" },
-      { status: 404 }
+      { error: "Failed to generate teaching suggestions. Please try again." },
+      { status: 500 }
     );
   }
-
-  // Generate intervention suggestions via Claude Sonnet
-  const rawSuggestions = await generateInterventions(targetConcepts);
-
-  // Map concept labels back to IDs
-  const labelToId = new Map(concepts.map((c) => [c.label, c.id]));
-  const suggestions = rawSuggestions.map((s) => ({
-    conceptId: labelToId.get(s.concept_label) || "",
-    conceptLabel: s.concept_label,
-    suggestion: s.suggestion,
-  }));
-
-  return NextResponse.json({ suggestions });
 }

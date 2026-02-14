@@ -20,10 +20,12 @@ export default function InterventionPanel({
 }: InterventionPanelProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleGetSuggestions() {
     if (!lectureId || strugglingConceptIds.length === 0) return;
     setLoading(true);
+    setError(null);
     try {
       const data = await nextApi.post(`/api/lectures/${lectureId}/interventions`, {
         conceptIds: strugglingConceptIds,
@@ -31,8 +33,9 @@ export default function InterventionPanel({
       if (data.suggestions) {
         setSuggestions(data.suggestions);
       }
-    } catch (err) {
-      console.error("Failed to get suggestions:", err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to get suggestions";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -51,6 +54,12 @@ export default function InterventionPanel({
         >
           {loading ? "Loading..." : "Get Suggestions"}
         </button>
+        {strugglingConceptIds.length === 0 && !loading && (
+          <p className="text-xs text-slate-400">No struggling concepts detected yet</p>
+        )}
+        {error && (
+          <p className="text-xs text-red-500">{error}</p>
+        )}
 
         {suggestions.length > 0 && (
           <div className="space-y-2">
