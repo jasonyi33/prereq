@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { parseConceptDetectionResponse } from "../concept-detection";
 import { parseQuestionGenerationResponse } from "../question-generation";
 import { parseResponseEvaluationResponse } from "../response-evaluation";
+import { parseUnderstandingCheckResponse } from "../understanding-check";
+import { parseMisconceptionSummaryResponse } from "../misconception-summary";
 
 describe("parseConceptDetectionResponse", () => {
   it("parses valid JSON with 2 concepts", () => {
@@ -134,5 +136,68 @@ describe("parseResponseEvaluationResponse", () => {
     });
     const result = parseResponseEvaluationResponse(input);
     expect(result.eval_result).toBe("partial");
+  });
+});
+
+describe("parseUnderstandingCheckResponse", () => {
+  it("parses understood: true with concept label", () => {
+    const input = JSON.stringify({
+      understood: true,
+      concept_label: "Chain Rule",
+    });
+    const result = parseUnderstandingCheckResponse(input);
+    expect(result.understood).toBe(true);
+    expect(result.concept_label).toBe("Chain Rule");
+  });
+
+  it("parses understood: false with empty label", () => {
+    const input = JSON.stringify({
+      understood: false,
+      concept_label: "",
+    });
+    const result = parseUnderstandingCheckResponse(input);
+    expect(result.understood).toBe(false);
+    expect(result.concept_label).toBe("");
+  });
+
+  it("returns safe default for malformed JSON", () => {
+    const result = parseUnderstandingCheckResponse("not json");
+    expect(result.understood).toBe(false);
+    expect(result.concept_label).toBe("");
+  });
+
+  it("handles missing concept_label key", () => {
+    const input = JSON.stringify({ understood: true });
+    const result = parseUnderstandingCheckResponse(input);
+    expect(result.understood).toBe(true);
+    expect(result.concept_label).toBe("");
+  });
+});
+
+describe("parseMisconceptionSummaryResponse", () => {
+  it("returns plain text as-is", () => {
+    const input =
+      "Students confused gradient descent with the gradient vector itself.";
+    expect(parseMisconceptionSummaryResponse(input)).toBe(input);
+  });
+
+  it("strips wrapping quotes", () => {
+    const input =
+      '"Most students missed the chain rule connection."';
+    expect(parseMisconceptionSummaryResponse(input)).toBe(
+      "Most students missed the chain rule connection."
+    );
+  });
+
+  it("returns default for empty string", () => {
+    expect(parseMisconceptionSummaryResponse("")).toBe(
+      "No clear misconception pattern detected."
+    );
+  });
+
+  it("trims whitespace", () => {
+    expect(
+      parseMisconceptionSummaryResponse("  Some summary.  ")
+    ).toBe("Some summary.");
   });
 });

@@ -28,7 +28,7 @@ def create_kg(file_path: str) -> str:
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-    prompt = prompt = """Analyze this CS229 Machine Learning course document and create a prerequisite knowledge graph with 20-30 nodes.
+    prompt = """Analyze this CS229 Machine Learning course document and create a prerequisite knowledge graph with 20-30 nodes.
 
 COURSE STRUCTURE (for context):
 - Part I: Supervised Learning (Linear Regression → Logistic Regression → GLMs → Generative Models → Kernels → SVMs)
