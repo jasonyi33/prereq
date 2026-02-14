@@ -1701,15 +1701,16 @@ curl -X POST http://localhost:5000/api/quizzes/quiz-uuid/submit \
 
 ## Resources
 
-### GET /api/resources/search
+### GET /api/perplexity/query
 **Type:** NON-CRUD (External API Integration)
 **Purpose:** Search for relevant learning resources using Perplexity Sonar API
 **Auth:** None
-**Location:** Next.js API route (`frontend/src/app/api/resources/search/route.ts`)
+**Location:** Pages AI route
 **Status:** ✅ Implemented
 **Query Parameters:**
-- `concept` (string, required): Concept name to search for
-- `courseId` (string, uuid, optional): Course context for more targeted results (currently unused in implementation)
+prompt - string
+[//]: # (- `concept` &#40;string, required&#41;: Concept name to search for)
+[//]: # (- `courseId` &#40;string, uuid, optional&#41;: Course context for more targeted results &#40;currently unused in implementation&#41;)
 
 **Process:**
 1. Validates `concept` query parameter exists

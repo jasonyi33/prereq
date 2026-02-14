@@ -1,8 +1,10 @@
+from dotenv import load_dotenv
 from flask import Blueprint, request, jsonify
 from ..db import supabase
 from ..services.generate_content import generate_learning_page, generate_practice_quiz, get_further_reading
 from datetime import datetime
 
+load_dotenv()
 pages = Blueprint('pages', __name__)
 
 
@@ -319,3 +321,48 @@ def delete_quiz(quiz_id):
     """Delete quiz (cascades to questions and responses)"""
     supabase.table('practice_quizzes').delete().eq('id', quiz_id).execute()
     return jsonify({'success': True}), 200
+
+
+@pages.route('/api/perplexity/query', methods=['POST'])
+def perplexity_query():
+    """Query Perplexity with a custom prompt"""
+    import requests
+    import os
+
+    data = request.json
+    prompt = data.get('prompt')
+
+    if not prompt:
+        return jsonify({'error': 'prompt required'}), 400
+
+    perplexity_key = os.getenv("PERPLEXITY_API_KEY")
+    if not perplexity_key:
+        return jsonify({'error': 'Perplexity API not configured'}), 500
+
+    try:
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            headers={
+                "Authorization": f"Bearer {perplexity_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "sonar-pro",
+                "messages": [{"role": "user", "content": prompt}]
+            },
+            timeout=30
+        )
+
+        if response.status_code != 200:
+            return jsonify({'error': 'Perplexity API failed', 'details': response.text}), response.status_code
+
+        result = response.json()
+        content = result['choices'][0]['message']['content']
+
+        return jsonify({
+            'response': content,
+            'citations': result['citations'] if 'citations' in result else []
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
