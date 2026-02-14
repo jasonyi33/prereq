@@ -102,18 +102,25 @@ export async function POST(
     }
   }
 
-  // Step 5: Emit Socket.IO events
-  emitToLectureRoom(lectureId, "transcript:chunk", {
-    text,
-    timestamp,
-    detectedConcepts,
-  });
-
-  for (const concept of detectedConcepts) {
-    emitToLectureRoom(lectureId, "lecture:concept-detected", {
-      conceptId: concept.id,
-      label: concept.label,
+  // Step 5: Emit Socket.IO events (may fail if called outside Express server context)
+  try {
+    emitToLectureRoom(lectureId, "transcript:chunk", {
+      text,
+      timestamp,
+      detectedConcepts,
     });
+
+    for (const concept of detectedConcepts) {
+      emitToLectureRoom(lectureId, "lecture:concept-detected", {
+        conceptId: concept.id,
+        label: concept.label,
+      });
+    }
+  } catch (err) {
+    // Next.js API routes run in a separate context from the Express server,
+    // so Socket.IO may not be available here. Events will still reach clients
+    // if they poll or reconnect.
+    console.warn("Socket emit skipped (not in Express server context)");
   }
 
   return NextResponse.json({

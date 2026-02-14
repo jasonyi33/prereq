@@ -67,23 +67,40 @@ export default function StudentView() {
       .catch(() => {});
   }, [courseId, studentId]);
 
-  // Find active lecture
+  // Poll for the latest live lecture every 5s so we auto-join when RTMS creates one
   useEffect(() => {
     if (!courseId) return;
-    // Check localStorage first (set by professor's Start Demo)
-    const storedLecture = localStorage.getItem("lectureId");
-    if (storedLecture) {
-      setLectureId(storedLecture);
-      return;
-    }
-    // Otherwise, find the live lecture from API
-    flaskApi
-      .get(`/api/courses/${courseId}/lectures`)
-      .then((lectures: { id: string; status: string }[]) => {
-        const live = lectures.find((l) => l.status === "live");
-        if (live) setLectureId(live.id);
-      })
-      .catch(() => {});
+
+    const checkLiveLecture = () => {
+      flaskApi
+        .get(`/api/courses/${courseId}/lectures`)
+        .then((lectures: { id: string; status: string; started_at?: string }[]) => {
+          const liveLectures = lectures.filter((l) => l.status === "live");
+          liveLectures.sort((a, b) => (b.started_at || "").localeCompare(a.started_at || ""));
+          const live = liveLectures[0];
+          if (live) {
+            setLectureId((prev) => {
+              if (prev !== live.id) {
+                localStorage.setItem("lectureId", live.id);
+              }
+              return live.id;
+            });
+          } else if (!lectureId) {
+            const storedLecture = localStorage.getItem("lectureId");
+            if (storedLecture) setLectureId(storedLecture);
+          }
+        })
+        .catch(() => {
+          if (!lectureId) {
+            const storedLecture = localStorage.getItem("lectureId");
+            if (storedLecture) setLectureId(storedLecture);
+          }
+        });
+    };
+
+    checkLiveLecture(); // check immediately
+    const interval = setInterval(checkLiveLecture, 5000); // then every 5s
+    return () => clearInterval(interval);
   }, [courseId]);
 
   // Join lecture room

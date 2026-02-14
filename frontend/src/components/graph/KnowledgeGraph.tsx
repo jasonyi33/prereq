@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { COLOR_HEX } from "@/lib/colors";
 
@@ -54,10 +54,10 @@ export default function KnowledgeGraph({
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const graphData = {
+  const graphData = useMemo(() => ({
     nodes: nodes.map((n) => ({ ...n })),
     links: edges.map((e) => ({ source: e.source, target: e.target })),
-  };
+  }), [nodes, edges]);
 
   const nodeCanvasObject = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
