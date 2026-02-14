@@ -1,3 +1,4 @@
+import math
 import tempfile
 
 from PyPDF2 import PdfReader, PdfWriter
@@ -129,6 +130,10 @@ def parse_kg(markdown: str) -> dict:
     return json.loads(text)
 
 
+def sigmoid(x):
+    return 1 / (1 + math.e ** (-1 * x))
+
+
 def calculate_importance(graph: dict) -> dict:
     """Calculate importance based on in-degree (how many nodes depend on this)"""
 
@@ -149,7 +154,7 @@ def calculate_importance(graph: dict) -> dict:
     for node in graph['nodes'].keys():
         # Normalize in-degree to 0-1 range
         score = in_degree[node] / max_in if max_in > 0 else 0.5
-        importance[node] = round(score, 3)
+        importance[node] = sigmoid(round(score, 3) + 5)
 
     return importance
 
