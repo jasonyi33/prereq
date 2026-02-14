@@ -1,15 +1,14 @@
 from flask import request, jsonify, Blueprint
-from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+
+from ...db import supabase
 
 load_dotenv()
 students = Blueprint("students", __name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 
 def confidence_to_color(confidence):
     if confidence == 0.0:
