@@ -36,7 +36,12 @@ Return ONLY valid JSON (no markdown, no explanation):
 
 export function parseConceptDetectionResponse(response: string): string[] {
   try {
-    const parsed = JSON.parse(response);
+    // Strip markdown code fences if Claude wraps the JSON
+    let cleaned = response.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    }
+    const parsed = JSON.parse(cleaned);
     if (
       parsed.detected_concepts &&
       Array.isArray(parsed.detected_concepts)

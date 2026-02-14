@@ -31,7 +31,7 @@ def get_lecture(lecture_id):
 
 @lectures.route('/api/courses/<course_id>/lectures', methods=['GET'])
 def get_course_lectures(course_id):
-    result = supabase.table('lecture_sessions').select('*').eq('course_id', course_id).execute()
+    result = supabase.table('lecture_sessions').select('*').eq('course_id', course_id).order('started_at', desc=True).execute()
     return jsonify(result.data), 200
 
 
