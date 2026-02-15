@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Users } from "lucide-react";
 import type { GraphNode, GraphEdge } from "@/components/graph/KnowledgeGraph";
 import SidePanel from "@/components/student/SidePanel";
 import { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
