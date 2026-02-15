@@ -216,6 +216,16 @@ def upload_course_pdf(course_id):
                 'target_id': node_id_map[target_label]
             }).execute()
 
+    # Re-create eager mastery rows for all students in this course
+    students = supabase.table('students').select('id').eq('course_id', course_id).execute().data
+    if students and node_id_map:
+        mastery_rows = [
+            {'student_id': s['id'], 'concept_id': cid, 'confidence': 0.0}
+            for s in students for cid in node_id_map.values()
+        ]
+        for i in range(0, len(mastery_rows), 500):
+            supabase.table('student_mastery').insert(mastery_rows[i:i+500]).execute()
+
     # Invalidate graph cache for this course
     cache_delete_pattern(f"graph:{course_id}:*")
 
@@ -296,40 +306,3 @@ def upload_course_pdf(course_id):
     print(f"[upload] Started async content generation for {len(node_id_map)} concepts", flush=True)
 
     return jsonify(graph_data), 200
-
-
-@courses.route('/api/courses/<course_id>/graph', methods=['GET'])
-@optional_auth
-def get_graph(course_id):
-    student_id = request.args.get('student_id')
-
-    # Get nodes
-    nodes_query = supabase.table('concept_nodes').select('*').eq('course_id', course_id)
-    nodes = nodes_query.execute().data
-
-    # Get mastery if student provided
-    if student_id:
-        mastery = supabase.table('student_mastery').select('concept_id, confidence').eq('student_id',
-                                                                                        student_id).execute().data
-        mastery_map = {m['concept_id']: m['confidence'] for m in mastery}
-
-        for node in nodes:
-            confidence = mastery_map.get(node['id'], 0.0)
-            node['confidence'] = confidence
-            node['color'] = confidence_to_color(confidence)
-
-    # Get edges
-    edges = supabase.table('concept_edges').select('*').eq('course_id', course_id).execute().data
-
-    return jsonify({'nodes': nodes, 'edges': edges}), 200
-
-
-def confidence_to_color(confidence):
-    if confidence == 0.0:
-        return "gray"
-    elif confidence < 0.4:
-        return "red"
-    elif confidence < 0.7:
-        return "yellow"
-    else:
-        return "green"

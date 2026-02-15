@@ -20,7 +20,11 @@ function getFlaskUrl(): string {
 async function flaskGet<T>(path: string): Promise<T> {
   console.log(`[transcript-route] Flask GET: ${getFlaskUrl()}${path}`);
   const res = await fetch(`${getFlaskUrl()}${path}`, {
-    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "1",
+      "Cache-Control": "no-cache",
+    },
   });
   if (!res.ok) {
     const body = await res.text();
@@ -115,7 +119,13 @@ async function getConceptMap(lectureId: string): Promise<ConceptMap> {
   }
 
   const lecture = await flaskGet<{ id: string; course_id: string }>(`/api/lectures/${lectureId}`);
+  console.log(`[getConceptMap] lecture=${lectureId} → course_id=${lecture.course_id}`);
+
   const graph = await flaskGet<{ nodes: { id: string; label: string }[] }>(`/api/courses/${lecture.course_id}/graph`);
+  console.log(`[getConceptMap] graph response: ${(graph.nodes || []).length} nodes`);
+  if ((graph.nodes || []).length === 0) {
+    console.warn(`[getConceptMap] Empty nodes! Raw keys: ${JSON.stringify(Object.keys(graph))}`);
+  }
 
   const labelToId = new Map<string, string>();
   const labels: string[] = [];

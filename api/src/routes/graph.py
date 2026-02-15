@@ -36,7 +36,9 @@ def get_graph(course_id):
     node_map = {n['id']: n['label'] for n in nodes}
     graph_data = {
         'nodes': {n['label']: n.get('description', '') for n in nodes},
-        'edges': [(node_map[e['source_id']], node_map[e['target_id']]) for e in edges]
+        'edges': [(node_map[e['source_id']], node_map[e['target_id']])
+                  for e in edges
+                  if e['source_id'] in node_map and e['target_id'] in node_map]
     }
 
     # Calculate importance from graph structure
