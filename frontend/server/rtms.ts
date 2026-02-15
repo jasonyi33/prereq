@@ -210,6 +210,10 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     teacherLectures.set(teacherId, lectureId);
   }
 
+  // Ensure CA cert is ready before loading the SDK (avoids race condition)
+  await ensureCaCert();
+  diag("ca-cert", `ZM_RTMS_CA_CERT=${process.env.ZM_RTMS_CA_CERT || "NOT SET"}`);
+
   let sdk: any;
   try {
     sdk = await getRtmsSdk();
