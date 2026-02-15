@@ -83,11 +83,14 @@ def update_poll_status(poll_id):
 
         result = supabase.table('poll_questions').update({
             'status': data['status']
-        }).eq('id', poll_id).select('id, status, question, concept_id').execute()
+        }).eq('id', poll_id).execute()
 
         if not result.data:
             return jsonify({'error': 'Poll not found'}), 404
-        return jsonify(result.data[0]), 200
+
+        # Fetch the updated poll to return all fields
+        poll = supabase.table('poll_questions').select('id, status, question, concept_id').eq('id', poll_id).single().execute()
+        return jsonify(poll.data), 200
     except Exception as e:
         print(f"[update_poll_status] Error: {e}")
         import traceback
