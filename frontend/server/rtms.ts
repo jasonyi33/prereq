@@ -451,7 +451,8 @@ export function setupRTMS(app: Express): void {
   });
 
   // 3. Check outbound network to Zoom WebSocket servers
-  app.get("/api/debug/network", async (_req, res) => {
+  // Pass ?url=wss://... or ?url=https://... to test a specific server
+  app.get("/api/debug/network", async (req, res) => {
     const results: Record<string, any> = {};
     // Test HTTPS to zoom.us
     try {
@@ -461,16 +462,18 @@ export function setupRTMS(app: Express): void {
     } catch (err: any) {
       results["https://zoom.us"] = { ok: false, error: err.message };
     }
-    // Test WSS connectivity by doing HTTPS to the same host pattern
-    try {
-      const start = Date.now();
-      const r = await fetch("https://zoomsjc144-195-46-183zssgw.sjc.zoom.us", {
-        method: "HEAD",
-        signal: AbortSignal.timeout(5000),
-      });
-      results["zoom_rtms_server"] = { ok: true, status: r.status, ms: Date.now() - start };
-    } catch (err: any) {
-      results["zoom_rtms_server"] = { ok: false, error: err.message };
+    // Test custom server URL if provided
+    const customUrl = req.query.url as string;
+    if (customUrl) {
+      // Convert wss:// to https:// for fetch compatibility
+      const httpsUrl = customUrl.replace(/^wss:\/\//, "https://").replace(/^ws:\/\//, "http://");
+      try {
+        const start = Date.now();
+        const r = await fetch(httpsUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+        results["custom_server"] = { url: customUrl, httpsUrl, ok: true, status: r.status, ms: Date.now() - start };
+      } catch (err: any) {
+        results["custom_server"] = { url: customUrl, httpsUrl, ok: false, error: err.message };
+      }
     }
     res.json(results);
   });
