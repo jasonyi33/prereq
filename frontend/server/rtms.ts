@@ -23,6 +23,7 @@ async function getRtmsSdk(): Promise<any> {
 
 const RTMS_EVENTS = ["meeting.rtms_started", "webinar.rtms_started", "session.rtms_started"];
 const RTMS_STOP_EVENTS = ["meeting.rtms_stopped", "webinar.rtms_stopped", "session.rtms_stopped"];
+const RTMS_INTERRUPT_EVENTS = ["meeting.rtms_interrupted", "webinar.rtms_interrupted", "session.rtms_interrupted"];
 
 // --- Multi-tenant state ---
 
@@ -30,6 +31,7 @@ interface ActiveStream {
   client: any;
   teacherId: string | null;
   lectureId: string;
+  payload: any;
 }
 
 // streamId -> active stream
@@ -224,7 +226,7 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
   }
 
   const client = new sdk.Client();
-  activeStreams.set(streamId, { client, teacherId, lectureId });
+  activeStreams.set(streamId, { client, teacherId, lectureId, payload });
   diag("client", `Created RTMS Client, activeStreams count=${activeStreams.size}`);
 
   let startTime = Date.now();
@@ -296,6 +298,30 @@ function handleWebhook(teacherId: string | null, secret: string) {
         if (teacherId) teacherLectures.delete(teacherId);
       } else {
         diag("stop", `No active stream for streamId=${streamId} (already cleaned up?)`);
+      }
+      return;
+    }
+
+    if (RTMS_INTERRUPT_EVENTS.includes(event)) {
+      const stream = activeStreams.get(streamId);
+      if (stream) {
+        diag("interrupt", `Stream interrupted, cleaning up and reconnecting in 2s...`);
+        try { stream.client.leave(); } catch {}
+        activeStreams.delete(streamId);
+        // Reconnect after a short delay
+        setTimeout(() => {
+          diag("interrupt", `Reconnecting streamId=${streamId}`);
+          startRtmsConnection(stream.payload, stream.teacherId).catch((err) => {
+            diag("ERROR", `Reconnect failed: ${err.message || err}`);
+          });
+        }, 2000);
+      } else {
+        diag("interrupt", `No active stream for streamId=${streamId}, treating as new connection`);
+        setTimeout(() => {
+          startRtmsConnection(payload, teacherId).catch((err) => {
+            diag("ERROR", `Reconnect failed: ${err.message || err}`);
+          });
+        }, 2000);
       }
       return;
     }
