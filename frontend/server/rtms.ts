@@ -444,6 +444,29 @@ export function setupRTMS(app: Express): void {
 
   // --- Debug endpoints (temporary, for diagnosing Render RTMS issues) ---
 
+  // 0. Clock check — signature generation uses timestamps
+  app.get("/api/debug/clock", async (_req, res) => {
+    const localTime = new Date();
+    // Compare against a known time source
+    let remoteTime: string | null = null;
+    let skewMs: number | null = null;
+    try {
+      const r = await fetch("https://worldtimeapi.org/api/timezone/Etc/UTC", { signal: AbortSignal.timeout(5000) });
+      const data = await r.json() as any;
+      remoteTime = data.utc_datetime;
+      const remote = new Date(data.utc_datetime);
+      skewMs = localTime.getTime() - remote.getTime();
+    } catch (err: any) {
+      remoteTime = `error: ${err.message}`;
+    }
+    res.json({
+      serverTime: localTime.toISOString(),
+      remoteTime,
+      skewMs,
+      skewSeconds: skewMs !== null ? Math.round(skewMs / 1000) : null,
+    });
+  });
+
   // 1. Check if logs directory exists (SDK may need it)
   app.get("/api/debug/logs-dir", (_req, res) => {
     const cwd = process.cwd();
