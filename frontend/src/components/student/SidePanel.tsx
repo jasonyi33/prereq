@@ -20,6 +20,7 @@ import { flaskApi, nextApi } from "@/lib/api";
 import { formatTimestamp } from "@/lib/graph";
 import PerplexityDialog from "./PerplexityDialog";
 import LectureSummaryPanel from "./LectureSummaryPanel";
+import ConceptLearning from "./ConceptLearning";
 
 interface TranscriptExcerpt {
   text: string;
@@ -88,6 +89,9 @@ export default function SidePanel({
 
   // Perplexity dialog state
   const [perplexityOpen, setPerplexityOpen] = useState(false);
+
+  // Concept learning dialog state
+  const [learningOpen, setLearningOpen] = useState(false);
 
   // Transcript auto-scroll
   const transcriptBottomRef = useRef<HTMLDivElement>(null);
@@ -333,6 +337,27 @@ export default function SidePanel({
               )}
             </div>
 
+            {/* Learning buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setLearningOpen(true)}
+                className="py-3 px-4 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 flex items-center justify-center gap-2 transition-all text-sm font-medium"
+              >
+                <BookOpen size={16} />
+                <span>Learn</span>
+              </button>
+              <button
+                onClick={() => {
+                  setLearningOpen(true);
+                  // The dialog will handle switching to quiz mode via its internal tabs
+                }}
+                className="py-3 px-4 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center gap-2 transition-all text-sm font-medium"
+              >
+                <BarChart2 size={16} />
+                <span>Quiz</span>
+              </button>
+            </div>
+
             {/* Perplexity AI button */}
             <button
               onClick={() => setPerplexityOpen(true)}
@@ -561,6 +586,24 @@ export default function SidePanel({
                   .join("\n\n")
               : undefined
           }
+        />
+      )}
+
+      {/* Concept Learning Dialog */}
+      {selectedNode && (
+        <ConceptLearning
+          conceptId={selectedNode.id}
+          conceptLabel={selectedNode.label}
+          studentId={studentId}
+          isOpen={learningOpen}
+          onClose={() => setLearningOpen(false)}
+          onConfidenceUpdate={(oldColor, newColor, confidence) => {
+            // Update the node color in the graph
+            if (selectedNode) {
+              selectedNode.color = newColor;
+              selectedNode.confidence = confidence;
+            }
+          }}
         />
       )}
     </div>
