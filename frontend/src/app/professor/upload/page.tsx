@@ -165,10 +165,14 @@ export default function UploadPage() {
           </div>
           <button
             onClick={() => {
-              // If demo upload, restore the real course ID for the dashboard
+              // Clean up demo flags and restore real course ID
               if (typeof window !== "undefined" && localStorage.getItem("demoUpload") === "true") {
                 const realCourseId = localStorage.getItem("realCourseId");
-                if (realCourseId) localStorage.setItem("courseId", realCourseId);
+                if (realCourseId && !realCourseId.startsWith("demo-")) {
+                  localStorage.setItem("courseId", realCourseId);
+                } else {
+                  localStorage.removeItem("courseId");  // Let dashboard fetch from API
+                }
                 localStorage.removeItem("demoUpload");
                 localStorage.removeItem("realCourseId");
               }

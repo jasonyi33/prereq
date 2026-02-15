@@ -43,7 +43,7 @@ export default function ProfessorDashboard() {
       return;
     }
     const stored = localStorage.getItem("courseId");
-    if (stored) {
+    if (stored && !stored.startsWith("demo-")) {
       setCourseId(stored);
       return;
     }
