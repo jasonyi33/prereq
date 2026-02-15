@@ -9,6 +9,7 @@ import { createServer } from "http";
 import next from "next";
 import { Server } from "socket.io";
 import { setupSocket } from "./socket";
+import transcriptRoute from "./transcript-route";
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT || "3000", 10);
 
@@ -51,6 +52,9 @@ const nextHandler = nextApp.getRequestHandler();
 nextApp.prepare().then(async () => {
   // Wait for RTMS routes to register BEFORE the Next.js catch-all
   await rtmsReady;
+
+  // Transcript route runs in Express context so Socket.IO emit works
+  app.use(transcriptRoute);
 
   app.all("/{*path}", (req, res) => {
     return nextHandler(req, res);
