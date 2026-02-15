@@ -125,3 +125,31 @@ ALTER TABLE students ADD COLUMN IF NOT EXISTS auth_id UUID;
 CREATE INDEX IF NOT EXISTS idx_teachers_auth_id ON teachers(auth_id);
 CREATE INDEX IF NOT EXISTS idx_students_auth_id ON students(auth_id);
 CREATE INDEX IF NOT EXISTS idx_courses_join_code ON courses(join_code);
+
+-- Study group tables for peer-to-peer matching
+CREATE TABLE study_group_pool (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    concept_ids UUID[] NOT NULL,
+    status VARCHAR(20) DEFAULT 'waiting',
+    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP DEFAULT (NOW() + INTERVAL '5 minutes'),
+    UNIQUE(student_id, course_id)
+);
+
+CREATE TABLE study_group_matches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    student1_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    student2_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    concept_ids UUID[] NOT NULL,
+    zoom_link VARCHAR(500),
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT NOW(),
+    CHECK (student1_id < student2_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pool_course_status ON study_group_pool(course_id, status);
+CREATE INDEX IF NOT EXISTS idx_pool_student ON study_group_pool(student_id);
+CREATE INDEX IF NOT EXISTS idx_matches_students ON study_group_matches(student1_id, student2_id);
