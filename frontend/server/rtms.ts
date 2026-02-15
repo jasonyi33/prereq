@@ -227,14 +227,7 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     diag("handshake", "Sent handshake with HMAC signature");
   });
 
-  ws.on("message", (raw: Buffer | string, isBinary: boolean) => {
-    if (isBinary) {
-      // Log binary message info for debugging
-      const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
-      diag("ws_binary", `len=${buf.length}, first4bytes=${buf.slice(0, 4).toString("hex")}`);
-      return;
-    }
-
+  ws.on("message", (raw: Buffer | string) => {
     const text_raw = raw.toString();
     try {
       const msg = JSON.parse(text_raw);
