@@ -109,26 +109,23 @@ router.post("/api/lectures/:id/interventions", json(), async (req, res) => {
       return res.status(400).json({ error: "conceptIds array is required" });
     }
 
-    // Get course_id from lecture
-    console.log("[intervention] Fetching lecture...");
+    // Fetch lecture first to get course_id
     const lecture = await flaskGet<{ id: string; course_id: string }>(`/api/lectures/${lectureId}`);
 
-    // Fetch heatmap from Flask
-    console.log("[intervention] Fetching heatmap...");
-    const heatmap = await flaskGet<{
-      concepts: {
-        id: string;
-        label: string;
-        distribution: { green: number; yellow: number; red: number; gray: number };
-        avg_confidence: number;
-      }[];
-    }>(`/api/courses/${lecture.course_id}/heatmap`);
-
-    // Fetch concept descriptions
-    console.log("[intervention] Fetching concept descriptions...");
-    const concepts = await flaskGet<
-      { id: string; label: string; description: string }[]
-    >(`/api/concepts?ids=${conceptIds.join(",")}`);
+    // Fetch heatmap and concept descriptions IN PARALLEL
+    const [heatmap, concepts] = await Promise.all([
+      flaskGet<{
+        concepts: {
+          id: string;
+          label: string;
+          distribution: { green: number; yellow: number; red: number; gray: number };
+          avg_confidence: number;
+        }[];
+      }>(`/api/courses/${lecture.course_id}/heatmap`),
+      flaskGet<{ id: string; label: string; description: string }[]>(
+        `/api/concepts?ids=${conceptIds.join(",")}`
+      ),
+    ]);
 
     const conceptMap = new Map(concepts.map((c) => [c.id, c]));
 
