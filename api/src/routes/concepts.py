@@ -175,3 +175,211 @@ def submit_quiz(concept_id):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+def _generate_learning_page_content(concept_id):
+    """Helper function to generate learning page content."""
+    # Get concept details
+    concept_result = supabase.table('concept_nodes').select('label, description, category').eq('id', concept_id).execute()
+    if not concept_result.data:
+        raise ValueError('Concept not found')
+
+    concept = concept_result.data[0]
+
+    # Generate learning page using Claude
+    prompt = f"""Create a comprehensive learning page for the concept: {concept['label']}
+
+Description: {concept.get('description', 'N/A')}
+Category: {concept.get('category', 'N/A')}
+
+Generate a well-structured markdown document that includes:
+1. A clear explanation of what the concept is
+2. Key points and important details
+3. Mathematical formulas using LaTeX notation ($inline$ and $$display$$)
+4. Practical examples or applications
+5. Common pitfalls or misconceptions
+
+Keep it concise but thorough (aim for 200-400 words). Use markdown formatting with headers (##, ###), bold, lists, and LaTeX for math.
+
+Return ONLY the markdown content, no additional commentary."""
+
+    response = anthropic_client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    content = response.content[0].text
+
+    # Check if already exists
+    existing = supabase.table('concept_learning_pages').select('id').eq('concept_id', concept_id).execute()
+
+    if existing.data:
+        # Update existing
+        supabase.table('concept_learning_pages').update({
+            'content': content
+        }).eq('concept_id', concept_id).execute()
+    else:
+        # Insert new
+        supabase.table('concept_learning_pages').insert({
+            'concept_id': concept_id,
+            'content': content
+        }).execute()
+
+    return {'concept_id': concept_id, 'concept_label': concept['label'], 'content': content}
+
+
+@concepts.route('/api/concepts/<concept_id>/learning-page/generate', methods=['POST'])
+@optional_auth
+def generate_learning_page(concept_id):
+    """Generate and store learning page content for a concept using Claude."""
+    if not anthropic_client:
+        return jsonify({'error': 'Anthropic API not configured'}), 500
+
+    try:
+        result = _generate_learning_page_content(concept_id)
+        return jsonify({**result, 'status': 'generated'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+def _generate_quiz_questions(concept_id):
+    """Helper function to generate quiz questions."""
+    import json
+
+    # Get concept details
+    concept_result = supabase.table('concept_nodes').select('label, description, category').eq('id', concept_id).execute()
+    if not concept_result.data:
+        raise ValueError('Concept not found')
+
+    concept = concept_result.data[0]
+
+    # Generate quiz questions using Claude
+    prompt = f"""Create 5 multiple choice quiz questions for the concept: {concept['label']}
+
+Description: {concept.get('description', 'N/A')}
+Category: {concept.get('category', 'N/A')}
+
+Generate 5 questions that test understanding of this concept. Each question should:
+- Have 4 options (A, B, C, D)
+- Have exactly one correct answer
+- Include a brief explanation of why the answer is correct
+- Range from basic understanding to deeper application
+
+Return your response as a JSON array with this exact structure:
+[
+  {{
+    "question": "Question text here?",
+    "option_a": "First option",
+    "option_b": "Second option",
+    "option_c": "Third option",
+    "option_d": "Fourth option",
+    "correct_answer": 0,
+    "explanation": "Explanation of the correct answer"
+  }}
+]
+
+Note: correct_answer is 0 for A, 1 for B, 2 for C, 3 for D.
+Return ONLY the JSON array, no additional text."""
+
+    response = anthropic_client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=2500,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    content = response.content[0].text
+
+    # Parse JSON response (handle markdown code blocks)
+    if '```json' in content:
+        content = content.split('```json')[1].split('```')[0].strip()
+    elif '```' in content:
+        content = content.split('```')[1].split('```')[0].strip()
+
+    questions = json.loads(content)
+
+    if not isinstance(questions, list) or len(questions) != 5:
+        raise ValueError('Invalid response format from Claude')
+
+    # Delete existing questions for this concept
+    supabase.table('concept_quiz_questions').delete().eq('concept_id', concept_id).execute()
+
+    # Insert new questions
+    for idx, q in enumerate(questions):
+        supabase.table('concept_quiz_questions').insert({
+            'concept_id': concept_id,
+            'question': q['question'],
+            'option_a': q['option_a'],
+            'option_b': q['option_b'],
+            'option_c': q['option_c'],
+            'option_d': q['option_d'],
+            'correct_answer': q['correct_answer'],
+            'explanation': q['explanation'],
+            'question_order': idx
+        }).execute()
+
+    return {'concept_id': concept_id, 'concept_label': concept['label'], 'questions_generated': len(questions)}
+
+
+@concepts.route('/api/concepts/<concept_id>/quiz/generate', methods=['POST'])
+@optional_auth
+def generate_quiz(concept_id):
+    """Generate and store quiz questions for a concept using Claude."""
+    if not anthropic_client:
+        return jsonify({'error': 'Anthropic API not configured'}), 500
+
+    try:
+        result = _generate_quiz_questions(concept_id)
+        return jsonify({**result, 'status': 'generated'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@concepts.route('/api/courses/<course_id>/generate-learning-content', methods=['POST'])
+@optional_auth
+def generate_course_learning_content(course_id):
+    """Generate learning pages and quizzes for all concepts in a course."""
+    if not anthropic_client:
+        return jsonify({'error': 'Anthropic API not configured'}), 500
+
+    try:
+        # Get all concepts for this course
+        concepts_result = supabase.table('concept_nodes').select('id, label').eq('course_id', course_id).execute()
+
+        if not concepts_result.data:
+            return jsonify({'error': 'No concepts found for this course'}), 404
+
+        concepts = concepts_result.data
+        results = {
+            'total': len(concepts),
+            'generated': [],
+            'failed': []
+        }
+
+        # Generate content for each concept
+        for concept in concepts:
+            print(f"Generating content for: {concept['label']}")
+            try:
+                # Generate learning page
+                _generate_learning_page_content(concept['id'])
+
+                # Generate quiz
+                _generate_quiz_questions(concept['id'])
+
+                results['generated'].append({
+                    'concept_id': concept['id'],
+                    'label': concept['label']
+                })
+
+            except Exception as e:
+                print(f"Failed to generate content for {concept['label']}: {str(e)}")
+                results['failed'].append({
+                    'concept_id': concept['id'],
+                    'label': concept['label'],
+                    'error': str(e)
+                })
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
