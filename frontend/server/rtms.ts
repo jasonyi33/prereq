@@ -241,8 +241,6 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
         if (msg.status_code === 0) {
           diag("joined", "RTMS stream authenticated successfully");
           startTime = Date.now();
-          // Subscribe to transcript data (media_type 16 = transcript)
-          ws.send(JSON.stringify({ msg_type: 5, media_type: 16 }));
         } else {
           diag("AUTH_FAIL", `Handshake rejected: status=${msg.status_code}`);
           ws.close();
