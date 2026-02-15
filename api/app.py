@@ -16,6 +16,7 @@ from src.routes.study_groups import study_groups
 from src.routes.auth import auth
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB upload limit
 CORS(app)
 
 app.register_blueprint(auth)

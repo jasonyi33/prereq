@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, User, Send, Loader2, MessageCircle } from "lucide-react";
+import { User, Send, Loader2, MessageCircle, Video, VideoOff } from "lucide-react";
 import { nextApi } from "@/lib/api";
+import ZoomVideoCallWrapper from "./ZoomVideoCallWrapper";
 
 interface MatchDetails {
   matchId: string;
@@ -14,8 +14,17 @@ interface MatchDetails {
   complementarityScore: number;
 }
 
+interface PartnerProfile {
+  year: string;
+  bio: string;
+  strengths: string[];
+  weaknesses: string[];
+}
+
 interface Props {
   matchDetails: MatchDetails;
+  partnerProfile?: PartnerProfile;
+  studentName?: string;
 }
 
 interface Message {
@@ -24,22 +33,15 @@ interface Message {
   timestamp: Date;
 }
 
-export default function MatchedCard({ matchDetails }: Props) {
-  const { partner, conceptLabels, zoomLink, complementarityScore } = matchDetails;
+export default function MatchedCard({ matchDetails, partnerProfile, studentName }: Props) {
+  const { partner, conceptLabels } = matchDetails;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showChat, setShowChat] = useState(true);
+  const [showVideo, setShowVideo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  const getMatchQuality = () => {
-    if (complementarityScore >= 0.6) return { label: "Excellent", color: "text-emerald-600" };
-    if (complementarityScore >= 0.4) return { label: "Good", color: "text-blue-600" };
-    return { label: "Fair", color: "text-slate-600" };
-  };
-
-  const matchQuality = getMatchQuality();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -60,7 +62,6 @@ export default function MatchedCard({ matchDetails }: Props) {
     setIsLoading(true);
 
     try {
-      console.log("Sending chat message to:", "/api/study-groups/chat");
       const response = await nextApi.post("/api/study-groups/chat", {
         message: input.trim(),
         partnerName: partner.name,
@@ -71,8 +72,6 @@ export default function MatchedCard({ matchDetails }: Props) {
         }))
       });
 
-      console.log("Chat response:", response);
-
       const partnerMessage: Message = {
         role: "partner",
         content: response.reply,
@@ -82,7 +81,6 @@ export default function MatchedCard({ matchDetails }: Props) {
       setMessages(prev => [...prev, partnerMessage]);
     } catch (err) {
       console.error("Chat failed:", err);
-      console.error("Error details:", err instanceof Error ? err.message : String(err));
       const errorMessage: Message = {
         role: "partner",
         content: "Sorry, I'm having trouble connecting. Can you try again?",
@@ -103,33 +101,70 @@ export default function MatchedCard({ matchDetails }: Props) {
   };
 
   return (
-    <Card className="p-8 bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg">
+    <div className="bg-white/70 backdrop-blur-2xl border border-gray-200/80 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.08)] rounded-2xl p-8">
+      {/* Avatar + name */}
       <div className="flex justify-center mb-5">
         <div className="relative">
-          <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center">
             <User className="w-8 h-8 text-white" />
           </div>
           <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 border-2 border-white" />
         </div>
       </div>
 
-      <h2 className="text-2xl font-semibold text-slate-800 text-center mb-1">
+      <h2 className="text-2xl font-semibold text-gray-800 text-center mb-1">
         Matched with {partner.name}
       </h2>
-      <p className="text-sm text-slate-500 text-center mb-6">
-        {matchQuality.label} match • You can help each other learn
+      <p className="text-sm text-gray-400 text-center mb-6">
+        You can help each other learn
       </p>
 
-      {/* Concepts */}
+      {/* Partner profile info */}
+      {partnerProfile && (
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-gray-100 text-gray-500 rounded-full">
+              {partnerProfile.year}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 leading-relaxed">{partnerProfile.bio}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Strong in</p>
+              <div className="space-y-1">
+                {partnerProfile.strengths.map(s => (
+                  <div key={s} className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-xs text-gray-600">{s}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Needs help with</p>
+              <div className="space-y-1">
+                {partnerProfile.weaknesses.map(w => (
+                  <div key={w} className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    <span className="text-xs text-gray-600">{w}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Focus areas */}
       <div className="mb-4">
-        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2.5">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
           Focus areas
         </p>
         <div className="flex flex-wrap gap-2">
           {conceptLabels.map(label => (
             <span
               key={label}
-              className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg"
+              className="px-3 py-1.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg"
             >
               {label}
             </span>
@@ -137,44 +172,23 @@ export default function MatchedCard({ matchDetails }: Props) {
         </div>
       </div>
 
-      {/* Match quality indicator */}
-      <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-            Match quality
-          </span>
-          <span className={`text-sm font-semibold ${matchQuality.color}`}>
-            {matchQuality.label}
-          </span>
-        </div>
-        <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-700"
-            style={{ width: `${complementarityScore * 100}%` }}
-          />
-        </div>
-        <p className="text-xs text-slate-500 mt-3 leading-relaxed">
-          Based on your knowledge gaps and strengths, you can effectively tutor each other.
-        </p>
-      </div>
-
       {/* Chat interface */}
       {showChat && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4 text-slate-600" />
-              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+              <MessageCircle className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
                 Chat with {partner.name}
               </span>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="h-64 bg-slate-50 rounded-lg border border-slate-200 overflow-y-auto mb-3 p-3 space-y-2">
+          <div className="h-64 bg-gray-50 rounded-xl border border-gray-200/80 overflow-y-auto mb-3 p-3 space-y-2">
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-center">
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-gray-400">
                   Start chatting about {conceptLabels[0]}...
                 </p>
               </div>
@@ -188,8 +202,8 @@ export default function MatchedCard({ matchDetails }: Props) {
                     <div
                       className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
                         msg.role === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-white border border-slate-200 text-slate-800"
+                          ? "bg-gray-800 text-white"
+                          : "bg-white border border-gray-200 text-gray-800"
                       }`}
                     >
                       {msg.content}
@@ -209,14 +223,14 @@ export default function MatchedCard({ matchDetails }: Props) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask a question or share an insight..."
-              className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent"
               rows={2}
               disabled={isLoading}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="px-4 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -228,16 +242,39 @@ export default function MatchedCard({ matchDetails }: Props) {
         </div>
       )}
 
-      {/* Zoom link */}
-      <Button
-        onClick={() => window.open(zoomLink, "_blank")}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 flex items-center justify-center gap-2"
-      >
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M7.5 10.5v3l6-3v6l6-3v-3l-6 3v-6l-6 3z"/>
-        </svg>
-        Join Zoom
-      </Button>
-    </Card>
+      {/* Video call section */}
+      {showVideo ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Video className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                Video Call
+              </span>
+            </div>
+            <button
+              onClick={() => setShowVideo(false)}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
+            >
+              <VideoOff className="w-3.5 h-3.5" />
+              End Call
+            </button>
+          </div>
+          <ZoomVideoCallWrapper
+            topic={matchDetails.matchId}
+            userName={studentName || "Student"}
+            onLeave={() => setShowVideo(false)}
+          />
+        </div>
+      ) : (
+        <Button
+          onClick={() => setShowVideo(true)}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 flex items-center justify-center gap-2"
+        >
+          <Video className="w-5 h-5" />
+          Start Video Call
+        </Button>
+      )}
+    </div>
   );
 }

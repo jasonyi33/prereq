@@ -165,9 +165,16 @@ def upload_course_pdf(course_id):
         temp_path = f"/tmp/{file_hash}_{filename}"
         file.save(temp_path)
 
-        kg_markdown = create_kg(temp_path)
-        graph = parse_kg(kg_markdown)
-        importance = calculate_importance(graph)
+        try:
+            kg_markdown = create_kg(temp_path)
+            graph = parse_kg(kg_markdown)
+            importance = calculate_importance(graph)
+        except Exception as e:
+            # Clean up temp file and return the actual error
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            print(f"[upload] PDF processing failed: {e}")
+            return jsonify({'error': f'PDF processing failed: {str(e)}'}), 500
 
         os.remove(temp_path)
 

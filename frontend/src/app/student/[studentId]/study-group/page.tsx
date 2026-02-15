@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Users } from "lucide-react";
 import { flaskApi } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/socket";
+import { useAuth } from "@/lib/auth-context";
 import ConceptSelector from "@/components/study-group/ConceptSelector";
 import WaitingCard from "@/components/study-group/WaitingCard";
 import MatchedCard from "@/components/study-group/MatchedCard";
@@ -24,6 +25,13 @@ interface MatchDetails {
   zoomLink: string;
   complementarityScore: number;
 }
+
+const STUDENT_PROFILES: Record<string, { year: string; bio: string; strengths: string[]; weaknesses: string[] }> = {
+  "Alex":    { year: "Senior",    bio: "Strong in linear algebra and optimization. Enjoys breaking down proofs.", strengths: ["Linear Algebra", "Calculus", "Gradient Descent"], weaknesses: ["Regularization", "Dropout"] },
+  "Jordan":  { year: "Junior",    bio: "Solid fundamentals, working through neural network concepts.", strengths: ["Vectors", "Matrices", "Loss Functions"], weaknesses: ["Backpropagation", "Regularization", "Bias-Variance Tradeoff"] },
+  "Sam":     { year: "Junior",    bio: "Getting comfortable with ML basics. Learns best through examples.", strengths: ["Vectors", "Matrices", "Derivatives"], weaknesses: ["Neural Networks", "Backpropagation", "Activation Functions"] },
+  "Taylor":  { year: "Sophomore", bio: "Math whiz, diving into the ML side of things.", strengths: ["Eigenvalues", "Chain Rule", "Bayes' Theorem"], weaknesses: ["Perceptron", "Forward Pass", "Layers"] },
+};
 
 // Mock data for testing without Supabase
 const MOCK_CONCEPTS: ConceptOption[] = [
@@ -48,6 +56,7 @@ export default function StudyGroupPage() {
   const params = useParams();
   const router = useRouter();
   const socket = useSocket();
+  const { profile } = useAuth();
   const studentId = params.studentId as string;
 
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -208,41 +217,37 @@ export default function StudyGroupPage() {
     }
   };
 
+  const partnerProfile = matchDetails ? STUDENT_PROFILES[matchDetails.partner.name] : undefined;
+  const studentName = profile?.name || "Student";
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+      <div className="flex h-screen items-center justify-center bg-[#fafafa]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center animate-pulse">
+          <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center animate-pulse">
             <Users className="w-6 h-6 text-white" />
           </div>
-          <p className="text-sm text-slate-500">Loading...</p>
+          <p className="text-sm text-gray-400">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 relative overflow-hidden">
-      {/* Background blur blobs */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-purple-200/15 blur-[100px] rounded-full" />
-      </div>
-
+    <div className="flex h-screen flex-col bg-[#fafafa] text-gray-800 relative overflow-hidden font-sans">
       {/* Header */}
-      <header className="relative z-10 flex items-center gap-3 bg-white/70 backdrop-blur-sm border-b border-slate-200 px-4 py-3">
-        <button
-          onClick={() => router.back()}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shrink-0">
-          <Users className="w-4.5 h-4.5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold text-slate-800 tracking-tight leading-tight">Study Groups</h1>
-          <p className="text-xs text-slate-500">Connect with peers to learn together</p>
+      <header className="relative z-10 h-14 flex items-center justify-between px-6 border-b border-gray-200/80 bg-white/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="font-[family-name:var(--font-instrument-serif)] text-xl text-gray-800 tracking-tight">
+            prereq
+          </h1>
+          <span className="text-xs text-gray-400 ml-1">Study Groups</span>
         </div>
       </header>
 
@@ -276,7 +281,11 @@ export default function StudyGroupPage() {
           )}
 
           {status === 'matched' && matchDetails && (
-            <MatchedCard matchDetails={matchDetails} />
+            <MatchedCard
+              matchDetails={matchDetails}
+              partnerProfile={partnerProfile}
+              studentName={studentName}
+            />
           )}
         </div>
       </main>

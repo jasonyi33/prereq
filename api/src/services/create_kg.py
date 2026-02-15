@@ -27,7 +27,10 @@ def create_kg(file_path: str) -> str:
 
     os.remove(tmp_path)
 
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    client = anthropic.Anthropic(
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        timeout=120.0,
+    )
 
     prompt = """Analyze this CS229 Machine Learning course document and create a prerequisite knowledge graph with 20-30 nodes.
 
@@ -93,7 +96,7 @@ Return ONLY the JSON object.
 
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=4000,
+        max_tokens=8192,
         messages=[
             {
                 "role": "user",

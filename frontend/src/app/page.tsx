@@ -391,8 +391,8 @@ function CreateCourseForm({ onCreated }: { onCreated: () => void }) {
         description: courseDesc,
       });
       localStorage.setItem("courseId", result.id);
-      await refreshProfile();
       onCreated();
+      refreshProfile();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create course");
     } finally {
