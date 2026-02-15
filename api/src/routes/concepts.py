@@ -50,7 +50,7 @@ def get_learning_page(concept_id):
     concept = concept_result.data[0]
 
     # Get learning page content from database (student_id is null for general content)
-    page_result = supabase.table('learning_pages').select('content').eq('concept_id', concept_id).is_('student_id', 'null').execute()
+    page_result = supabase.table('concept_learning_pages.').select('content').eq('concept_id', concept_id).is_('student_id', 'null').execute()
 
     if not page_result.data:
         return jsonify({
