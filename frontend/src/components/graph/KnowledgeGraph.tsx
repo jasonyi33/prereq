@@ -357,18 +357,36 @@ export default function KnowledgeGraph({
               const edgeX = Math.min(source.x, target.x);
               const edgeNorm = (edgeX - xRange.min) / xRange.range;
               const edgeRevealed = revealProgress > edgeNorm;
+              const particleColor = isPath ? "#3b82f6" : "#94a3b8";
 
               return (
-                <path
-                  key={`link-${i}`}
-                  d={d}
-                  stroke={isPath ? "#3b82f6" : "#64748b"}
-                  strokeWidth={isPath ? 2.5 : 1.5}
-                  opacity={edgeRevealed ? (isPath ? 1 : 0.8) : 0}
-                  fill="none"
-                  markerEnd={isPath ? "url(#arrowhead-active)" : "url(#arrowhead)"}
-                  style={{ transition: "opacity 0.4s ease-out" }}
-                />
+                <g key={`link-${i}`}>
+                  <path
+                    d={d}
+                    stroke={isPath ? "#3b82f6" : "#64748b"}
+                    strokeWidth={isPath ? 2.5 : 1.5}
+                    opacity={edgeRevealed ? (isPath ? 1 : 0.8) : 0}
+                    fill="none"
+                    markerEnd={isPath ? "url(#arrowhead-active)" : "url(#arrowhead)"}
+                    style={{ transition: "opacity 0.4s ease-out" }}
+                  />
+                  {/* Particle flowing along edge */}
+                  {edgeRevealed && (
+                    <motion.circle
+                      r="2.5"
+                      fill={particleColor}
+                      initial={{ offsetDistance: '0%', opacity: 0 }}
+                      animate={{ offsetDistance: ['0%', '100%'], opacity: [0, 0.5, 0.5, 0] }}
+                      transition={{
+                        duration: 3 + (i % 5) * 0.4,
+                        delay: i * 0.2,
+                        repeat: Infinity,
+                        ease: 'linear',
+                      }}
+                      style={{ offsetPath: `path("${d}")` } as React.CSSProperties}
+                    />
+                  )}
+                </g>
               );
             })}
           </g>
