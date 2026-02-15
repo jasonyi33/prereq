@@ -6,6 +6,7 @@ import random
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import hashlib
+import threading
 
 from ..db import supabase
 
@@ -217,6 +218,82 @@ def upload_course_pdf(course_id):
 
     # Invalidate graph cache for this course
     cache_delete_pattern(f"graph:{course_id}:*")
+
+    # Trigger async content generation for all concepts
+    def generate_content_async():
+        """Background thread to generate learning content"""
+        from ..services.generate_content import generate_learning_page, generate_practice_quiz, get_further_reading
+        import sys
+
+        print(f"[async] Starting content generation for course {course_id}", file=sys.stderr, flush=True)
+
+        concepts_result = supabase.table('concept_nodes').select('id, label, description').eq('course_id', course_id).execute()
+
+        for concept in concepts_result.data:
+            concept_id = concept['id']
+            label = concept['label']
+            description = concept.get('description', '')
+
+            try:
+                # Generate learning page
+                page_result = generate_learning_page(
+                    concept_label=label,
+                    concept_description=description,
+                    past_mistakes=[],
+                    current_confidence=0.5
+                )
+
+                further_reading = get_further_reading(label, description)
+
+                # Insert learning page
+                supabase.table('learning_pages').insert({
+                    'student_id': None,
+                    'concept_id': concept_id,
+                    'title': page_result['title'],
+                    'content': page_result['content'],
+                    'further_reading': further_reading
+                }).execute()
+
+                # Generate quiz
+                quiz_result = generate_practice_quiz(
+                    concept_label=label,
+                    concept_description=description,
+                    past_mistakes=[],
+                    current_confidence=0.5
+                )
+
+                # Create quiz
+                quiz_resp = supabase.table('practice_quizzes').insert({
+                    'student_id': None,
+                    'concept_id': concept_id,
+                    'page_id': None,
+                    'status': 'template'
+                }).execute()
+
+                quiz_id = quiz_resp.data[0]['id']
+
+                # Insert questions
+                for q_idx, q in enumerate(quiz_result['questions']):
+                    supabase.table('quiz_questions').insert({
+                        'quiz_id': quiz_id,
+                        'question_text': q['question_text'],
+                        'options': q['options'],
+                        'correct_answer': q['correct_answer'],
+                        'explanation': q['explanation'],
+                        'question_order': q_idx + 1
+                    }).execute()
+
+                print(f"[async] ✓ Generated content for {label}", file=sys.stderr, flush=True)
+
+            except Exception as e:
+                print(f"[async] ✗ Failed for {label}: {str(e)}", file=sys.stderr, flush=True)
+
+        print(f"[async] Content generation complete for course {course_id}", file=sys.stderr, flush=True)
+
+    # Start background thread
+    thread = threading.Thread(target=generate_content_async, daemon=True)
+    thread.start()
+    print(f"[upload] Started async content generation for {len(node_id_map)} concepts", flush=True)
 
     return jsonify(graph_data), 200
 

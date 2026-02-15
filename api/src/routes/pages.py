@@ -377,3 +377,104 @@ def perplexity_query():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@pages.route('/api/courses/<course_id>/bulk-generate', methods=['POST'])
+@optional_auth
+def bulk_generate_course_content(course_id):
+    """Generate learning pages and quizzes for all concepts in a course"""
+    import sys
+
+    # Get all concepts for this course
+    concepts_result = supabase.table('concept_nodes').select('id, label, description').eq('course_id', course_id).execute()
+
+    if not concepts_result.data:
+        return jsonify({'error': 'No concepts found for this course'}), 404
+
+    concepts = concepts_result.data
+    results = {
+        'total': len(concepts),
+        'success': [],
+        'failed': []
+    }
+
+    for concept in concepts:
+        concept_id = concept['id']
+        label = concept['label']
+        description = concept.get('description', '')
+
+        print(f"Generating content for: {label}", file=sys.stderr, flush=True)
+
+        try:
+            # Generate learning page
+            page_result = generate_learning_page(
+                concept_label=label,
+                concept_description=description,
+                past_mistakes=[],
+                current_confidence=0.5
+            )
+
+            # Get further reading
+            further_reading = get_further_reading(label, description)
+
+            # Check if general page exists
+            existing_page = supabase.table('learning_pages').select('id').eq('concept_id', concept_id).is_('student_id', 'null').execute()
+
+            if existing_page.data:
+                supabase.table('learning_pages').update({
+                    'title': page_result['title'],
+                    'content': page_result['content'],
+                    'further_reading': further_reading
+                }).eq('concept_id', concept_id).is_('student_id', 'null').execute()
+            else:
+                supabase.table('learning_pages').insert({
+                    'student_id': None,
+                    'concept_id': concept_id,
+                    'title': page_result['title'],
+                    'content': page_result['content'],
+                    'further_reading': further_reading
+                }).execute()
+
+            # Generate quiz
+            quiz_result = generate_practice_quiz(
+                concept_label=label,
+                concept_description=description,
+                past_mistakes=[],
+                current_confidence=0.5
+            )
+
+            # Delete existing general quiz
+            existing_quizzes = supabase.table('practice_quizzes').select('id').eq('concept_id', concept_id).is_('student_id', 'null').execute()
+            for quiz in existing_quizzes.data:
+                supabase.table('practice_quizzes').delete().eq('id', quiz['id']).execute()
+
+            # Create new quiz
+            quiz_resp = supabase.table('practice_quizzes').insert({
+                'student_id': None,
+                'concept_id': concept_id,
+                'page_id': None,
+                'status': 'template'
+            }).execute()
+
+            quiz_id = quiz_resp.data[0]['id']
+
+            # Insert questions
+            for q_idx, q in enumerate(quiz_result['questions']):
+                supabase.table('quiz_questions').insert({
+                    'quiz_id': quiz_id,
+                    'question_text': q['question_text'],
+                    'options': q['options'],
+                    'correct_answer': q['correct_answer'],
+                    'explanation': q['explanation'],
+                    'question_order': q_idx + 1
+                }).execute()
+
+            results['success'].append(label)
+            print(f"✓ {label}", file=sys.stderr, flush=True)
+
+        except Exception as e:
+            error_msg = str(e)
+            results['failed'].append({'label': label, 'error': error_msg})
+            print(f"✗ {label}: {error_msg}", file=sys.stderr, flush=True)
+
+    return jsonify(results), 200
