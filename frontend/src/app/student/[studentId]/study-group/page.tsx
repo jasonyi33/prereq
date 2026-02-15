@@ -69,7 +69,7 @@ const MOCK_MATCH_DETAILS: MatchDetails = {
     { conceptId: "c4", label: "Regularization", myConfidence: 0.7, partnerConfidence: 0.2, myColor: "green", partnerColor: "red" },
     { conceptId: "c5", label: "Gradient Descent", myConfidence: 0.8, partnerConfidence: 0.3, myColor: "green", partnerColor: "red" },
   ],
-  zoomLink: "https://zoom.us/j/123456789",
+  zoomLink: "https://us06web.zoom.us/j/3285887393?pwd=eht46wK2kfhskTMDizbmMHsx1ldLok.1",
   complementarityScore: 0.68
 };
 
@@ -240,7 +240,13 @@ export default function StudyGroupPage() {
 
   const partnerProfile = matchDetails ? STUDENT_PROFILES[matchDetails.partner.name] : undefined;
   const studentName = profile?.name || "Student";
-  const myProfile = STUDENT_PROFILES[studentName];
+  const myProfile = STUDENT_PROFILES[studentName] ?? {
+    year: "Student",
+    bio: "",
+    strengths: [],
+    weaknesses: [],
+    availability: ["Mon 2-4pm", "Thu 2-4pm", "Sat 10am-12pm"],
+  };
 
   if (loading) {
     return (

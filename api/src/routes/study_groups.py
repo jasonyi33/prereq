@@ -49,9 +49,8 @@ def calculate_complementarity(mastery1, mastery2, concept_ids):
 
 
 def generate_zoom_link():
-    """Generate dummy Zoom link for MVP."""
-    room_id = random.randint(100000000, 999999999)
-    return f"https://zoom.us/j/{room_id}?pwd=prereq"
+    """Return Jason's personal Zoom meeting room link."""
+    return "https://us06web.zoom.us/j/3285887393?pwd=eht46wK2kfhskTMDizbmMHsx1ldLok.1"
 
 
 def _build_concept_comparison(my_mastery, partner_mastery, concept_nodes_map, my_concept_ids, partner_concept_ids):
@@ -312,7 +311,7 @@ def opt_in(course_id):
                 {'conceptId': 'c4', 'label': 'Regularization', 'myConfidence': 0.7, 'partnerConfidence': 0.2, 'myColor': 'green', 'partnerColor': 'red'},
                 {'conceptId': 'c5', 'label': 'Gradient Descent', 'myConfidence': 0.8, 'partnerConfidence': 0.3, 'myColor': 'green', 'partnerColor': 'red'},
             ],
-            'zoomLink': 'https://zoom.us/j/123456789',
+            'zoomLink': 'https://us06web.zoom.us/j/3285887393?pwd=eht46wK2kfhskTMDizbmMHsx1ldLok.1',
             'complementarityScore': 0.68
         }), 200
 
