@@ -44,7 +44,7 @@ router.post("/api/lectures/:id/poll/:pollId/activate", async (req, res) => {
 
     console.log(`[poll-activate] Activating poll ${pollId} for lecture ${lectureId}`);
 
-    // Fetch poll first to get question and concept
+    // Fetch poll to get question and concept
     let poll: { id: string; question: string; concept_id: string; status: string };
     try {
       poll = await flaskGet<{ id: string; question: string; concept_id: string; status: string }>(
@@ -56,14 +56,10 @@ router.post("/api/lectures/:id/poll/:pollId/activate", async (req, res) => {
       return res.status(404).json({ error: "Poll not found" });
     }
 
-    // Update poll status to active
-    try {
-      await flaskPut(`/api/polls/${pollId}/status`, { status: "active" });
-      console.log(`[poll-activate] Status updated to active`);
-    } catch (err) {
-      console.error("[poll-activate] Failed to update status:", err);
-      // Continue anyway - poll data is what matters for Socket.IO
-    }
+    // Update poll status to active in background (don't wait for it)
+    flaskPut(`/api/polls/${pollId}/status`, { status: "active" })
+      .then(() => console.log(`[poll-activate] Status updated to active`))
+      .catch((err) => console.error("[poll-activate] Failed to update status (non-critical):", err));
 
     // Get concept label for the Socket.IO event
     let conceptLabel = "";

@@ -76,14 +76,23 @@ def get_poll(poll_id):
 @polls.route('/api/polls/<poll_id>/status', methods=['PUT'])
 @optional_auth
 def update_poll_status(poll_id):
-    data = request.json
-    result = supabase.table('poll_questions').update({
-        'status': data['status']
-    }).eq('id', poll_id).select('id, status, question, concept_id').execute()
+    try:
+        data = request.json
+        if not data or 'status' not in data:
+            return jsonify({'error': 'status field required'}), 400
 
-    if not result.data:
-        return jsonify({'error': 'Poll not found'}), 404
-    return jsonify(result.data[0]), 200
+        result = supabase.table('poll_questions').update({
+            'status': data['status']
+        }).eq('id', poll_id).select('id, status, question, concept_id').execute()
+
+        if not result.data:
+            return jsonify({'error': 'Poll not found'}), 404
+        return jsonify(result.data[0]), 200
+    except Exception as e:
+        print(f"[update_poll_status] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 
 @polls.route('/api/polls/<poll_id>/responses', methods=['POST'])
