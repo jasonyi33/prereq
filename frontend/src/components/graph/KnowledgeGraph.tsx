@@ -356,7 +356,7 @@ export default function KnowledgeGraph({
               // Edge reveals based on its leftmost x position
               const edgeX = Math.min(source.x, target.x);
               const edgeNorm = (edgeX - xRange.min) / xRange.range;
-              const edgeRevealed = revealProgress > edgeNorm;
+              const edgeRevealed = revealProgress >= edgeNorm;
               const particleColor = isPath ? "#3b82f6" : "#94a3b8";
 
               return (
@@ -409,7 +409,7 @@ export default function KnowledgeGraph({
 
             // Node reveals based on its x position in the sweep
             const nodeNorm = (node.x - xRange.min) / xRange.range;
-            const nodeRevealed = revealProgress > nodeNorm;
+            const nodeRevealed = revealProgress >= nodeNorm;
             const targetOpacity = nodeRevealed ? (isDimmed ? 0.2 : 1) : 0;
             const targetScale = nodeRevealed
               ? (isActive ? 1.25 : isInSet && !isDimmed ? 1.08 : 1)

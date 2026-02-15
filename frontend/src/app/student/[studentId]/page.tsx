@@ -271,14 +271,14 @@ export default function StudentView() {
           </button>
           <button
             onClick={() => router.push(`/student/${studentId}/summaries`)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
+            className="flex items-center gap-2 px-4 py-2 bg-violet-400 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
           >
             <FileText size={15} />
             <span>Summaries</span>
           </button>
           <button
             onClick={() => router.push(`/student/${studentId}/study-group`)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
+            className="flex items-center gap-2 px-4 py-2 bg-sky-500/80 hover:bg-sky-500 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
           >
             <Users size={15} />
             <span>Find Study Partner</span>
@@ -364,6 +364,10 @@ export default function StudentView() {
             lectureSummary={lectureSummary}
             weakConcepts={weakConcepts}
             onStartTutoring={() => router.push(`/student/${studentId}/tutor`)}
+            onConceptClick={(conceptId) => {
+              const node = nodes.find((n) => n.id === conceptId);
+              if (node) handleNodeClick(node);
+            }}
           />
         </div>
       </main>
