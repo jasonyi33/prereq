@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Mic } from "lucide-react";
 import { COLOR_HEX } from "@/lib/colors";
+import { formatTimestamp } from "@/lib/graph";
 
 export interface TranscriptChunk {
   id: string;
@@ -46,6 +47,11 @@ export default function TranscriptFeed({ chunks }: TranscriptFeedProps) {
         )}
         {chunks.map((chunk) => (
           <div key={chunk.id} className="text-sm leading-relaxed">
+            {chunk.timestamp != null && (
+              <span className="text-[10px] text-gray-300 font-mono mr-1.5">
+                {formatTimestamp(chunk.timestamp)}
+              </span>
+            )}
             {chunk.speakerName && (
               <span className="font-medium text-gray-400 text-xs uppercase tracking-wide">
                 {chunk.speakerName}:{" "}

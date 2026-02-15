@@ -32,6 +32,7 @@ interface ActiveStream {
   teacherId: string | null;
   lectureId: string;
   payload: any;
+  watchdog?: ReturnType<typeof setInterval>;
 }
 
 // streamId -> active stream
@@ -160,9 +161,29 @@ function diag(step: string, detail?: string) {
   console.log(`[RTMS] ${step}${detail ? ` — ${detail}` : ""}`);
 }
 
+// --- Reconnect with backoff ---
+
+const RECONNECT_DELAYS = [2000, 5000, 10000]; // 2s, 5s, 10s
+
+async function reconnectWithBackoff(payload: any, teacherId: string | null, streamId: string, lectureId?: string): Promise<void> {
+  for (let attempt = 0; attempt < RECONNECT_DELAYS.length; attempt++) {
+    const delay = RECONNECT_DELAYS[attempt];
+    diag("reconnect", `Attempt ${attempt + 1}/${RECONNECT_DELAYS.length} in ${delay / 1000}s for streamId=${streamId}`);
+    await new Promise((r) => setTimeout(r, delay));
+    try {
+      await startRtmsConnection(payload, teacherId, lectureId);
+      diag("reconnect", `Success on attempt ${attempt + 1}`);
+      return;
+    } catch (err: any) {
+      diag("reconnect", `Attempt ${attempt + 1} failed: ${err.message || err}`);
+    }
+  }
+  diag("reconnect", `All ${RECONNECT_DELAYS.length} attempts failed for streamId=${streamId}, giving up`);
+}
+
 // --- Core RTMS connection logic ---
 
-async function startRtmsConnection(payload: any, teacherId: string | null): Promise<void> {
+async function startRtmsConnection(payload: any, teacherId: string | null, existingLectureId?: string): Promise<void> {
   const streamId = payload?.rtms_stream_id;
   diag("startRtmsConnection", `streamId=${streamId}, teacherId=${teacherId}`);
   diag("payload", JSON.stringify(payload).slice(0, 500));
@@ -201,12 +222,18 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     return;
   }
 
-  const lectureId = await createLecture(courseId);
-  if (!lectureId) {
-    diag("ABORT", "Failed to create lecture via Flask");
-    return;
+  let lectureId: string | null;
+  if (existingLectureId) {
+    lectureId = existingLectureId;
+    diag("lecture", `Reusing existing lectureId=${lectureId}`);
+  } else {
+    lectureId = await createLecture(courseId);
+    if (!lectureId) {
+      diag("ABORT", "Failed to create lecture via Flask");
+      return;
+    }
+    diag("lecture", `Created lectureId=${lectureId}`);
   }
-  diag("lecture", `Created lectureId=${lectureId}`);
 
   if (teacherId) {
     teacherLectures.set(teacherId, lectureId);
@@ -231,33 +258,55 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
 
   let startTime = Date.now();
   let transcriptCount = 0;
+  let lastTranscriptTime = Date.now();
+
+  // Watchdog: warn if no transcripts for 30s
+  const watchdog = setInterval(() => {
+    const silenceSec = (Date.now() - lastTranscriptTime) / 1000;
+    if (silenceSec > 30) {
+      diag("watchdog", `No transcripts for ${silenceSec.toFixed(0)}s — stream may be dead (streamId=${streamId})`);
+    }
+  }, 15_000);
+
+  const stream = activeStreams.get(streamId);
+  if (stream) stream.watchdog = watchdog;
 
   client.onTranscriptData((data: Buffer, size: number, timestamp: number, metadata: any) => {
     transcriptCount++;
+    lastTranscriptTime = Date.now();
     const text = data.toString("utf8");
     const elapsedSec = (Date.now() - startTime) / 1000;
     const speakerName = metadata?.userName || "Unknown";
 
     diag("transcript", `#${transcriptCount} [${elapsedSec.toFixed(1)}s] ${speakerName}: ${text.slice(0, 100)}`);
-    postTranscript(lectureId, text, elapsedSec, speakerName);
+    postTranscript(lectureId!, text, elapsedSec, speakerName);
   });
 
   client.onJoinConfirm((reason: number) => {
     diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}, clientId=${clientId.slice(0, 8)}...`);
     startTime = Date.now();
+    lastTranscriptTime = Date.now(); // reset watchdog on join
   });
 
   client.onLeave((reason: number) => {
     diag("leave", `reason=${reason}, streamId=${streamId}`);
+    const s = activeStreams.get(streamId);
+    if (s?.watchdog) clearInterval(s.watchdog);
     activeStreams.delete(streamId);
     if (teacherId) {
       teacherLectures.delete(teacherId);
     }
   });
 
+  // Check if CA cert is available — if not, disable verification as fallback
+  const hasCaCert = process.env.ZM_RTMS_CA && existsSync(process.env.ZM_RTMS_CA);
+  if (!hasCaCert) {
+    diag("ca-cert", "WARNING: No CA cert found, disabling cert verification as fallback");
+  }
+
   // Pass credentials directly to join() — avoids env var race conditions with multiple teachers
-  diag("join", `Calling client.join() with streamId=${streamId}, clientId=${clientId.slice(0, 8)}..., secretLen=${clientSecret.length}`);
-  client.join({ ...payload, client: clientId, secret: clientSecret });
+  diag("join", `Calling client.join() with streamId=${streamId}, clientId=${clientId.slice(0, 8)}..., secretLen=${clientSecret.length}, verifyCert=${hasCaCert ? 1 : 0}`);
+  client.join({ ...payload, client: clientId, secret: clientSecret, is_verify_cert: hasCaCert ? 1 : 0 });
 
   diag("join", "client.join() called — waiting for onJoinConfirm callback...");
 }
@@ -293,6 +342,7 @@ function handleWebhook(teacherId: string | null, secret: string) {
       const stream = activeStreams.get(streamId);
       if (stream) {
         diag("stop", `Calling client.leave() for streamId=${streamId}`);
+        if (stream.watchdog) clearInterval(stream.watchdog);
         try { stream.client.leave(); } catch {}
         activeStreams.delete(streamId);
         if (teacherId) teacherLectures.delete(teacherId);
@@ -305,23 +355,14 @@ function handleWebhook(teacherId: string | null, secret: string) {
     if (RTMS_INTERRUPT_EVENTS.includes(event)) {
       const stream = activeStreams.get(streamId);
       if (stream) {
-        diag("interrupt", `Stream interrupted, cleaning up and reconnecting in 2s...`);
+        diag("interrupt", `Stream interrupted, cleaning up and reconnecting with backoff...`);
+        if (stream.watchdog) clearInterval(stream.watchdog);
         try { stream.client.leave(); } catch {}
         activeStreams.delete(streamId);
-        // Reconnect after a short delay
-        setTimeout(() => {
-          diag("interrupt", `Reconnecting streamId=${streamId}`);
-          startRtmsConnection(stream.payload, stream.teacherId).catch((err) => {
-            diag("ERROR", `Reconnect failed: ${err.message || err}`);
-          });
-        }, 2000);
+        reconnectWithBackoff(stream.payload, stream.teacherId, streamId, stream.lectureId);
       } else {
-        diag("interrupt", `No active stream for streamId=${streamId}, treating as new connection`);
-        setTimeout(() => {
-          startRtmsConnection(payload, teacherId).catch((err) => {
-            diag("ERROR", `Reconnect failed: ${err.message || err}`);
-          });
-        }, 2000);
+        diag("interrupt", `No active stream for streamId=${streamId}, reconnecting with backoff`);
+        reconnectWithBackoff(payload, teacherId, streamId);
       }
       return;
     }
