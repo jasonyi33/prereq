@@ -197,8 +197,8 @@ export default function LandingPage() {
           <img src="/perplexity-logo.png" alt="Perplexity" className="h-10 opacity-80" />
           <img src="/render-logo.png" alt="Render" className="h-10 opacity-80" />
           <img src="/anthropic-logo.png" alt="Anthropic" className="h-12 opacity-80" />
-          <img src="/stanford-logo.png" alt="Anthropic" className="h-12 opacity-80" />
-          <img src="/purdue-logo.png" alt="Purdue" className="h-12 opacity-70" />
+          <img src="/stanford-logo.png" alt="Stanford" className="h-16 opacity-80" />
+          <img src="/purdue-logo.png" alt="Purdue" className="h-8 opacity-70" />
           <img src="/berkeley-logo.png" alt="Berkeley" className="h-12 opacity-80" />
         </div>
         </div>
