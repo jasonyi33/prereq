@@ -302,11 +302,11 @@ Return ONLY the JSON array, no additional text."""
         raise ValueError('Invalid response format from Claude')
 
     # Delete existing questions for this concept
-    supabase.table('quiz_questions').delete().eq('concept_id', concept_id).execute()
+    supabase.table('concept_quiz_questions').delete().eq('concept_id', concept_id).execute()
 
     # Insert new questions
     for idx, q in enumerate(questions):
-        supabase.table('quiz_questions').insert({
+        supabase.table('concept_quiz_questions').insert({
             'concept_id': concept_id,
             'question': q['question'],
             'option_a': q['option_a'],
