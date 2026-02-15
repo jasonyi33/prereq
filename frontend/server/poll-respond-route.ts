@@ -153,19 +153,17 @@ router.post("/api/polls/:pollId/respond", json(), async (req, res) => {
     console.log(`[poll-respond] Evaluation: ${evaluation.eval_result}`);
 
     // Store the poll response via Flask
-    try {
-      await flaskPost(`/api/polls/${pollId}/responses`, {
-        student_id: studentId,
-        answer,
-        evaluation: {
-          eval_result: evaluation.eval_result,
-          feedback: evaluation.feedback,
-          reasoning: evaluation.reasoning,
-        },
-      });
-    } catch (err) {
-      console.error("[poll-respond] Failed to store response:", err);
-    }
+    console.log(`[poll-respond] Storing response for poll ${pollId}, student ${studentId}`);
+    const storedResponse = await flaskPost(`/api/polls/${pollId}/responses`, {
+      student_id: studentId,
+      answer,
+      evaluation: {
+        eval_result: evaluation.eval_result,
+        feedback: evaluation.feedback,
+        reasoning: evaluation.reasoning,
+      },
+    });
+    console.log(`[poll-respond] Response stored successfully: ${JSON.stringify(storedResponse).slice(0, 100)}`);
 
     // Update mastery via Flask
     let masteryUpdate = {

@@ -101,23 +101,43 @@ def update_poll_status(poll_id):
 @polls.route('/api/polls/<poll_id>/responses', methods=['POST'])
 @optional_auth
 def create_poll_response(poll_id):
-    data = request.json
-    result = supabase.table('poll_responses').insert({
-        'question_id': poll_id,
-        'student_id': data['student_id'],
-        'answer': data['answer'],
-        'evaluation': data.get('evaluation'),
-    }).execute()
+    try:
+        data = request.json
+        print(f"[create_poll_response] Storing response for poll {poll_id}, student {data.get('student_id')}")
 
-    if not result.data:
-        return jsonify({'error': 'Failed to create response'}), 500
-    return jsonify(result.data[0]), 201
+        result = supabase.table('poll_responses').insert({
+            'question_id': poll_id,
+            'student_id': data['student_id'],
+            'answer': data['answer'],
+            'evaluation': data.get('evaluation'),
+        }).execute()
+
+        if not result.data:
+            print(f"[create_poll_response] ERROR: Supabase insert returned no data")
+            return jsonify({'error': 'Failed to create response'}), 500
+
+        print(f"[create_poll_response] SUCCESS: Response stored with id {result.data[0].get('id')}")
+        return jsonify(result.data[0]), 201
+    except Exception as e:
+        print(f"[create_poll_response] EXCEPTION: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to create response', 'details': str(e)}), 500
 
 
 @polls.route('/api/polls/<poll_id>/responses', methods=['GET'])
 @optional_auth
 def get_poll_responses(poll_id):
-    result = supabase.table('poll_responses').select(
-        'answer, evaluation'
-    ).eq('question_id', poll_id).execute()
-    return jsonify(result.data), 200
+    try:
+        print(f"[get_poll_responses] Fetching responses for poll {poll_id}")
+        result = supabase.table('poll_responses').select(
+            'id, question_id, student_id, answer, evaluation, answered_at'
+        ).eq('question_id', poll_id).execute()
+
+        print(f"[get_poll_responses] Found {len(result.data)} responses")
+        return jsonify(result.data), 200
+    except Exception as e:
+        print(f"[get_poll_responses] ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to fetch responses', 'details': str(e)}), 500
