@@ -87,4 +87,4 @@ prereq/
 
 ## License
 
-Hackathon prototype. All rights reserved.
+Made at TreeHacks 2026! All rights reserved.
