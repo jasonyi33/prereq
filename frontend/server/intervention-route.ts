@@ -27,9 +27,10 @@ function getFlaskUrl(): string {
 
 async function flaskGet<T>(path: string): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout per request
+  const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout per request
 
   try {
+    console.log(`[intervention] Flask GET: ${getFlaskUrl()}${path}`);
     const res = await fetch(`${getFlaskUrl()}${path}`, {
       headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
       signal: controller.signal,
@@ -38,11 +39,14 @@ async function flaskGet<T>(path: string): Promise<T> {
 
     if (!res.ok) {
       const text = await res.text();
+      console.error(`[intervention] Flask GET failed: ${res.status} - ${text.slice(0, 200)}`);
       throw new Error(`Flask GET ${path} failed: ${res.status} - ${text.slice(0, 200)}`);
     }
+    console.log(`[intervention] Flask GET success: ${path}`);
     return res.json() as Promise<T>;
   } catch (err) {
     clearTimeout(timeout);
+    console.error(`[intervention] Flask GET error: ${err}`);
     throw err;
   }
 }
@@ -154,11 +158,13 @@ router.post("/api/lectures/:id/interventions", json(), async (req, res) => {
     }
 
     const prompt = buildInterventionPrompt(targetConcepts);
+    console.log(`[intervention] Calling Claude with ${targetConcepts.length} concepts...`);
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 512,
+      max_tokens: 1024,
       messages: [{ role: "user", content: prompt }],
-    }, { timeout: 10000 });
+    }, { timeout: 30000 });
+    console.log(`[intervention] Claude response received`);
 
     const content = message.content[0];
     if (content.type !== "text") {
