@@ -366,6 +366,10 @@ function handleOAuth(teacherId: string | null) {
 // --- Setup ---
 
 export function setupRTMS(app: Express): void {
+  // Enable SDK debug logging to diagnose auth failures
+  process.env.ZM_RTMS_LOG_LEVEL = "debug";
+  process.env.ZM_RTMS_LOG_ENABLED = "true";
+
   // --- Diagnostic endpoint ---
   app.get("/api/rtms/status", (_req, res) => {
     res.json({
