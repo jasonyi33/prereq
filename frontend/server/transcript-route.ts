@@ -139,29 +139,30 @@ interface TranscriptChunk {
 }
 
 router.post("/api/lectures/:id/transcript", json(), async (req, res) => {
-  try {
-    const lectureId = req.params.id;
-    const { text, timestamp, speakerName } = req.body;
-    console.log(`[Express transcript-route] Processing chunk for lecture ${lectureId}`);
+  const lectureId = req.params.id;
+  const { text, timestamp, speakerName } = req.body;
+  console.log(`[Express transcript-route] Processing chunk for lecture ${lectureId}`);
 
-    // Step 1: Detect concepts using Claude Haiku
+  // Step 1: Concept detection (non-fatal — failures must not block transcript display)
+  let detectedConcepts: { id: string; label: string }[] = [];
+  try {
     const { labels, labelToId } = await getConceptMap(lectureId);
     const detectedLabels = await detectConcepts(text, labels);
     console.log(
       `[Concept Detection] "${text}" → detected: [${detectedLabels.join(", ")}] (from ${labels.length} known concepts)`
     );
-
-    // Step 2: Resolve labels to UUIDs
-    const detectedConcepts: { id: string; label: string }[] = [];
     for (const label of detectedLabels) {
-      const conceptId = labelToId.get(label);
-      if (conceptId) {
-        detectedConcepts.push({ id: conceptId, label });
-      }
+      const id = labelToId.get(label);
+      if (id) detectedConcepts.push({ id, label });
     }
+  } catch (err) {
+    console.warn("[transcript-route] Concept detection failed (non-fatal):", err);
+  }
 
-    // Step 3: Insert transcript chunk + link concepts via Flask
-    const chunk = await flaskPost<TranscriptChunk>(
+  // Step 2: Store chunk in Flask (with concept_ids if available)
+  let chunk: TranscriptChunk;
+  try {
+    chunk = await flaskPost<TranscriptChunk>(
       `/api/lectures/${lectureId}/transcripts`,
       {
         text,
@@ -170,42 +171,49 @@ router.post("/api/lectures/:id/transcript", json(), async (req, res) => {
         concept_ids: detectedConcepts.map((c) => c.id),
       }
     );
-
-    // Step 4: Fire-and-forget attendance-boost
-    if (detectedConcepts.length > 0) {
-      const studentIds = getStudentsInLecture(lectureId);
-      if (studentIds.length > 0) {
-        flaskPost("/api/mastery/attendance-boost", {
-          concept_ids: detectedConcepts.map((c) => c.id),
-          student_ids: studentIds,
-        }).catch((err) =>
-          console.warn("attendance-boost failed (non-critical):", err)
-        );
-      }
-    }
-
-    // Step 5: Emit Socket.IO events — this works because we're in the Express context!
-    emitToLectureRoom(lectureId, "transcript:chunk", {
-      text,
-      timestamp,
-      detectedConcepts,
-    });
-
-    for (const concept of detectedConcepts) {
-      emitToLectureRoom(lectureId, "lecture:concept-detected", {
-        conceptId: concept.id,
-        label: concept.label,
-      });
-    }
-
-    res.json({
-      chunkId: chunk.id,
-      detectedConcepts,
-    });
   } catch (err) {
-    console.error("[transcript-route] Error:", err);
-    res.status(500).json({ error: "Failed to process transcript chunk" });
+    // Likely FK violation from stale concept IDs — retry without concepts, invalidate cache
+    console.warn("[transcript-route] Flask insert failed, retrying without concepts:", err);
+    conceptCache.delete(lectureId);
+    detectedConcepts = [];
+    try {
+      chunk = await flaskPost<TranscriptChunk>(
+        `/api/lectures/${lectureId}/transcripts`,
+        { text, timestamp_sec: timestamp, speaker_name: speakerName || null }
+      );
+    } catch (retryErr) {
+      console.error("[transcript-route] Fatal — transcript insert failed:", retryErr);
+      res.status(500).json({ error: "Failed to store transcript" });
+      return;
+    }
   }
+
+  // Step 3: ALWAYS emit Socket.IO + respond (this is what makes transcripts visible)
+  emitToLectureRoom(lectureId, "transcript:chunk", {
+    text,
+    timestamp,
+    detectedConcepts,
+  });
+
+  for (const concept of detectedConcepts) {
+    emitToLectureRoom(lectureId, "lecture:concept-detected", {
+      conceptId: concept.id,
+      label: concept.label,
+    });
+  }
+
+  // Step 4: Fire-and-forget attendance-boost
+  if (detectedConcepts.length > 0) {
+    const studentIds = getStudentsInLecture(lectureId);
+    if (studentIds.length > 0) {
+      flaskPost("/api/mastery/attendance-boost", {
+        concept_ids: detectedConcepts.map((c) => c.id),
+        student_ids: studentIds,
+      }).catch(() => {});
+    }
+  }
+
+  res.json({ chunkId: chunk!.id, detectedConcepts });
 });
 
 export default router;
