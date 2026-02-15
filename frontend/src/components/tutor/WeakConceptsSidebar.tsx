@@ -29,14 +29,14 @@ function StatusIcon({ color }: { color: string }) {
 
 export default function WeakConceptsSidebar({ concepts }: WeakConceptsSidebarProps) {
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm">
+    <div className="flex h-full flex-col rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100">
+      <div className="px-4 py-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-blue-500" />
-          <h3 className="text-sm font-semibold text-gray-800">Focus Areas</h3>
+          <h3 className="text-sm font-semibold text-slate-800">Focus Areas</h3>
         </div>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-xs text-slate-500 mt-0.5">
           {concepts.length} concept{concepts.length !== 1 ? "s" : ""} to strengthen
         </p>
       </div>
@@ -46,19 +46,19 @@ export default function WeakConceptsSidebar({ concepts }: WeakConceptsSidebarPro
         {concepts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-2" />
-            <p className="text-sm font-medium text-gray-700">All concepts mastered!</p>
-            <p className="text-xs text-gray-400 mt-0.5">Great work</p>
+            <p className="text-sm font-medium text-slate-700">All concepts mastered!</p>
+            <p className="text-xs text-slate-400 mt-0.5">Great work</p>
           </div>
         ) : (
           concepts.map((c) => (
             <div
               key={c.id}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
             >
               <StatusIcon color={c.color} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-gray-700 truncate">{c.label}</span>
+                  <span className="text-sm text-slate-700 truncate">{c.label}</span>
                   <span
                     className="text-xs font-mono tabular-nums shrink-0"
                     style={{ color: COLOR_HEX[c.color] || COLOR_HEX.gray }}
@@ -66,7 +66,7 @@ export default function WeakConceptsSidebar({ concepts }: WeakConceptsSidebarPro
                     {(c.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
-                <div className="h-1.5 rounded-full bg-gray-100 mt-1.5">
+                <div className="h-1.5 rounded-full bg-slate-100 mt-1.5">
                   <div
                     className="h-full rounded-full transition-all duration-700 ease-out"
                     style={{

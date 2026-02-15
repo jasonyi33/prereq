@@ -35,24 +35,7 @@ const SUGGESTED_PROMPTS = [
   "Can you give me an example?",
   "How does this connect to other topics?",
   "Why is this important?",
-  "Can we start with a different topic?",
 ];
-
-/** Check if a paragraph node contains a question (ends with ?) */
-function isQuestionParagraph(children: React.ReactNode): boolean {
-  const text = extractText(children);
-  return /\?\s*$/.test(text.trim());
-}
-
-function extractText(node: React.ReactNode): string {
-  if (typeof node === "string") return node;
-  if (typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(extractText).join("");
-  if (node && typeof node === "object" && "props" in node) {
-    return extractText((node as React.ReactElement<{ children?: React.ReactNode }>).props.children);
-  }
-  return "";
-}
 
 function MessageBubble({ role, content, timestamp, isLatest }: { role: string; content: string; timestamp?: string; isLatest?: boolean }) {
   const isUser = role === "user";
@@ -75,74 +58,65 @@ function MessageBubble({ role, content, timestamp, isLatest }: { role: string; c
       )}
 
       <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[75%]`}>
-        <span className="text-xs text-gray-400 mb-1 px-1">
-          {isUser ? "You" : "Aaron"}
+        <span className="text-xs text-slate-400 mb-1 px-1">
+          {isUser ? "You" : "Tutor"}
         </span>
         <div
           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
             isUser
-              ? "bg-gray-800 text-white rounded-tr-sm"
-              : "bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm text-gray-700 rounded-tl-sm"
+              ? "bg-slate-800 text-white rounded-tr-sm"
+              : "bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm text-slate-700 rounded-tl-sm"
           }`}
         >
           {isUser ? (
             <div className="whitespace-pre-wrap">{content}</div>
           ) : (
-            <div className="prose prose-sm prose-gray max-w-none markdown-tutor">
+            <div className="prose prose-sm prose-slate max-w-none markdown-tutor">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
-                  p: ({ children }) => {
-                    if (isQuestionParagraph(children)) {
-                      return (
-                        <div className="my-2 px-3 py-2.5 rounded-lg border border-dashed border-blue-300 bg-blue-50/50">
-                          <p className="text-sm text-gray-800 leading-relaxed font-medium mb-0">{children}</p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <p className="text-sm text-gray-700 leading-relaxed mb-2 last:mb-0">{children}</p>
-                    );
-                  },
+                  p: ({ children }) => (
+                    <p className="text-sm text-slate-700 leading-relaxed mb-2 last:mb-0">{children}</p>
+                  ),
                   ul: ({ children }) => (
-                    <ul className="text-sm text-gray-700 space-y-1 my-2 ml-4 list-disc">{children}</ul>
+                    <ul className="text-sm text-slate-700 space-y-1 my-2 ml-4 list-disc">{children}</ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="text-sm text-gray-700 space-y-1 my-2 ml-4 list-decimal">{children}</ol>
+                    <ol className="text-sm text-slate-700 space-y-1 my-2 ml-4 list-decimal">{children}</ol>
                   ),
                   li: ({ children }) => (
-                    <li className="text-sm text-gray-700 leading-relaxed">{children}</li>
+                    <li className="text-sm text-slate-700 leading-relaxed">{children}</li>
                   ),
                   strong: ({ children }) => (
-                    <strong className="font-semibold text-gray-800">{children}</strong>
+                    <strong className="font-semibold text-slate-800">{children}</strong>
                   ),
                   em: ({ children }) => (
-                    <em className="italic text-gray-700">{children}</em>
+                    <em className="italic text-slate-700">{children}</em>
                   ),
                   code: ({ children }) => (
-                    <code className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono text-blue-600">
+                    <code className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs font-mono text-blue-600">
                       {children}
                     </code>
                   ),
                   pre: ({ children }) => (
-                    <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto my-2">
+                    <pre className="bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto my-2">
                       {children}
                     </pre>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-3 border-blue-300 pl-3 italic text-gray-600 my-2">
+                    <blockquote className="border-l-3 border-blue-300 pl-3 italic text-slate-600 my-2">
                       {children}
                     </blockquote>
                   ),
                   h1: ({ children }) => (
-                    <h1 className="text-base font-semibold text-gray-800 mb-2 mt-3 first:mt-0">{children}</h1>
+                    <h1 className="text-base font-semibold text-slate-800 mb-2 mt-3 first:mt-0">{children}</h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-sm font-semibold text-gray-800 mb-1.5 mt-2.5 first:mt-0">{children}</h2>
+                    <h2 className="text-sm font-semibold text-slate-800 mb-1.5 mt-2.5 first:mt-0">{children}</h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="text-sm font-semibold text-gray-700 mb-1.5 mt-2 first:mt-0">{children}</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-1.5 mt-2 first:mt-0">{children}</h3>
                   ),
                 }}
               >
@@ -175,12 +149,12 @@ function TypingIndicator() {
         <Sparkles className="w-4 h-4 text-white" />
       </div>
       <div className="flex flex-col items-start">
-        <span className="text-xs text-gray-400 mb-1 px-1">Aaron</span>
-        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+        <span className="text-xs text-slate-400 mb-1 px-1">Tutor</span>
+        <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
           <div className="flex space-x-1.5">
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
         </div>
       </div>
@@ -195,7 +169,7 @@ function SuggestedPrompts({ onSelect }: { onSelect: (prompt: string) => void }) 
         <button
           key={prompt}
           onClick={() => onSelect(prompt)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white/80 text-xs text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-all duration-150"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white/80 text-xs text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-all duration-150"
         >
           <Lightbulb className="w-3 h-3" />
           {prompt}
@@ -289,7 +263,7 @@ export default function ChatInterface({
 
   return (
     <>
-    <div className="flex h-full flex-col rounded-2xl bg-white/60 backdrop-blur-sm border border-gray-200 shadow-sm overflow-hidden">
+    <div className="flex h-full flex-col rounded-2xl bg-white/60 backdrop-blur-sm border border-slate-200 shadow-sm overflow-hidden">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 ? (
@@ -298,8 +272,8 @@ export default function ChatInterface({
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to learn!</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Ready to learn!</h3>
+              <p className="text-sm text-slate-500">
                 Your tutor will help you strengthen concepts you&apos;re struggling with.
                 Ask questions and explain your thinking.
               </p>
@@ -332,7 +306,7 @@ export default function ChatInterface({
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}
           className="max-w-3xl mx-auto"
         >
-          <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-150">
+          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-150">
             <textarea
               ref={textareaRef}
               value={input}
@@ -341,7 +315,7 @@ export default function ChatInterface({
               placeholder="Type your response..."
               disabled={loading}
               rows={1}
-              className="w-full resize-none bg-transparent px-4 py-3 pr-14 text-sm placeholder:text-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto leading-relaxed"
+              className="w-full resize-none bg-transparent px-4 py-3 pr-14 text-sm placeholder:text-slate-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto leading-relaxed"
               style={{ minHeight: "44px", maxHeight: "160px" }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -352,7 +326,7 @@ export default function ChatInterface({
             <button
               type="submit"
               disabled={!input.trim() || loading}
-              className="absolute right-2 bottom-2 w-9 h-9 rounded-xl bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 transition-all duration-150"
+              className="absolute right-2 bottom-2 w-9 h-9 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 transition-all duration-150"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -361,7 +335,7 @@ export default function ChatInterface({
               )}
             </button>
           </div>
-          <p className="text-[11px] text-gray-400 mt-1.5 text-center">
+          <p className="text-[11px] text-slate-400 mt-1.5 text-center">
             Press Enter to send, Shift+Enter for new line
           </p>
         </form>
