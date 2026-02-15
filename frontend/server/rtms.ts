@@ -389,6 +389,7 @@ async function ensureCaCert(): Promise<void> {
   for (const p of knownPaths) {
     if (existsSync(p)) {
       process.env.ZM_RTMS_CA_CERT = p;
+      process.env.ZM_RTMS_CA = p;
       console.log(`[RTMS] Found CA cert at ${p}`);
       return;
     }
@@ -397,6 +398,7 @@ async function ensureCaCert(): Promise<void> {
   const dest = "/app/cacert.pem";
   if (existsSync(dest)) {
     process.env.ZM_RTMS_CA_CERT = dest;
+    process.env.ZM_RTMS_CA = dest;
     console.log(`[RTMS] Using cached CA cert at ${dest}`);
     return;
   }
@@ -409,6 +411,7 @@ async function ensureCaCert(): Promise<void> {
         const buf = Buffer.concat(chunks);
         writeFileSync(dest, buf);
         process.env.ZM_RTMS_CA_CERT = dest;
+        process.env.ZM_RTMS_CA = dest;
         console.log(`[RTMS] Downloaded CA cert to ${dest} (${buf.length} bytes)`);
         resolve();
       });
