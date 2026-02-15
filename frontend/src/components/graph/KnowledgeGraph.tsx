@@ -223,6 +223,32 @@ export default function KnowledgeGraph({
       }
     }
 
+    // Auto-fit: compute bounding box and set zoom/pan so entire graph is centered
+    const xs = simNodes.filter((n) => n.x != null).map((n) => n.x!);
+    const ys = simNodes.filter((n) => n.y != null).map((n) => n.y!);
+    if (xs.length > 0 && ys.length > 0) {
+      const maxR = Math.max(...simNodes.map((n) => getNodeRadius(n.label, n.relevance || 0.6)));
+      const pad = maxR + 20;
+      const minX = Math.min(...xs) - pad;
+      const maxX = Math.max(...xs) + pad;
+      const minY = Math.min(...ys) - pad;
+      const maxY = Math.max(...ys) + pad;
+      const graphW = maxX - minX;
+      const graphH = maxY - minY;
+      const scaleX = bounds.width / graphW;
+      const scaleY = bounds.height / graphH;
+      const fitZoom = Math.min(scaleX, scaleY, 1);
+      const graphCenterX = (minX + maxX) / 2;
+      const graphCenterY = (minY + maxY) / 2;
+      const containerCenterX = bounds.width / 2;
+      const containerCenterY = bounds.height / 2;
+      setZoom(fitZoom);
+      setPan({
+        x: containerCenterX - graphCenterX * fitZoom - containerCenterX * (1 - fitZoom),
+        y: containerCenterY - graphCenterY * fitZoom - containerCenterY * (1 - fitZoom),
+      });
+    }
+
     // Single render with settled layout
     setSimNodes([...simNodes]);
     setReady(true);
@@ -446,7 +472,7 @@ export default function KnowledgeGraph({
                     d={d}
                     stroke={isPath ? "#3b82f6" : "#64748b"}
                     strokeWidth={isPath ? 2.5 : 1.5}
-                    opacity={edgeRevealed ? (isPath ? 1 : 0.8) : 0}
+                    opacity={edgeRevealed ? (isPath ? 1 : activeSet.size > 0 ? 0.15 : 0.8) : 0}
                     fill="none"
                     markerEnd={isPath ? "url(#arrowhead-active)" : "url(#arrowhead)"}
                     style={{ transition: "opacity 0.4s ease-out" }}
