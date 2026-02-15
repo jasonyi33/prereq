@@ -10,7 +10,7 @@ import StudentList, { type StudentSummary } from "@/components/dashboard/Student
 import PollControls from "@/components/dashboard/PollControls";
 import InterventionPanel from "@/components/dashboard/InterventionPanel";
 import ZoomSettingsDialog from "@/components/dashboard/ZoomSettingsDialog";
-import { useSocket, useSocketEvent } from "@/lib/socket";
+import { useSocket, useSocketEvent, useSocketReady } from "@/lib/socket";
 import { flaskApi, nextApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -32,6 +32,7 @@ export default function ProfessorDashboard() {
   const [zoomSettingsOpen, setZoomSettingsOpen] = useState(false);
 
   const socket = useSocket();
+  const socketReady = useSocketReady();
 
   // Load course ID from auth context, then localStorage, then API
   useEffect(() => {
@@ -114,7 +115,7 @@ export default function ProfessorDashboard() {
     if (lectureId) {
       socket.emit("lecture:join", { lectureId, role: "professor" });
     }
-  }, [socket, lectureId]);
+  }, [socket, lectureId, socketReady]);
 
   // Start Demo: create lecture → simulator auto-starts (DEMO_MODE=true)
   async function handleStartDemo() {

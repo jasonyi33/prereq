@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
@@ -17,6 +17,18 @@ function getSocket(): Socket {
 
 export function useSocket(): Socket {
   return getSocket();
+}
+
+export function useSocketReady(): number {
+  const s = useSocket();
+  const [ready, setReady] = useState(0);
+  useEffect(() => {
+    const onConnect = () => setReady((n) => n + 1);
+    s.on("connect", onConnect);
+    if (s.connected) setReady((n) => n + 1);
+    return () => { s.off("connect", onConnect); };
+  }, [s]);
+  return ready;
 }
 
 export function useSocketEvent<T = unknown>(

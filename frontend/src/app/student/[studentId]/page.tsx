@@ -7,7 +7,7 @@ import { GraduationCap, Users, FileText } from "lucide-react";
 import type { GraphNode, GraphEdge } from "@/components/graph/KnowledgeGraph";
 import SidePanel, { type LectureSummaryData } from "@/components/student/SidePanel";
 import { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
-import { useSocket, useSocketEvent } from "@/lib/socket";
+import { useSocket, useSocketEvent, useSocketReady } from "@/lib/socket";
 import { flaskApi } from "@/lib/api";
 import { confidenceToColor } from "@/lib/colors";
 import { getAncestors } from "@/lib/graph";
@@ -28,6 +28,7 @@ export default function StudentView() {
   const router = useRouter();
   const studentId = params.studentId as string;
   const socket = useSocket();
+  const socketReady = useSocketReady();
   const { user, signOut } = useAuth();
 
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -153,7 +154,7 @@ export default function StudentView() {
       role: "student",
       studentId,
     });
-  }, [socket, lectureId, studentId]);
+  }, [socket, lectureId, studentId, socketReady]);
 
   // Socket events
   useSocketEvent<{ text: string; timestamp: number; detectedConcepts?: { id: string; label: string }[] }>(
