@@ -48,8 +48,24 @@ interface SimLink {
 }
 
 const NODE_BASE_RADIUS = 36;
+const NODE_FONT_SIZE = 10;
+const CHAR_WIDTH_RATIO = 0.68;
+const NODE_PADDING = 14;
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.5;
+const REVEAL_DURATION_MS = 2000;
+const REVEAL_INITIAL_DELAY = 300;
+const REVEAL_FPS = 30;
+
+/** Compute the node radius so the longest word fits without breaking */
+function getNodeRadius(label: string, relevance: number): number {
+  const charWidth = NODE_FONT_SIZE * CHAR_WIDTH_RATIO;
+  const longestWord = label.split(/[\s/\-]+/).reduce((a, b) => (a.length > b.length ? a : b), "");
+  const wordWidth = longestWord.length * charWidth;
+  const minRadiusForWord = (wordWidth + NODE_PADDING) / 2;
+  const baseRadius = relevance * 20 + NODE_BASE_RADIUS;
+  return Math.max(baseRadius, minRadiusForWord);
+}
 
 export default function KnowledgeGraph({
   nodes,
@@ -70,6 +86,9 @@ export default function KnowledgeGraph({
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
   const panOffset = useRef({ x: 0, y: 0 });
+
+  // Left-to-right sweep: 0 = nothing visible, 1 = everything visible
+  const [revealProgress, setRevealProgress] = useState(0);
 
   // Stable refs for callbacks
   const onNodeClickRef = useRef(onNodeClick);
@@ -113,6 +132,26 @@ export default function KnowledgeGraph({
     setSimLinks(linksCopy);
   }, [nodes, edges]);
 
+  // Animate revealProgress from 0 → 1 after layout is ready
+  useEffect(() => {
+    if (!ready) return;
+    setRevealProgress(0);
+    const stepMs = 1000 / REVEAL_FPS;
+    const steps = Math.ceil(REVEAL_DURATION_MS / stepMs);
+    let frame = 0;
+    const cleanupRef = { current: () => {} };
+    const delayTimer = setTimeout(() => {
+      const interval = setInterval(() => {
+        frame++;
+        const t = Math.min(frame / steps, 1);
+        setRevealProgress(t);
+        if (t >= 1) clearInterval(interval);
+      }, stepMs);
+      cleanupRef.current = () => clearInterval(interval);
+    }, REVEAL_INITIAL_DELAY);
+    return () => { clearTimeout(delayTimer); cleanupRef.current(); };
+  }, [ready]);
+
   // Run d3 force simulation synchronously to pre-stabilize layout
   useEffect(() => {
     if (!bounds.width || !bounds.height || simNodes.length === 0) return;
@@ -144,7 +183,7 @@ export default function KnowledgeGraph({
       .force("charge", d3.forceManyBody().strength(-500))
       .force(
         "collide",
-        d3.forceCollide<SimNode>().radius((d) => ((d.relevance || 0.6) * 20 + NODE_BASE_RADIUS) * 2),
+        d3.forceCollide<SimNode>().radius((d) => getNodeRadius(d.label, d.relevance || 0.6) * 2),
       )
       .force(
         "x",
@@ -173,6 +212,15 @@ export default function KnowledgeGraph({
       simulation.stop();
     };
   }, [bounds.width, bounds.height, simNodes.length]);
+
+  // Compute x-range for the reveal sweep
+  const xRange = useMemo(() => {
+    const xs = simNodes.filter((n) => n.x != null).map((n) => n.x!);
+    if (xs.length === 0) return { min: 0, max: 1, range: 1 };
+    const min = Math.min(...xs);
+    const max = Math.max(...xs);
+    return { min, max, range: max - min || 1 };
+  }, [simNodes]);
 
   // Zoom handler (wheel)
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -275,8 +323,8 @@ export default function KnowledgeGraph({
               const isPath = isSourceRel && isTargetRel;
 
               // Shorten line to stop at edge of nodes (so arrowhead is visible)
-              const targetSize = (target.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
-              const sourceSize = (source.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
+              const targetSize = getNodeRadius(target.label, target.relevance || 0.6);
+              const sourceSize = getNodeRadius(source.label, source.relevance || 0.6);
               const totalDx = target.x - source.x;
               const totalDy = target.y - source.y;
               const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
@@ -305,15 +353,21 @@ export default function KnowledgeGraph({
               const cdx = tx - sx;
               const d = `M${sx},${sy} C${sx + cdx / 2},${sy} ${tx - cdx / 2},${ty} ${tx},${ty}`;
 
+              // Edge reveals based on its leftmost x position
+              const edgeX = Math.min(source.x, target.x);
+              const edgeNorm = (edgeX - xRange.min) / xRange.range;
+              const edgeRevealed = revealProgress > edgeNorm;
+
               return (
                 <path
                   key={`link-${i}`}
                   d={d}
                   stroke={isPath ? "#3b82f6" : "#64748b"}
                   strokeWidth={isPath ? 2.5 : 1.5}
-                  opacity={isPath ? 1 : 0.8}
+                  opacity={edgeRevealed ? (isPath ? 1 : 0.8) : 0}
                   fill="none"
                   markerEnd={isPath ? "url(#arrowhead-active)" : "url(#arrowhead)"}
+                  style={{ transition: "opacity 0.4s ease-out" }}
                 />
               );
             })}
@@ -322,9 +376,9 @@ export default function KnowledgeGraph({
 
         {/* DOM layer for nodes */}
         <div className="absolute inset-0 pointer-events-none" data-graph-nodes>
-          {simNodes.map((node, index) => {
+          {simNodes.map((node) => {
             if (node.x === undefined || node.y === undefined) return null;
-            const size = (node.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
+            const size = getNodeRadius(node.label, node.relevance || 0.6);
             const borderColor = confidenceToNodeBorder(node.confidence ?? 0);
             const isInSet = activeSet.has(node.id);
             const hasSelection = activeSet.size > 0;
@@ -335,18 +389,26 @@ export default function KnowledgeGraph({
             // 4-bucket fill matching heatmap: orange / yellow / green / gray
             const baseFill = confidenceToNodeFill(node.confidence ?? 0);
 
+            // Node reveals based on its x position in the sweep
+            const nodeNorm = (node.x - xRange.min) / xRange.range;
+            const nodeRevealed = revealProgress > nodeNorm;
+            const targetOpacity = nodeRevealed ? (isDimmed ? 0.2 : 1) : 0;
+            const targetScale = nodeRevealed
+              ? (isActive ? 1.25 : isInSet && !isDimmed ? 1.08 : 1)
+              : 0;
+
             return (
               <motion.div
                 key={node.id}
-                initial={{ opacity: 0, scale: 0.85 }}
+                initial={false}
                 animate={{
-                  opacity: isDimmed ? 0.2 : 1,
-                  scale: isActive ? 1.25 : isInSet && !isDimmed ? 1.08 : 1,
+                  opacity: targetOpacity,
+                  scale: targetScale,
                   x: node.x - size,
                   y: node.y - size,
                 }}
                 transition={{
-                  opacity: { duration: 0.4, delay: ready ? index * 0.02 : 0 },
+                  opacity: { duration: 0.4 },
                   scale: { duration: 0.3 },
                   x: { duration: 0.4 },
                   y: { duration: 0.4 },
@@ -388,13 +450,13 @@ export default function KnowledgeGraph({
                 {/* Text label */}
                 <div className="absolute inset-0 flex items-center justify-center p-1.5 text-center pointer-events-none overflow-hidden">
                   <p
-                    className={`font-semibold leading-[1.15] transition-colors ${
+                    className={`font-[family-name:var(--font-comfortaa)] font-semibold leading-[1.15] transition-colors ${
                       isInSet || isActive ? "text-gray-900" : "text-gray-700"
                     }`}
                     style={{
-                      fontSize: node.label.length > 16 ? "9px" : node.label.length > 10 ? "10px" : "11px",
-                      wordBreak: "break-word",
-                      hyphens: "auto",
+                      fontSize: `${NODE_FONT_SIZE}px`,
+                      wordBreak: "keep-all",
+                      overflowWrap: "normal",
                     }}
                   >
                     {node.label}
