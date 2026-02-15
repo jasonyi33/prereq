@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { nextApi } from "@/lib/api";
 
 interface Suggestion {
@@ -12,40 +12,114 @@ interface Suggestion {
 interface InterventionPanelProps {
   lectureId: string | null;
   strugglingConceptIds: string[];
+  transcriptChunkCount: number;
+}
+
+const AUTO_INTERVAL_MS = 240_000; // 4 minutes
+const MIN_NEW_CHUNKS = 3;
+const GLOW_DURATION_MS = 3000;
+
+function formatTimeAgo(ts: number): string {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return "just now";
+  const mins = Math.floor(diff / 60);
+  return `${mins}m ago`;
 }
 
 export default function InterventionPanel({
   lectureId,
   strugglingConceptIds,
+  transcriptChunkCount,
 }: InterventionPanelProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [glowing, setGlowing] = useState(false);
+  const [lastGenTime, setLastGenTime] = useState<number | null>(null);
+  const [, setTick] = useState(0); // force re-render for "Updated Xm ago"
+  const lastGenChunkCountRef = useRef(0);
 
-  async function handleGetSuggestions() {
-    if (!lectureId || strugglingConceptIds.length === 0) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await nextApi.post(`/api/lectures/${lectureId}/interventions`, {
-        conceptIds: strugglingConceptIds,
-      });
-      if (data.suggestions) {
-        setSuggestions(data.suggestions);
+  const fetchSuggestions = useCallback(
+    async (isAuto: boolean) => {
+      if (!lectureId || strugglingConceptIds.length === 0) return;
+      if (isAuto) setAutoLoading(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        const data = await nextApi.post(
+          `/api/lectures/${lectureId}/interventions`,
+          { conceptIds: strugglingConceptIds }
+        );
+        if (data.suggestions) {
+          setSuggestions(data.suggestions);
+          setLastGenTime(Date.now());
+          lastGenChunkCountRef.current = transcriptChunkCount;
+          // Trigger glow
+          setGlowing(true);
+          setTimeout(() => setGlowing(false), GLOW_DURATION_MS);
+        }
+      } catch (err: unknown) {
+        if (!isAuto) {
+          const message =
+            err instanceof Error ? err.message : "Failed to get suggestions";
+          setError(message);
+        }
+      } finally {
+        if (isAuto) setAutoLoading(false);
+        else setLoading(false);
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to get suggestions";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
+    },
+    [lectureId, strugglingConceptIds, transcriptChunkCount]
+  );
+
+  // Auto-timer: every 4 minutes, generate if enough new chunks
+  useEffect(() => {
+    if (!lectureId) return;
+    const interval = setInterval(() => {
+      const newChunks = transcriptChunkCount - lastGenChunkCountRef.current;
+      if (newChunks >= MIN_NEW_CHUNKS && strugglingConceptIds.length > 0) {
+        fetchSuggestions(true);
+      }
+    }, AUTO_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [lectureId, transcriptChunkCount, strugglingConceptIds, fetchSuggestions]);
+
+  // Tick every 30s to update "Updated Xm ago"
+  useEffect(() => {
+    if (!lastGenTime) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(interval);
+  }, [lastGenTime]);
+
+  function handleGetSuggestions() {
+    fetchSuggestions(false);
   }
 
+  const isLiveNoSuggestions =
+    !!lectureId && suggestions.length === 0 && !loading && !autoLoading;
+
   return (
-    <div className="rounded-2xl bg-white border border-gray-200/80 p-5">
-      <h3 className="text-sm font-medium text-gray-800 tracking-tight mb-3">
-        Teaching Suggestions
-      </h3>
+    <div
+      className={`rounded-2xl bg-white border p-5 transition-all duration-500 ${
+        glowing
+          ? "border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.3)]"
+          : "border-gray-200/80"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-sm font-medium text-gray-800 tracking-tight">
+          Teaching Suggestions
+        </h3>
+        {autoLoading && (
+          <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+        )}
+        {lastGenTime && !autoLoading && (
+          <span className="text-[10px] text-gray-400">
+            Updated {formatTimeAgo(lastGenTime)}
+          </span>
+        )}
+      </div>
       <div className="space-y-3">
         <button
           onClick={handleGetSuggestions}
@@ -54,19 +128,31 @@ export default function InterventionPanel({
         >
           {loading ? "Loading..." : "Get Suggestions"}
         </button>
-        {strugglingConceptIds.length === 0 && !loading && (
-          <p className="text-xs text-gray-400">No struggling concepts detected yet</p>
+        {strugglingConceptIds.length === 0 && !loading && !autoLoading && (
+          <p className="text-xs text-gray-400">
+            No struggling concepts detected yet
+          </p>
         )}
-        {error && (
-          <p className="text-xs text-red-500">{error}</p>
+        {isLiveNoSuggestions && strugglingConceptIds.length > 0 && (
+          <p className="text-xs text-gray-400">
+            Suggestions will appear automatically as the lecture progresses
+          </p>
         )}
+        {error && <p className="text-xs text-red-500">{error}</p>}
 
         {suggestions.length > 0 && (
           <div className="space-y-2">
             {suggestions.map((s) => (
-              <div key={s.conceptId} className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{s.conceptLabel}</p>
-                <p className="text-sm text-gray-600 leading-relaxed">{s.suggestion}</p>
+              <div
+                key={s.conceptId}
+                className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-1"
+              >
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {s.conceptLabel}
+                </p>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {s.suggestion}
+                </p>
               </div>
             ))}
           </div>

@@ -333,7 +333,7 @@ export default function ProfessorDashboard() {
         </div>
         <div className="grid grid-cols-2 gap-3 p-3">
           <PollControls lectureId={lectureId} />
-          <InterventionPanel lectureId={lectureId} strugglingConceptIds={strugglingConceptIds} />
+          <InterventionPanel lectureId={lectureId} strugglingConceptIds={strugglingConceptIds} transcriptChunkCount={transcriptChunks.length} />
         </div>
       </div>
 

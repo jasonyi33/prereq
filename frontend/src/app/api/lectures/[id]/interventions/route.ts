@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateInterventions } from "@/lib/prompts/intervention";
+import { generateInterventions, type EnrichedContext } from "@/lib/prompts/intervention";
 import { flaskGet } from "@/lib/flask";
 
 export async function POST(
@@ -77,8 +77,51 @@ export async function POST(
       );
     }
 
+    // Fetch enriched context (best-effort, failures don't block)
+    const [transcriptChunks, polls] = await Promise.all([
+      flaskGet<{ text: string; timestamp_sec: number }[]>(
+        `/api/lectures/${lectureId}/transcript-chunks?limit=10`
+      ).catch(() => [] as { text: string; timestamp_sec: number }[]),
+      flaskGet<{ id: string; status: string; question: string }[]>(
+        `/api/lectures/${lectureId}/polls`
+      ).catch(() => [] as { id: string; status: string; question: string }[]),
+    ]);
+
+    const enrichedContext: EnrichedContext = {};
+
+    // Transcript: chunks come back newest-first, reverse for chronological
+    if (transcriptChunks.length > 0) {
+      enrichedContext.recentTranscript = [...transcriptChunks]
+        .reverse()
+        .map((c) => c.text)
+        .join(" ");
+    }
+
+    // Polls: filter to closed, take last 2, fetch response distributions
+    const closedPolls = polls.filter((p) => p.status === "closed").slice(-2);
+    if (closedPolls.length > 0) {
+      const pollSummaries = await Promise.all(
+        closedPolls.map(async (poll) => {
+          const responses = await flaskGet<
+            { evaluation: { eval_result?: string } | null }[]
+          >(`/api/polls/${poll.id}/responses`).catch(
+            () => [] as { evaluation: { eval_result?: string } | null }[]
+          );
+          const dist = { correct: 0, partial: 0, wrong: 0 };
+          for (const r of responses) {
+            const result = r.evaluation?.eval_result;
+            if (result === "correct") dist.correct++;
+            else if (result === "partial") dist.partial++;
+            else if (result === "wrong") dist.wrong++;
+          }
+          return { question: poll.question, distribution: dist };
+        })
+      );
+      enrichedContext.pollSummaries = pollSummaries;
+    }
+
     // Generate intervention suggestions via Claude Sonnet
-    const rawSuggestions = await generateInterventions(targetConcepts);
+    const rawSuggestions = await generateInterventions(targetConcepts, enrichedContext);
     console.log("Raw suggestions from generateInterventions:", rawSuggestions);
 
     // Map concept labels back to IDs
