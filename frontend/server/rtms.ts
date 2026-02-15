@@ -2,7 +2,8 @@
 // Supports both global env-var credentials (legacy/demo) and per-teacher credentials
 
 import { createHmac } from "crypto";
-import { existsSync, mkdirSync, readdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
+import https from "https";
 import type { Express } from "express";
 import { supabase } from "./db";
 
@@ -209,6 +210,10 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     teacherLectures.set(teacherId, lectureId);
   }
 
+  // Ensure CA cert is ready before loading the SDK (avoids race condition)
+  await ensureCaCert();
+  diag("ca-cert", `ZM_RTMS_CA_CERT=${process.env.ZM_RTMS_CA_CERT || "NOT SET"}`);
+
   let sdk: any;
   try {
     sdk = await getRtmsSdk();
@@ -373,10 +378,54 @@ function handleOAuth(teacherId: string | null) {
 
 // --- Setup ---
 
+async function ensureCaCert(): Promise<void> {
+  // Check common CA cert paths
+  const knownPaths = [
+    "/etc/ssl/cert.pem",
+    "/etc/ssl/certs/ca-certificates.crt",
+    "/etc/pki/tls/certs/ca-bundle.crt",
+    "/etc/ssl/ca-bundle.pem",
+  ];
+  for (const p of knownPaths) {
+    if (existsSync(p)) {
+      process.env.ZM_RTMS_CA_CERT = p;
+      console.log(`[RTMS] Found CA cert at ${p}`);
+      return;
+    }
+  }
+  // No system CA certs found — download Mozilla's bundle
+  const dest = "/app/cacert.pem";
+  if (existsSync(dest)) {
+    process.env.ZM_RTMS_CA_CERT = dest;
+    console.log(`[RTMS] Using cached CA cert at ${dest}`);
+    return;
+  }
+  console.log("[RTMS] No CA certs found — downloading Mozilla CA bundle...");
+  return new Promise((resolve) => {
+    https.get("https://curl.se/ca/cacert.pem", (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (d: Buffer) => chunks.push(d));
+      res.on("end", () => {
+        const buf = Buffer.concat(chunks);
+        writeFileSync(dest, buf);
+        process.env.ZM_RTMS_CA_CERT = dest;
+        console.log(`[RTMS] Downloaded CA cert to ${dest} (${buf.length} bytes)`);
+        resolve();
+      });
+    }).on("error", (err) => {
+      console.error(`[RTMS] Failed to download CA cert: ${err.message}`);
+      resolve(); // continue without — SDK will warn
+    });
+  });
+}
+
 export function setupRTMS(app: Express): void {
   // Enable SDK debug logging to diagnose auth failures
   process.env.ZM_RTMS_LOG_LEVEL = "debug";
   process.env.ZM_RTMS_LOG_ENABLED = "true";
+
+  // Download CA certs if missing (needed for RTMS native SDK on Render)
+  ensureCaCert().catch(() => {});
 
   // --- Diagnostic endpoint ---
   app.get("/api/rtms/status", (_req, res) => {
@@ -394,6 +443,29 @@ export function setupRTMS(app: Express): void {
   });
 
   // --- Debug endpoints (temporary, for diagnosing Render RTMS issues) ---
+
+  // 0. Clock check — signature generation uses timestamps
+  app.get("/api/debug/clock", async (_req, res) => {
+    const localTime = new Date();
+    // Compare against a known time source
+    let remoteTime: string | null = null;
+    let skewMs: number | null = null;
+    try {
+      const r = await fetch("https://worldtimeapi.org/api/timezone/Etc/UTC", { signal: AbortSignal.timeout(5000) });
+      const data = await r.json() as any;
+      remoteTime = data.utc_datetime;
+      const remote = new Date(data.utc_datetime);
+      skewMs = localTime.getTime() - remote.getTime();
+    } catch (err: any) {
+      remoteTime = `error: ${err.message}`;
+    }
+    res.json({
+      serverTime: localTime.toISOString(),
+      remoteTime,
+      skewMs,
+      skewSeconds: skewMs !== null ? Math.round(skewMs / 1000) : null,
+    });
+  });
 
   // 1. Check if logs directory exists (SDK may need it)
   app.get("/api/debug/logs-dir", (_req, res) => {
@@ -451,7 +523,8 @@ export function setupRTMS(app: Express): void {
   });
 
   // 3. Check outbound network to Zoom WebSocket servers
-  app.get("/api/debug/network", async (_req, res) => {
+  // Pass ?url=wss://... or ?url=https://... to test a specific server
+  app.get("/api/debug/network", async (req, res) => {
     const results: Record<string, any> = {};
     // Test HTTPS to zoom.us
     try {
@@ -461,16 +534,18 @@ export function setupRTMS(app: Express): void {
     } catch (err: any) {
       results["https://zoom.us"] = { ok: false, error: err.message };
     }
-    // Test WSS connectivity by doing HTTPS to the same host pattern
-    try {
-      const start = Date.now();
-      const r = await fetch("https://zoomsjc144-195-46-183zssgw.sjc.zoom.us", {
-        method: "HEAD",
-        signal: AbortSignal.timeout(5000),
-      });
-      results["zoom_rtms_server"] = { ok: true, status: r.status, ms: Date.now() - start };
-    } catch (err: any) {
-      results["zoom_rtms_server"] = { ok: false, error: err.message };
+    // Test custom server URL if provided
+    const customUrl = req.query.url as string;
+    if (customUrl) {
+      // Convert wss:// to https:// for fetch compatibility
+      const httpsUrl = customUrl.replace(/^wss:\/\//, "https://").replace(/^ws:\/\//, "http://");
+      try {
+        const start = Date.now();
+        const r = await fetch(httpsUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+        results["custom_server"] = { url: customUrl, httpsUrl, ok: true, status: r.status, ms: Date.now() - start };
+      } catch (err: any) {
+        results["custom_server"] = { url: customUrl, httpsUrl, ok: false, error: err.message };
+      }
     }
     res.json(results);
   });
