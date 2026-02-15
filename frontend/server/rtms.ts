@@ -217,6 +217,17 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
   let startTime = Date.now();
   let transcriptCount = 0;
 
+  // Audio data handler (if available)
+  if (typeof client.onAudioData === 'function') {
+    client.onAudioData((data: Buffer, size: number, timestamp: number, metadata: any) => {
+      diag("audio", `Received audio: ${size} bytes, timestamp=${timestamp}`);
+      // TODO: Send to Deepgram for transcription
+    });
+  } else {
+    diag("audio", "onAudioData not available - app may not have audio subscription");
+  }
+
+  // Transcript data handler (requires live transcription in meeting)
   client.onTranscriptData((data: Buffer, size: number, timestamp: number, metadata: any) => {
     transcriptCount++;
     const text = data.toString("utf8");
@@ -229,11 +240,17 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
 
   client.onJoinConfirm((reason: number) => {
     diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}, clientId=${clientId.slice(0, 8)}...`);
+    diag("joinConfirm", "Connection established - waiting for transcript or audio data...");
+    diag("joinConfirm", "If no data arrives: (1) Enable 'Live Transcript' in Zoom meeting, OR (2) App needs audio subscription");
     startTime = Date.now();
   });
 
   client.onLeave((reason: number) => {
-    diag("leave", `reason=${reason}, streamId=${streamId}`);
+    diag("leave", `reason=${reason}, streamId=${streamId}, transcriptCount=${transcriptCount}`);
+    if (transcriptCount === 0) {
+      diag("leave", "WARNING: Connection closed with ZERO transcripts received");
+      diag("leave", "This usually means: (1) Live Transcript not enabled in meeting, OR (2) App lacks audio/transcript subscription");
+    }
     activeStreams.delete(streamId);
     if (teacherId) {
       teacherLectures.delete(teacherId);

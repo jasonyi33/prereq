@@ -178,19 +178,19 @@ export default function LandingPage() {
             Get Started
           </button>
           {/* Dev shortcut for local testing */}
-          {process.env.NODE_ENV === 'development' && (
-            <button
-              onClick={() => {
-                localStorage.setItem("courseId", "test-course");
-                localStorage.setItem("studentId", "sam");
-                localStorage.setItem("mockMode", "true");
-                router.push("/student/sam/study-group");
-              }}
-              className="mt-4 px-6 py-2 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
-            >
-              [Dev] Test Study Groups
-            </button>
-          )}
+          {/*{process.env.NODE_ENV === 'development' && (*/}
+          {/*  <button*/}
+          {/*    onClick={() => {*/}
+          {/*      localStorage.setItem("courseId", "test-course");*/}
+          {/*      localStorage.setItem("studentId", "sam");*/}
+          {/*      localStorage.setItem("mockMode", "true");*/}
+          {/*      router.push("/student/sam/study-group");*/}
+          {/*    }}*/}
+          {/*    className="mt-4 px-6 py-2 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"*/}
+          {/*  >*/}
+          {/*    [Dev] Test Study Groups*/}
+          {/*  </button>*/}
+          {/*)}*/}
             <div className="flex items-center gap-8 mt-16 animate-[fadeInUp_0.7s_ease-out_0.55s_both]">
           <span className="text-sm text-gray-500 uppercase tracking-wider">Works with</span>
           <img src="/zoom-logo.png" alt="Zoom" className="h-10 opacity-80" />
