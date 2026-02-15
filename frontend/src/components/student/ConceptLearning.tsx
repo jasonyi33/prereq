@@ -49,6 +49,17 @@ export default function ConceptLearning({
   const [quizScore, setQuizScore] = useState<{ correct: number; total: number } | null>(null);
   const [confidenceBoost, setConfidenceBoost] = useState<number>(0);
 
+  // Reset state when concept changes
+  useEffect(() => {
+    setLearningContent("");
+    setQuizQuestions([]);
+    setCurrentQuestion(0);
+    setSelectedAnswers([]);
+    setShowExplanation(false);
+    setQuizScore(null);
+    setViewMode("learning");
+  }, [conceptId]);
+
   // Load learning content when opened
   useEffect(() => {
     if (isOpen && viewMode === "learning" && !learningContent) {
