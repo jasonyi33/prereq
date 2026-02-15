@@ -13,20 +13,27 @@ const router = Router();
 router.use(json());
 
 // --- Flask helpers (inlined to avoid @/ alias issues) ---
-const FLASK_API_URL = process.env.FLASK_API_URL || "http://localhost:5000";
+// Read env lazily (static imports run before dotenv.config)
+function getFlaskUrl(): string {
+  return process.env.FLASK_API_URL || "http://localhost:5000";
+}
 
 async function flaskGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${FLASK_API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+  console.log(`[transcript-route] Flask GET: ${getFlaskUrl()}${path}`);
+  const res = await fetch(`${getFlaskUrl()}${path}`, {
+    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
   });
-  if (!res.ok) throw new Error(`Flask GET ${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Flask GET ${path} failed: ${res.status} — ${body.slice(0, 200)}`);
+  }
   return res.json() as Promise<T>;
 }
 
 async function flaskPost<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${FLASK_API_URL}${path}`, {
+  const res = await fetch(`${getFlaskUrl()}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Flask POST ${path} failed: ${res.status}`);
@@ -34,7 +41,12 @@ async function flaskPost<T>(path: string, body: unknown): Promise<T> {
 }
 
 // --- Concept detection (inlined from src/lib/prompts/concept-detection.ts) ---
-const anthropic = new Anthropic();
+// Lazy init: static imports run before dotenv.config loads ANTHROPIC_API_KEY
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!_anthropic) _anthropic = new Anthropic();
+  return _anthropic;
+}
 
 function buildConceptDetectionPrompt(chunk: string, labels: string[]): string {
   return `You are analyzing a live lecture transcript to detect which concepts are being taught.
@@ -77,7 +89,7 @@ function parseConceptDetectionResponse(response: string): string[] {
 async function detectConcepts(text: string, labels: string[]): Promise<string[]> {
   if (labels.length === 0) return [];
   const prompt = buildConceptDetectionPrompt(text, labels);
-  const message = await anthropic.messages.create({
+  const message = await getAnthropic().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 256,
     messages: [{ role: "user", content: prompt }],
@@ -131,6 +143,7 @@ router.post("/api/lectures/:id/transcript", async (req, res) => {
   try {
     const lectureId = req.params.id;
     const { text, timestamp, speakerName } = req.body;
+    console.log(`[Express transcript-route] Processing chunk for lecture ${lectureId}`);
 
     // Step 1: Detect concepts using Claude Haiku
     const { labels, labelToId } = await getConceptMap(lectureId);
