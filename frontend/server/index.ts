@@ -10,6 +10,7 @@ import next from "next";
 import { Server } from "socket.io";
 import { setupSocket } from "./socket";
 import transcriptRoute from "./transcript-route";
+import chatRoute from "./chat-route";
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT || "3000", 10);
 
@@ -56,7 +57,11 @@ nextApp.prepare().then(async () => {
   // Transcript route runs in Express context so Socket.IO emit works
   app.use(transcriptRoute);
 
-  app.all("/{*path}", (req, res) => {
+  // Chat route runs in Express context to avoid body parsing issues
+  app.use(chatRoute);
+
+  // Pass all other requests to Next.js
+  app.use((req, res) => {
     return nextHandler(req, res);
   });
 
