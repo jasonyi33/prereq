@@ -72,7 +72,48 @@ def _find_match(student_id, course_id, concept_ids):
     ).eq('status', 'waiting').neq('student_id', student_id).execute().data
 
     if not pool_entries:
-        return None
+        # FALLBACK: No one waiting - pick ANY other student in course for instant match
+        all_students = supabase.table('students').select('id, name').eq(
+            'course_id', course_id
+        ).neq('id', student_id).limit(10).execute().data
+
+        if not all_students:
+            return None  # No other students exist
+
+        # Pick a random student
+        import random
+        partner_student = random.choice(all_students)
+
+        # Use first few of my concepts as shared concepts
+        shared_concepts = concept_ids[:min(3, len(concept_ids))]
+
+        # Create match directly without pool entry
+        s1, s2 = sorted([student_id, partner_student['id']])
+        zoom_link = generate_zoom_link()
+
+        match = supabase.table('study_group_matches').insert({
+            'course_id': course_id,
+            'student1_id': s1,
+            'student2_id': s2,
+            'concept_ids': shared_concepts,
+            'zoom_link': zoom_link,
+            'complementarity_score': 0.5,
+            'status': 'active'
+        }).execute().data[0]
+
+        # Fetch concept labels
+        concept_labels_rows = supabase.table('concept_nodes').select('label').in_('id', shared_concepts).execute().data
+        labels = [c['label'] for c in concept_labels_rows]
+
+        cache_delete_pattern(f"study_group_status:{course_id}:*")
+
+        return {
+            'matchId': match['id'],
+            'partner': partner_student,
+            'conceptLabels': labels,
+            'zoomLink': zoom_link,
+            'complementarityScore': 0.5
+        }
 
     # Calculate complementarity for each candidate
     candidates = []
