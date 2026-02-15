@@ -3,6 +3,7 @@ const FLASK_API_URL = process.env.NEXT_PUBLIC_FLASK_API_URL || "http://localhost
 async function request(baseUrl: string, path: string, options?: RequestInit) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "1",
     ...((options?.headers as Record<string, string>) || {}),
   };
 

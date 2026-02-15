@@ -1,12 +1,33 @@
 services:
   - type: web
+    name: prereq-api
+    runtime: python
+    buildCommand: cd api && pip install -r requirements.txt
+    startCommand: cd api && gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  - type: web
     name: prereq-frontend
     runtime: node
     buildCommand: cd frontend && npm install && npm run build
     startCommand: cd frontend && npx tsx server/index.ts
     envVars:
       - key: FLASK_API_URL
-        sync: false  # Set to Cloud Run Flask service URL after deploying
+        fromService:
+          type: web
+          name: prereq-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_FLASK_API_URL
+        fromService:
+          type: web
+          name: prereq-api
+          envVarKey: RENDER_EXTERNAL_URL
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY

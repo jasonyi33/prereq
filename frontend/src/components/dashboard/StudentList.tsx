@@ -1,12 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { COLOR_HEX } from "@/lib/colors";
 
 export interface StudentSummary {
   id: string;
   name: string;
-  masteryDistribution: { green: number; yellow: number; red: number; gray: number };
+  masteryDistribution: { green: number; lime: number; yellow: number; orange: number; gray: number };
 }
 
 interface StudentListProps {
@@ -37,15 +36,21 @@ export default function StudentList({ students }: StudentListProps) {
               {s.name}
             </span>
             <div className="flex gap-1">
-              {(["green", "yellow", "red", "gray"] as const).map((color) => {
-                const count = s.masteryDistribution[color];
+              {([
+                { key: "green", bg: "#4ade80" },
+                { key: "lime", bg: "#a3e635" },
+                { key: "yellow", bg: "#facc15" },
+                { key: "orange", bg: "#fb923c" },
+                { key: "gray", bg: "#cbd5e1" },
+              ] as const).map(({ key, bg }) => {
+                const count = s.masteryDistribution[key] ?? 0;
                 if (count === 0) return null;
                 return (
                   <div
-                    key={color}
+                    key={key}
                     className="flex items-center justify-center rounded-full text-[9px] font-bold text-white"
                     style={{
-                      backgroundColor: color === "gray" ? "#cbd5e1" : color === "yellow" ? "#f59e0b" : COLOR_HEX[color],
+                      backgroundColor: bg,
                       width: 20,
                       height: 20,
                     }}
