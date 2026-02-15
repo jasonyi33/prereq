@@ -326,7 +326,7 @@ export default function KnowledgeGraph({
                 initial={{ opacity: 0, scale: 0 }}
                 animate={{
                   opacity: isDimmed ? 0.2 : 1,
-                  scale: isInSet && !isDimmed ? 1.08 : 1,
+                  scale: isActive ? 1.25 : isInSet && !isDimmed ? 1.08 : 1,
                   x: node.x - size,
                   y: node.y - size,
                 }}
