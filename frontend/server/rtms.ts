@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
 import https from "https";
 import type { Express } from "express";
 import { supabase } from "./db";
+import { emitToLectureRoom } from "./socket-helpers";
 
 // Lazy-load @zoom/rtms SDK — only needed when actually connecting to a meeting.
 // Webhook validation and OAuth work without it, so routes register even if SDK is missing.
@@ -340,6 +341,8 @@ function handleWebhook(teacherId: string | null, secret: string) {
 
     if (RTMS_STOP_EVENTS.includes(event)) {
       const stream = activeStreams.get(streamId);
+      const stoppedLectureId = stream?.lectureId;
+
       if (stream) {
         diag("stop", `Calling client.leave() for streamId=${streamId}`);
         if (stream.watchdog) clearInterval(stream.watchdog);
@@ -349,6 +352,28 @@ function handleWebhook(teacherId: string | null, secret: string) {
       } else {
         diag("stop", `No active stream for streamId=${streamId} (already cleaned up?)`);
       }
+
+      // Lecture-end flow: update status, notify students, generate summary
+      if (stoppedLectureId) {
+        diag("stop", `Lecture ${stoppedLectureId} ended — triggering summary generation`);
+
+        // 1. Mark lecture as completed via Flask
+        fetch(`${getFlaskUrl()}/api/lectures/${stoppedLectureId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
+          body: JSON.stringify({ status: "completed", ended_at: new Date().toISOString() }),
+        }).catch((err) => diag("stop", `Failed to update lecture status: ${err}`));
+
+        // 2. Notify all connected clients immediately
+        emitToLectureRoom(stoppedLectureId, "lecture:ended", { lectureId: stoppedLectureId });
+
+        // 3. Trigger summary generation (async — emits lecture:summary-ready when done)
+        fetch(`${getLocalUrl()}/api/lectures/${stoppedLectureId}/summary`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }).catch((err) => diag("stop", `Summary generation request failed: ${err}`));
+      }
+
       return;
     }
 

@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { GraduationCap, Users } from "lucide-react";
+import { GraduationCap, Users, FileText } from "lucide-react";
 import type { GraphNode, GraphEdge } from "@/components/graph/KnowledgeGraph";
-import SidePanel from "@/components/student/SidePanel";
+import SidePanel, { type LectureSummaryData } from "@/components/student/SidePanel";
 import { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
 import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi } from "@/lib/api";
@@ -38,6 +38,8 @@ export default function StudentView() {
   const [activePoll, setActivePoll] = useState<PollData | null>(null);
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([]);
   const [lectureId, setLectureId] = useState<string | null>(null);
+  const [lectureEnded, setLectureEnded] = useState(false);
+  const [lectureSummary, setLectureSummary] = useState<LectureSummaryData | null>(null);
 
   // Get courseId from localStorage (reactive — poll until available)
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -186,6 +188,36 @@ export default function StudentView() {
     ),
   );
 
+  // Lecture ended
+  useSocketEvent<{ lectureId: string }>(
+    "lecture:ended",
+    useCallback(() => {
+      setLectureEnded(true);
+    }, []),
+  );
+
+  // Lecture summary ready
+  useSocketEvent<{ lectureId: string; summary: LectureSummaryData }>(
+    "lecture:summary-ready",
+    useCallback((data) => {
+      setLectureSummary(data.summary);
+      // Highlight covered concepts on the graph
+      if (data.summary.covered_concept_ids?.length) {
+        setHighlightedNodeIds(new Set(data.summary.covered_concept_ids));
+      }
+    }, []),
+  );
+
+  // Weak concepts: covered in this lecture with confidence < 0.7
+  const weakConcepts = useMemo(() => {
+    if (!lectureSummary?.covered_concept_ids) return [];
+    const coveredSet = new Set(lectureSummary.covered_concept_ids);
+    return nodes
+      .filter((n) => coveredSet.has(n.id) && (n.confidence ?? 0) > 0 && (n.confidence ?? 0) < 0.7)
+      .map((n) => ({ id: n.id, label: n.label, confidence: n.confidence ?? 0 }))
+      .sort((a, b) => a.confidence - b.confidence);
+  }, [nodes, lectureSummary]);
+
   // Toggle selection: click same node = deselect
   const handleNodeClick = useCallback(
     (node: GraphNode) => {
@@ -216,8 +248,17 @@ export default function StudentView() {
             prereq
           </h1>
           <div className="flex items-center gap-1.5 ml-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-xs text-gray-400">Live Lecture</span>
+            {lectureEnded ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                <span className="text-xs text-gray-400">Lecture Ended</span>
+              </>
+            ) : (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs text-gray-400">Live Lecture</span>
+              </>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -227,6 +268,13 @@ export default function StudentView() {
           >
             <GraduationCap size={15} />
             <span>Start Tutoring</span>
+          </button>
+          <button
+            onClick={() => router.push(`/student/${studentId}/summaries`)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
+          >
+            <FileText size={15} />
+            <span>Summaries</span>
           </button>
           <button
             onClick={() => router.push(`/student/${studentId}/study-group`)}
@@ -312,6 +360,10 @@ export default function StudentView() {
             onDeselectNode={handleDeselectNode}
             lectureId={lectureId}
             courseId={courseId}
+            lectureEnded={lectureEnded}
+            lectureSummary={lectureSummary}
+            weakConcepts={weakConcepts}
+            onStartTutoring={() => router.push(`/student/${studentId}/tutor`)}
           />
         </div>
       </main>
