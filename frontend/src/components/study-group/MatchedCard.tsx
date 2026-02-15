@@ -60,15 +60,18 @@ export default function MatchedCard({ matchDetails }: Props) {
     setIsLoading(true);
 
     try {
+      console.log("Sending chat message to:", "/api/study-groups/chat");
       const response = await nextApi.post("/api/study-groups/chat", {
         message: input.trim(),
         partnerName: partner.name,
         concepts: conceptLabels,
         conversationHistory: messages.map(m => ({
-          role: m.role,
+          role: m.role === "user" ? "user" : "assistant",
           content: m.content
         }))
       });
+
+      console.log("Chat response:", response);
 
       const partnerMessage: Message = {
         role: "partner",
@@ -79,6 +82,7 @@ export default function MatchedCard({ matchDetails }: Props) {
       setMessages(prev => [...prev, partnerMessage]);
     } catch (err) {
       console.error("Chat failed:", err);
+      console.error("Error details:", err instanceof Error ? err.message : String(err));
       const errorMessage: Message = {
         role: "partner",
         content: "Sorry, I'm having trouble connecting. Can you try again?",
@@ -227,10 +231,12 @@ export default function MatchedCard({ matchDetails }: Props) {
       {/* Zoom link */}
       <Button
         onClick={() => window.open(zoomLink, "_blank")}
-        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 flex items-center justify-center gap-2"
       >
-        <ExternalLink className="w-4 h-4 mr-2" />
-        Join Video Call
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M7.5 10.5v3l6-3v6l6-3v-3l-6 3v-6l-6 3z"/>
+        </svg>
+        Join Zoom
       </Button>
     </Card>
   );

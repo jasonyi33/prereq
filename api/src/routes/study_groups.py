@@ -228,6 +228,7 @@ def opt_in(course_id):
     data = request.json
     student_id = data['studentId']
     concept_ids = data['conceptIds']
+    skip_matching = data.get('skipMatching', False)  # For seeding
 
     if not concept_ids:
         return jsonify({'error': 'Must select at least one concept'}), 400
@@ -252,6 +253,19 @@ def opt_in(course_id):
         'expires_at': expires_at
     }).execute().data[0]
 
+    # Fetch concept labels
+    concept_labels_rows = supabase.table('concept_nodes').select('label').in_('id', concept_ids).execute().data
+    labels = [c['label'] for c in concept_labels_rows]
+
+    # Skip matching if this is a seed operation
+    if skip_matching:
+        return jsonify({
+            'status': 'waiting',
+            'poolId': pool_entry['id'],
+            'conceptLabels': labels,
+            'expiresAt': pool_entry['expires_at']
+        }), 200
+
     # Try to find match immediately
     match_details = _find_match(student_id, course_id, concept_ids)
 
@@ -261,10 +275,6 @@ def opt_in(course_id):
             **match_details
         }), 200
     else:
-        # Fetch concept labels for waiting response
-        concept_labels_rows = supabase.table('concept_nodes').select('label').in_('id', concept_ids).execute().data
-        labels = [c['label'] for c in concept_labels_rows]
-
         return jsonify({
             'status': 'waiting',
             'poolId': pool_entry['id'],
