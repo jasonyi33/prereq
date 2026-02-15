@@ -9,7 +9,6 @@ import { Router, json } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
-router.use(json());
 
 // Lazy init
 let _anthropic: Anthropic | null = null;
@@ -30,7 +29,7 @@ const fallbackResponses = [
   "That makes sense! I think the key is understanding how it relates to the other concepts.",
 ];
 
-router.post("/api/study-groups/chat", async (req, res) => {
+router.post("/api/study-groups/chat", json(), async (req, res) => {
   try {
     const { message, partnerName, concepts, conversationHistory } = req.body;
 

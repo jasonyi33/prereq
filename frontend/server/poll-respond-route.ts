@@ -9,7 +9,6 @@ import { emitToStudent, emitToProfessor } from "./socket-helpers";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
-router.use(json());
 
 // Lazy init
 let _anthropic: Anthropic | null = null;
@@ -129,7 +128,7 @@ Return ONLY valid JSON (no markdown):
   }
 }
 
-router.post("/api/polls/:pollId/respond", async (req, res) => {
+router.post("/api/polls/:pollId/respond", json(), async (req, res) => {
   try {
     const { pollId } = req.params;
     const { studentId, answer } = req.body as { studentId: string; answer: string };

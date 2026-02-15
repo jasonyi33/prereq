@@ -8,7 +8,6 @@ import { Router, json } from "express";
 import { emitToLectureRoom } from "./socket-helpers";
 
 const router = Router();
-router.use(json());
 
 function getFlaskUrl(): string {
   return process.env.FLASK_API_URL || "http://localhost:5000";
@@ -38,7 +37,7 @@ async function flaskGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-router.post("/api/lectures/:id/poll/:pollId/activate", async (req, res) => {
+router.post("/api/lectures/:id/poll/:pollId/activate", json(), async (req, res) => {
   try {
     const { id: lectureId, pollId } = req.params;
 

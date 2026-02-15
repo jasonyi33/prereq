@@ -8,7 +8,6 @@ import { Router, json } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
-router.use(json());
 
 // Lazy init
 let _anthropic: Anthropic | null = null;
@@ -85,7 +84,7 @@ function parseResponse(response: string): { question: string; expectedAnswer: st
   };
 }
 
-router.post("/api/lectures/:id/poll/generate", async (req, res) => {
+router.post("/api/lectures/:id/poll/generate", json(), async (req, res) => {
   try {
     const lectureId = req.params.id;
     const { conceptId } = req.body as { conceptId?: string };

@@ -10,7 +10,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { emitToLectureRoom, getStudentsInLecture } from "./socket-helpers";
 
 const router = Router();
-router.use(json());
 
 // --- Flask helpers (inlined to avoid @/ alias issues) ---
 // Read env lazily (static imports run before dotenv.config)
@@ -139,7 +138,7 @@ interface TranscriptChunk {
   speaker_name: string | null;
 }
 
-router.post("/api/lectures/:id/transcript", async (req, res) => {
+router.post("/api/lectures/:id/transcript", json(), async (req, res) => {
   try {
     const lectureId = req.params.id;
     const { text, timestamp, speakerName } = req.body;
