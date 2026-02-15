@@ -234,6 +234,31 @@ def opt_out(course_id):
     return jsonify({'status': 'opted_out'}), 200
 
 
+@study_groups.route('/api/courses/<course_id>/study-groups/clear', methods=['POST'])
+@optional_auth
+def clear_student(course_id):
+    """Remove a student from all study groups (pool and matches)."""
+    if MOCK_MODE:
+        return jsonify({'status': 'cleared'}), 200
+
+    data = request.json
+    student_id = data['studentId']
+
+    # Remove from pool
+    supabase.table('study_group_pool').delete().eq(
+        'student_id', student_id
+    ).eq('course_id', course_id).execute()
+
+    # Set matches to inactive
+    supabase.table('study_group_matches').update({'status': 'inactive'}).eq(
+        'course_id', course_id
+    ).or_(f"student1_id.eq.{student_id},student2_id.eq.{student_id}").execute()
+
+    cache_delete_pattern(f"study_group_status:{course_id}:{student_id}")
+
+    return jsonify({'status': 'cleared'}), 200
+
+
 @study_groups.route('/api/courses/<course_id>/study-groups/status', methods=['GET'])
 @optional_auth
 def get_status(course_id):
