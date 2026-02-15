@@ -89,7 +89,7 @@ export default function LandingPage() {
               <button onClick={signOut} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Sign out</button>
             </div>
             <p className="text-sm text-gray-500 mb-4">Welcome, {profile?.name || "Professor"}! Create a course to get started.</p>
-            <CreateCourseForm onCreated={() => router.push("/professor/dashboard")} />
+            <CreateCourseForm onCreated={() => router.push("/professor/upload")} />
           </GlassCard>
         </div>
       </div>
