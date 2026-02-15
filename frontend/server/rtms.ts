@@ -2,6 +2,7 @@
 // Supports both global env-var credentials (legacy/demo) and per-teacher credentials
 
 import { createHmac } from "crypto";
+import { existsSync, mkdirSync, readdirSync } from "fs";
 import type { Express } from "express";
 import { supabase } from "./db";
 
@@ -88,6 +89,9 @@ function getFlaskUrl(): string {
   const url = (process.env.FLASK_API_URL || "http://localhost:5000").replace(/\/+$/, "");
   console.log(`[RTMS] getFlaskUrl() => ${url}`);
   return url;
+}
+function getFrontendBaseUrl(): string {
+  return (process.env.FRONTEND_BASE_URL || "https://prereq-frontend.onrender.com").replace(/\/+$/, "");
 }
 function getLocalUrl(): string {
   return `http://localhost:${process.env.PORT || 3000}`;
@@ -334,7 +338,7 @@ function handleOAuth(teacherId: string | null) {
     } else {
       clientId = process.env.ZOOM_CLIENT_ID || "";
       clientSecret = process.env.ZOOM_CLIENT_SECRET || "";
-      redirectUri = `${process.env.NGROK_URL || `http://localhost:${process.env.PORT || 3000}`}/auth`;
+      redirectUri = `${getFrontendBaseUrl()}/auth`;
     }
 
     try {
@@ -389,6 +393,88 @@ export function setupRTMS(app: Express): void {
     });
   });
 
+  // --- Debug endpoints (temporary, for diagnosing Render RTMS issues) ---
+
+  // 1. Check if logs directory exists (SDK may need it)
+  app.get("/api/debug/logs-dir", (_req, res) => {
+    const cwd = process.cwd();
+    const checks = [
+      `${cwd}/logs`,
+      "/app/logs",
+      "/tmp/logs",
+    ];
+    const results: Record<string, boolean> = {};
+    for (const dir of checks) {
+      results[dir] = existsSync(dir);
+    }
+    // Try creating ./logs if it doesn't exist
+    let createResult = "already exists";
+    if (!existsSync(`${cwd}/logs`)) {
+      try {
+        mkdirSync(`${cwd}/logs`, { recursive: true });
+        createResult = "created successfully";
+      } catch (err: any) {
+        createResult = `failed: ${err.message}`;
+      }
+    }
+    res.json({ cwd, checks: results, createLogsDir: createResult });
+  });
+
+  // 2. Check SSL CA certificate paths
+  app.get("/api/debug/ca-certs", (_req, res) => {
+    const paths = [
+      "/etc/ssl/cert.pem",                       // macOS default
+      "/etc/ssl/certs/ca-certificates.crt",       // Debian/Ubuntu
+      "/etc/pki/tls/certs/ca-bundle.crt",         // RHEL/CentOS
+      "/etc/ssl/ca-bundle.pem",                   // OpenSUSE
+      "/etc/ssl/certs",                           // Debian certs dir
+    ];
+    const results: Record<string, boolean> = {};
+    for (const p of paths) {
+      results[p] = existsSync(p);
+    }
+    // Check if /etc/ssl/certs has files
+    let certsDir: string[] = [];
+    try {
+      certsDir = readdirSync("/etc/ssl/certs").slice(0, 10);
+    } catch {}
+    res.json({
+      checks: results,
+      certsDir_sample: certsDir,
+      env: {
+        SSL_CERT_FILE: process.env.SSL_CERT_FILE || "(not set)",
+        SSL_CERT_DIR: process.env.SSL_CERT_DIR || "(not set)",
+        NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS || "(not set)",
+        ZM_RTMS_CA_CERT: process.env.ZM_RTMS_CA_CERT || "(not set)",
+      },
+    });
+  });
+
+  // 3. Check outbound network to Zoom WebSocket servers
+  app.get("/api/debug/network", async (_req, res) => {
+    const results: Record<string, any> = {};
+    // Test HTTPS to zoom.us
+    try {
+      const start = Date.now();
+      const r = await fetch("https://zoom.us", { method: "HEAD", signal: AbortSignal.timeout(5000) });
+      results["https://zoom.us"] = { ok: true, status: r.status, ms: Date.now() - start };
+    } catch (err: any) {
+      results["https://zoom.us"] = { ok: false, error: err.message };
+    }
+    // Test WSS connectivity by doing HTTPS to the same host pattern
+    try {
+      const start = Date.now();
+      const r = await fetch("https://zoomsjc144-195-46-183zssgw.sjc.zoom.us", {
+        method: "HEAD",
+        signal: AbortSignal.timeout(5000),
+      });
+      results["zoom_rtms_server"] = { ok: true, status: r.status, ms: Date.now() - start };
+    } catch (err: any) {
+      results["zoom_rtms_server"] = { ok: false, error: err.message };
+    }
+    res.json(results);
+  });
+
   // Legacy global env var setup (for backward compat / demo mode)
   if (process.env.ZOOM_CLIENT_ID) {
     process.env.ZM_RTMS_CLIENT = process.env.ZOOM_CLIENT_ID;
@@ -400,7 +486,7 @@ export function setupRTMS(app: Express): void {
   // --- Legacy global routes (backward compat) ---
   if (process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET) {
     app.get("/auth", handleOAuth(null));
-    app.post("/webhook", handleWebhook(null, process.env.ZOOM_CLIENT_SECRET));
+    app.post("/webhook", handleWebhook(null, process.env.ZOOM_SECRET_TOKEN || process.env.ZOOM_CLIENT_SECRET));
     console.log("[RTMS] Legacy global webhook: /webhook");
     console.log("[RTMS] Legacy global OAuth: /auth");
   }
