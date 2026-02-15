@@ -18,19 +18,31 @@ interface ConceptOption {
   color: string;
 }
 
+interface ConceptComparison {
+  conceptId: string;
+  label: string;
+  myConfidence: number;
+  partnerConfidence: number;
+  myColor: string;
+  partnerColor: string;
+}
+
 interface MatchDetails {
   matchId: string;
   partner: { id: string; name: string; email?: string };
   conceptLabels: string[];
+  myConceptLabels?: string[];
+  partnerConceptLabels?: string[];
+  conceptComparison?: ConceptComparison[];
   zoomLink: string;
   complementarityScore: number;
 }
 
-const STUDENT_PROFILES: Record<string, { year: string; bio: string; strengths: string[]; weaknesses: string[] }> = {
-  "Alex":    { year: "Senior",    bio: "Strong in linear algebra and optimization. Enjoys breaking down proofs.", strengths: ["Linear Algebra", "Calculus", "Gradient Descent"], weaknesses: ["Regularization", "Dropout"] },
-  "Jordan":  { year: "Junior",    bio: "Solid fundamentals, working through neural network concepts.", strengths: ["Vectors", "Matrices", "Loss Functions"], weaknesses: ["Backpropagation", "Regularization", "Bias-Variance Tradeoff"] },
-  "Sam":     { year: "Junior",    bio: "Getting comfortable with ML basics. Learns best through examples.", strengths: ["Vectors", "Matrices", "Derivatives"], weaknesses: ["Neural Networks", "Backpropagation", "Activation Functions"] },
-  "Taylor":  { year: "Sophomore", bio: "Math whiz, diving into the ML side of things.", strengths: ["Eigenvalues", "Chain Rule", "Bayes' Theorem"], weaknesses: ["Perceptron", "Forward Pass", "Layers"] },
+const STUDENT_PROFILES: Record<string, { year: string; bio: string; strengths: string[]; weaknesses: string[]; availability: string[] }> = {
+  "Alex":    { year: "Senior",    bio: "Strong in linear algebra and optimization. Enjoys breaking down proofs.", strengths: ["Linear Algebra", "Calculus", "Gradient Descent"], weaknesses: ["Regularization", "Dropout"], availability: ["Mon 2-4pm", "Wed 10am-12pm", "Fri 3-5pm"] },
+  "Jordan":  { year: "Junior",    bio: "Solid fundamentals, working through neural network concepts.", strengths: ["Vectors", "Matrices", "Loss Functions"], weaknesses: ["Backpropagation", "Regularization", "Bias-Variance Tradeoff"], availability: ["Mon 2-4pm", "Tue 1-3pm", "Thu 10am-12pm"] },
+  "Sam":     { year: "Junior",    bio: "Getting comfortable with ML basics. Learns best through examples.", strengths: ["Vectors", "Matrices", "Derivatives"], weaknesses: ["Neural Networks", "Backpropagation", "Activation Functions"], availability: ["Wed 10am-12pm", "Thu 2-4pm", "Fri 3-5pm"] },
+  "Taylor":  { year: "Sophomore", bio: "Math whiz, diving into the ML side of things.", strengths: ["Eigenvalues", "Chain Rule", "Bayes' Theorem"], weaknesses: ["Perceptron", "Forward Pass", "Layers"], availability: ["Tue 1-3pm", "Wed 10am-12pm", "Sat 10am-12pm"] },
 };
 
 // Mock data for testing without Supabase
@@ -48,6 +60,15 @@ const MOCK_MATCH_DETAILS: MatchDetails = {
   matchId: "mock-1",
   partner: { id: "student-alex", name: "Alex" },
   conceptLabels: ["Backpropagation", "Dropout"],
+  myConceptLabels: ["Backpropagation", "Dropout", "SGD"],
+  partnerConceptLabels: ["Backpropagation", "Regularization", "Gradient Descent"],
+  conceptComparison: [
+    { conceptId: "c1", label: "Backpropagation", myConfidence: 0.1, partnerConfidence: 0.75, myColor: "red", partnerColor: "green" },
+    { conceptId: "c2", label: "Dropout", myConfidence: 0.15, partnerConfidence: 0.5, myColor: "red", partnerColor: "yellow" },
+    { conceptId: "c3", label: "SGD", myConfidence: 0.2, partnerConfidence: 0.85, myColor: "red", partnerColor: "green" },
+    { conceptId: "c4", label: "Regularization", myConfidence: 0.7, partnerConfidence: 0.2, myColor: "green", partnerColor: "red" },
+    { conceptId: "c5", label: "Gradient Descent", myConfidence: 0.8, partnerConfidence: 0.3, myColor: "green", partnerColor: "red" },
+  ],
   zoomLink: "https://zoom.us/j/123456789",
   complementarityScore: 0.68
 };
@@ -219,6 +240,7 @@ export default function StudyGroupPage() {
 
   const partnerProfile = matchDetails ? STUDENT_PROFILES[matchDetails.partner.name] : undefined;
   const studentName = profile?.name || "Student";
+  const myProfile = STUDENT_PROFILES[studentName];
 
   if (loading) {
     return (
@@ -236,7 +258,7 @@ export default function StudyGroupPage() {
   return (
     <div className="flex h-screen flex-col bg-[#fafafa] text-gray-800 relative overflow-hidden font-sans">
       {/* Header */}
-      <header className="relative z-10 h-14 flex items-center justify-between px-6 border-b border-gray-200/80 bg-white/80 backdrop-blur-sm">
+      <header className="relative z-10 h-14 shrink-0 flex items-center justify-between px-6 border-b border-gray-200/80 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -259,7 +281,7 @@ export default function StudyGroupPage() {
       )}
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-6 overflow-auto">
+      <main className="relative z-10 flex-1 flex items-start justify-center p-6 pt-8 overflow-auto">
         <div className="w-full max-w-2xl">
           {status === 'idle' && (
             <ConceptSelector
@@ -285,6 +307,7 @@ export default function StudyGroupPage() {
               matchDetails={matchDetails}
               partnerProfile={partnerProfile}
               studentName={studentName}
+              myAvailability={myProfile?.availability}
             />
           )}
         </div>

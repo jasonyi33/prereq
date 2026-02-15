@@ -54,12 +54,36 @@ def generate_zoom_link():
     return f"https://zoom.us/j/{room_id}?pwd=prereq"
 
 
+def _build_concept_comparison(my_mastery, partner_mastery, concept_nodes_map, my_concept_ids, partner_concept_ids):
+    """
+    Build per-concept comparison array for the match card.
+    concept_nodes_map: {concept_id: {id, label}}
+    """
+    all_ids = list(set(my_concept_ids) | set(partner_concept_ids))
+    comparison = []
+    for cid in all_ids:
+        node = concept_nodes_map.get(cid)
+        if not node:
+            continue
+        my_conf = my_mastery.get(cid, 0.0)
+        p_conf = partner_mastery.get(cid, 0.0)
+        comparison.append({
+            'conceptId': cid,
+            'label': node['label'],
+            'myConfidence': my_conf,
+            'partnerConfidence': p_conf,
+            'myColor': confidence_to_color(my_conf),
+            'partnerColor': confidence_to_color(p_conf),
+        })
+    return comparison
+
+
 def _find_match(student_id, course_id, concept_ids):
     """
     Internal helper: try to find a match for student.
     Returns match details dict or None.
     """
-    # Fetch student's mastery
+    # Fetch student's mastery for their selected concepts
     my_mastery_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
         'student_id', student_id
     ).in_('concept_id', concept_ids).execute().data
@@ -101,9 +125,36 @@ def _find_match(student_id, course_id, concept_ids):
             'status': 'active'
         }).execute().data[0]
 
-        # Fetch concept labels
-        concept_labels_rows = supabase.table('concept_nodes').select('label').in_('id', shared_concepts).execute().data
+        # Fetch concept labels for shared concepts
+        concept_labels_rows = supabase.table('concept_nodes').select('id, label').in_('id', shared_concepts).execute().data
         labels = [c['label'] for c in concept_labels_rows]
+        concept_nodes_map = {c['id']: c for c in concept_labels_rows}
+
+        # For fallback: use partner's 3 weakest concepts as proxy for their selections
+        partner_mastery_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
+            'student_id', partner_student['id']
+        ).execute().data
+        partner_mastery = {row['concept_id']: row['confidence'] for row in partner_mastery_rows}
+        partner_weakest = sorted(partner_mastery_rows, key=lambda r: r['confidence'])[:3]
+        partner_concept_ids = [r['concept_id'] for r in partner_weakest]
+
+        # Fetch labels for partner concepts too (union with shared)
+        all_comparison_ids = list(set(concept_ids) | set(partner_concept_ids))
+        all_nodes_rows = supabase.table('concept_nodes').select('id, label').in_('id', all_comparison_ids).execute().data
+        concept_nodes_map = {c['id']: c for c in all_nodes_rows}
+
+        # Extend my_mastery to cover partner concepts
+        extra_ids = [cid for cid in partner_concept_ids if cid not in my_mastery]
+        if extra_ids:
+            extra_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
+                'student_id', student_id
+            ).in_('concept_id', extra_ids).execute().data
+            for row in extra_rows:
+                my_mastery[row['concept_id']] = row['confidence']
+
+        my_labels = [concept_nodes_map[cid]['label'] for cid in concept_ids if cid in concept_nodes_map]
+        partner_labels = [concept_nodes_map[cid]['label'] for cid in partner_concept_ids if cid in concept_nodes_map]
+        comparison = _build_concept_comparison(my_mastery, partner_mastery, concept_nodes_map, concept_ids, partner_concept_ids)
 
         cache_delete_pattern(f"study_group_status:{course_id}:*")
 
@@ -111,6 +162,9 @@ def _find_match(student_id, course_id, concept_ids):
             'matchId': match['id'],
             'partner': partner_student,
             'conceptLabels': labels,
+            'myConceptLabels': my_labels,
+            'partnerConceptLabels': partner_labels,
+            'conceptComparison': comparison,
             'zoomLink': zoom_link,
             'complementarityScore': 0.5
         }
@@ -138,6 +192,7 @@ def _find_match(student_id, course_id, concept_ids):
                 'pool_id': entry['id'],
                 'student_id': entry['student_id'],
                 'concept_ids': list(overlap),
+                'partner_concept_ids': entry['concept_ids'],
                 'score': score
             })
 
@@ -156,6 +211,7 @@ def _find_match(student_id, course_id, concept_ids):
                 'pool_id': random_entry['id'],
                 'student_id': random_entry['student_id'],
                 'concept_ids': list(overlap),
+                'partner_concept_ids': random_entry['concept_ids'],
                 'score': 0.3  # Minimum acceptable score
             })
         else:
@@ -190,9 +246,32 @@ def _find_match(student_id, course_id, concept_ids):
     partner_id = best['student_id']
     partner = supabase.table('students').select('id, name, email').eq('id', partner_id).execute().data[0]
 
-    # Fetch concept labels
-    concept_labels_rows = supabase.table('concept_nodes').select('label').in_('id', best['concept_ids']).execute().data
-    labels = [c['label'] for c in concept_labels_rows]
+    # Build concept comparison data
+    all_comparison_ids = list(set(concept_ids) | set(best.get('partner_concept_ids', [])))
+    all_nodes_rows = supabase.table('concept_nodes').select('id, label').in_('id', all_comparison_ids).execute().data
+    concept_nodes_map = {c['id']: c for c in all_nodes_rows}
+
+    # Fetch full mastery for both students across all comparison concepts
+    partner_mastery_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
+        'student_id', partner_id
+    ).in_('concept_id', all_comparison_ids).execute().data
+    partner_mastery = {row['concept_id']: row['confidence'] for row in partner_mastery_rows}
+
+    extra_ids = [cid for cid in all_comparison_ids if cid not in my_mastery]
+    if extra_ids:
+        extra_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
+            'student_id', student_id
+        ).in_('concept_id', extra_ids).execute().data
+        for row in extra_rows:
+            my_mastery[row['concept_id']] = row['confidence']
+
+    partner_concept_ids = best.get('partner_concept_ids', best['concept_ids'])
+    my_labels = [concept_nodes_map[cid]['label'] for cid in concept_ids if cid in concept_nodes_map]
+    partner_labels = [concept_nodes_map[cid]['label'] for cid in partner_concept_ids if cid in concept_nodes_map]
+    comparison = _build_concept_comparison(my_mastery, partner_mastery, concept_nodes_map, concept_ids, partner_concept_ids)
+
+    # Fetch concept labels (for backward compat)
+    labels = [concept_nodes_map[cid]['label'] for cid in best['concept_ids'] if cid in concept_nodes_map]
 
     # Invalidate caches
     cache_delete_pattern(f"study_group_status:{course_id}:*")
@@ -201,6 +280,9 @@ def _find_match(student_id, course_id, concept_ids):
         'matchId': match['id'],
         'partner': partner,
         'conceptLabels': labels,
+        'myConceptLabels': my_labels,
+        'partnerConceptLabels': partner_labels,
+        'conceptComparison': comparison,
         'zoomLink': zoom_link,
         'complementarityScore': best['score']
     }
@@ -221,6 +303,15 @@ def opt_in(course_id):
                 'email': 'alex@stanford.edu'
             },
             'conceptLabels': ['Backpropagation', 'Dropout'],
+            'myConceptLabels': ['Backpropagation', 'Dropout', 'SGD'],
+            'partnerConceptLabels': ['Backpropagation', 'Regularization', 'Gradient Descent'],
+            'conceptComparison': [
+                {'conceptId': 'c1', 'label': 'Backpropagation', 'myConfidence': 0.1, 'partnerConfidence': 0.75, 'myColor': 'red', 'partnerColor': 'green'},
+                {'conceptId': 'c2', 'label': 'Dropout', 'myConfidence': 0.15, 'partnerConfidence': 0.5, 'myColor': 'red', 'partnerColor': 'yellow'},
+                {'conceptId': 'c3', 'label': 'SGD', 'myConfidence': 0.2, 'partnerConfidence': 0.85, 'myColor': 'red', 'partnerColor': 'green'},
+                {'conceptId': 'c4', 'label': 'Regularization', 'myConfidence': 0.7, 'partnerConfidence': 0.2, 'myColor': 'green', 'partnerColor': 'red'},
+                {'conceptId': 'c5', 'label': 'Gradient Descent', 'myConfidence': 0.8, 'partnerConfidence': 0.3, 'myColor': 'green', 'partnerColor': 'red'},
+            ],
             'zoomLink': 'https://zoom.us/j/123456789',
             'complementarityScore': 0.68
         }), 200
@@ -351,14 +442,49 @@ def get_status(course_id):
         partner_id = match['student2_id'] if match['student1_id'] == student_id else match['student1_id']
         partner = supabase.table('students').select('id, name, email').eq('id', partner_id).execute().data[0]
 
-        concept_labels_rows = supabase.table('concept_nodes').select('label').in_('id', match['concept_ids']).execute().data
+        concept_labels_rows = supabase.table('concept_nodes').select('id, label').in_('id', match['concept_ids']).execute().data
         labels = [c['label'] for c in concept_labels_rows]
+        concept_nodes_map = {c['id']: c for c in concept_labels_rows}
+
+        # Look up both students' pool entries to get their original concept selections
+        my_pool = supabase.table('study_group_pool').select('concept_ids').eq(
+            'student_id', student_id
+        ).eq('course_id', course_id).order('created_at', desc=True).limit(1).execute().data
+        partner_pool = supabase.table('study_group_pool').select('concept_ids').eq(
+            'student_id', partner_id
+        ).eq('course_id', course_id).order('created_at', desc=True).limit(1).execute().data
+
+        my_concept_ids = my_pool[0]['concept_ids'] if my_pool else match['concept_ids']
+        partner_concept_ids = partner_pool[0]['concept_ids'] if partner_pool else match['concept_ids']
+
+        # Fetch labels for all concepts in union
+        all_comparison_ids = list(set(my_concept_ids) | set(partner_concept_ids))
+        all_nodes_rows = supabase.table('concept_nodes').select('id, label').in_('id', all_comparison_ids).execute().data
+        concept_nodes_map = {c['id']: c for c in all_nodes_rows}
+
+        # Fetch mastery for both students
+        my_mastery_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
+            'student_id', student_id
+        ).in_('concept_id', all_comparison_ids).execute().data
+        my_mastery = {row['concept_id']: row['confidence'] for row in my_mastery_rows}
+
+        partner_mastery_rows = supabase.table('student_mastery').select('concept_id, confidence').eq(
+            'student_id', partner_id
+        ).in_('concept_id', all_comparison_ids).execute().data
+        partner_mastery = {row['concept_id']: row['confidence'] for row in partner_mastery_rows}
+
+        my_labels = [concept_nodes_map[cid]['label'] for cid in my_concept_ids if cid in concept_nodes_map]
+        partner_labels = [concept_nodes_map[cid]['label'] for cid in partner_concept_ids if cid in concept_nodes_map]
+        comparison = _build_concept_comparison(my_mastery, partner_mastery, concept_nodes_map, my_concept_ids, partner_concept_ids)
 
         result = {
             'status': 'matched',
             'matchId': match['id'],
             'partner': partner,
             'conceptLabels': labels,
+            'myConceptLabels': my_labels,
+            'partnerConceptLabels': partner_labels,
+            'conceptComparison': comparison,
             'zoomLink': match['zoom_link'],
             'createdAt': match['created_at']
         }
