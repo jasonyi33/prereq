@@ -25,6 +25,7 @@ import ConceptLearning from "./ConceptLearning";
 interface TranscriptExcerpt {
   text: string;
   timestamp_sec: number;
+  lecture_title?: string;
 }
 
 interface Resource {
@@ -304,6 +305,11 @@ export default function SidePanel({
                 <div className="space-y-2">
                   {transcripts.map((t, i) => (
                     <div key={i} className="text-xs border-l-2 border-blue-300 pl-2.5 py-1">
+                      {t.lecture_title && (
+                        <span className="inline-flex items-center px-1.5 py-0 text-[10px] font-medium bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-md mr-1.5">
+                          {t.lecture_title}
+                        </span>
+                      )}
                       <span className="font-mono text-blue-500 text-[10px]">
                         {formatTimestamp(t.timestamp_sec)}
                       </span>{" "}

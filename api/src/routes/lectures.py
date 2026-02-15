@@ -106,9 +106,18 @@ def get_transcript_excerpts(lecture_id):
     if not concept_ids:
         return jsonify([]), 200
 
+    # Fetch lecture title
+    lecture_result = supabase.table('lecture_sessions').select('title').eq('id', lecture_id).execute()
+    lecture_title = lecture_result.data[0]['title'] if lecture_result.data else ''
+
+    # Filter by lecture_id (BUG FIX: was previously returning chunks from ALL lectures)
     result = supabase.table('transcript_concepts').select(
-        'concept_id, transcript_chunks!inner(text, timestamp_sec)'
-    ).in_('concept_id', concept_ids).limit(20).execute()
+        'concept_id, transcript_chunks!inner(text, timestamp_sec, lecture_id)'
+    ).eq(
+        'transcript_chunks.lecture_id', lecture_id
+    ).in_('concept_id', concept_ids).order(
+        'transcript_chunks(timestamp_sec)'
+    ).limit(20).execute()
 
     excerpts = []
     for row in result.data:
@@ -116,6 +125,7 @@ def get_transcript_excerpts(lecture_id):
         excerpts.append({
             'text': chunk.get('text', ''),
             'timestamp_sec': chunk.get('timestamp_sec', 0),
+            'lecture_title': lecture_title,
         })
 
     return jsonify(excerpts), 200

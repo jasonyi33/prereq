@@ -26,8 +26,13 @@ TASK:
 Identify which of the known concepts above are being actively discussed or taught in this transcript chunk.
 
 RULES:
-- Only return concepts that are clearly being explained or taught, not just briefly mentioned in passing.
-- Return an empty array if no concepts are being discussed.
+- Only return a concept if it is a PRIMARY TOPIC of this chunk — the speaker is actively explaining, defining, deriving, or working through it in detail.
+- Do NOT return a concept if it is merely:
+  - Referenced as background context or a brief comparison ("unlike gradient descent, we...")
+  - Mentioned as a transition to another topic ("now that we've covered X, let's move to...")
+  - Used as a single word or phrase without substantive explanation
+- When in doubt, do NOT include the concept. Prefer false negatives over false positives.
+- Return an empty array if no concepts are being substantively taught.
 - Only use labels from the provided list — do not invent new ones.
 
 Return ONLY valid JSON (no markdown, no explanation):
