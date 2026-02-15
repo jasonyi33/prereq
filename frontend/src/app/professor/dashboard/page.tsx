@@ -14,12 +14,6 @@ import { useSocket, useSocketEvent } from "@/lib/socket";
 import { flaskApi, nextApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-function confidenceToColor(confidence: number): string {
-  if (confidence === 0) return "gray";
-  if (confidence < 0.4) return "red";
-  if (confidence < 0.7) return "yellow";
-  return "green";
-}
 
 export default function ProfessorDashboard() {
   const router = useRouter();
@@ -220,9 +214,14 @@ export default function ProfessorDashboard() {
           flaskApi
             .get(`/api/students/${s.id}/mastery`)
             .then((mastery: { confidence: number }[]) => {
-              const dist = { green: 0, yellow: 0, red: 0, gray: 0 };
+              const dist = { green: 0, lime: 0, yellow: 0, orange: 0, gray: 0 };
               for (const m of mastery) {
-                dist[confidenceToColor(m.confidence) as keyof typeof dist]++;
+                const c = m.confidence;
+                if (c === 0) dist.gray++;
+                else if (c < 0.4) dist.orange++;
+                else if (c < 0.55) dist.yellow++;
+                else if (c < 0.7) dist.lime++;
+                else dist.green++;
               }
               setStudents((current) =>
                 current.map((cs) =>
