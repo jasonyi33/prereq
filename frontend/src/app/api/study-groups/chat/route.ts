@@ -12,22 +12,30 @@ const anthropic = new Anthropic({
  * Uses Claude Haiku to simulate partner responses with short, concise messages.
  */
 export async function POST(request: NextRequest) {
+  let body;
+
   try {
-    const body = await request.json();
-    console.log("[study-groups/chat] Received:", body);
+    body = await request.json();
+  } catch (parseError) {
+    console.error("[study-groups/chat] JSON parse error:", parseError);
+    return NextResponse.json(
+      { error: "Invalid JSON" },
+      { status: 400 }
+    );
+  }
 
-    const { message, partnerName, concepts, conversationHistory } = body;
+  const { message, partnerName, concepts, conversationHistory } = body;
 
-    if (!message || !partnerName) {
-      console.error("[study-groups/chat] Missing required fields");
-      return NextResponse.json(
-        { error: "message and partnerName required" },
-        { status: 400 }
-      );
-    }
+  if (!message || !partnerName) {
+    return NextResponse.json(
+      { error: "message and partnerName required" },
+      { status: 400 }
+    );
+  }
 
+  try {
     // Build conversation context for Claude
-    const systemPrompt = `You are ${partnerName}, a student in a peer study group. You're working together on these concepts: ${concepts.join(", ")}.
+    const systemPrompt = `You are ${partnerName}, a student in a peer study group. You're working together on these concepts: ${(concepts || []).join(", ")}.
 
 IMPORTANT INSTRUCTIONS:
 - Keep responses VERY SHORT (1-3 sentences max)
@@ -47,7 +55,7 @@ Examples of good responses:
     // Format conversation history
     const messages: Anthropic.MessageParam[] = [];
 
-    if (conversationHistory && conversationHistory.length > 0) {
+    if (conversationHistory && Array.isArray(conversationHistory)) {
       for (const msg of conversationHistory) {
         messages.push({
           role: msg.role === "user" ? "user" : "assistant",
@@ -65,7 +73,7 @@ Examples of good responses:
     // Call Claude Haiku
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,  // Keep responses short
+      max_tokens: 150,
       system: systemPrompt,
       messages,
     }, { timeout: 5000 });
@@ -74,16 +82,14 @@ Examples of good responses:
       ? response.content[0].text
       : "I'm not sure what to say about that.";
 
-    console.log("[study-groups/chat] Reply:", reply);
     return NextResponse.json({ reply });
 
   } catch (err) {
     console.error("[study-groups/chat] Error:", err);
-    console.error("[study-groups/chat] Error stack:", err instanceof Error ? err.stack : "No stack");
     return NextResponse.json(
       {
         error: "Failed to get response",
-        details: err instanceof Error ? err.message : String(err)
+        details: err instanceof Error ? err.message : "Unknown error"
       },
       { status: 500 }
     );
