@@ -60,13 +60,21 @@ RECENT LECTURE TRANSCRIPT:
 "${recentTranscript}"
 
 TASK:
-Generate a natural language question that tests whether a student truly understands this concept. The question should:
-- Test real understanding, not just recall or trivia
-- Be answerable in 2-3 sentences of natural language (not multiple choice)
-- Reference the lecture context if possible
-- Be clear and unambiguous
+Generate a SHORT, CLEAN question that tests real understanding of this concept.
 
-Also provide an expected answer that captures the key points a correct response should include.
+REQUIREMENTS:
+- Keep the question concise (1 sentence, max 15 words)
+- Ask something fundamental that reveals understanding vs confusion
+- Make it answerable in 1-2 short sentences
+- No multiple choice - open-ended but focused
+- Be direct and clear
+
+EXAMPLES OF GOOD QUESTIONS:
+- "What does the learning rate control in gradient descent?"
+- "Why do we use ReLU instead of sigmoid in hidden layers?"
+- "How does dropout prevent overfitting?"
+
+Also provide a brief expected answer (2-3 sentences max).
 
 Return ONLY valid JSON (no markdown, no explanation):
 { "question": "...", "expected_answer": "..." }`;

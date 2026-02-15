@@ -119,9 +119,15 @@ router.post("/api/lectures/:id/poll/:pollId/close", json(), async (req, res) => 
     }
 
     // Fetch all responses for this poll
-    const responses = await flaskGet<{ answer: string; evaluation: { eval_result?: string } | null }[]>(
-      `/api/polls/${pollId}/responses`
-    );
+    let responses: { answer: string; evaluation: { eval_result?: string } | null }[] = [];
+    try {
+      responses = await flaskGet<{ answer: string; evaluation: { eval_result?: string } | null }[]>(
+        `/api/polls/${pollId}/responses`
+      );
+    } catch (err) {
+      console.warn("[poll-close] Failed to fetch responses (poll may have no responses):", err);
+      responses = [];
+    }
 
     const totalResponses = responses?.length || 0;
 
@@ -156,10 +162,15 @@ router.post("/api/lectures/:id/poll/:pollId/close", json(), async (req, res) => 
     }
 
     // Generate misconception summary via Claude Haiku
-    const misconceptionSummary = await generateMisconceptionSummary(
-      poll.question,
-      parsedResponses
-    );
+    let misconceptionSummary = "No summary available.";
+    try {
+      misconceptionSummary = await generateMisconceptionSummary(
+        poll.question,
+        parsedResponses
+      );
+    } catch (err) {
+      console.warn("[poll-close] Failed to generate misconception summary:", err);
+    }
 
     const results = { distribution, totalResponses, misconceptionSummary };
 

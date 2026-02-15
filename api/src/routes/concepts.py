@@ -40,143 +40,69 @@ def get_concepts():
 
 @concepts.route('/api/concepts/<concept_id>/learning-page', methods=['GET'])
 @optional_auth
-def generate_learning_page(concept_id):
-    """Generate a comprehensive learning page for a concept using Claude."""
-    cache_key = f"learning_page:{concept_id}"
-    cached = cache_get(cache_key)
-    if cached:
-        return jsonify(cached), 200
-
+def get_learning_page(concept_id):
+    """Get precomputed learning page for a concept from database."""
     # Get concept details
-    concept_result = supabase.table('concept_nodes').select('label, description, category').eq('id', concept_id).execute()
+    concept_result = supabase.table('concept_nodes').select('label').eq('id', concept_id).execute()
     if not concept_result.data:
         return jsonify({'error': 'Concept not found'}), 404
 
     concept = concept_result.data[0]
 
-    # Generate learning page using Claude
-    if not anthropic_client:
-        return jsonify({'error': 'AI service not configured'}), 503
+    # Get learning page content from database
+    page_result = supabase.table('concept_learning_pages').select('content').eq('concept_id', concept_id).execute()
 
-    try:
-        prompt = f"""Generate a comprehensive learning page for the concept: **{concept['label']}**
-
-Description: {concept.get('description', 'N/A')}
-Category: {concept.get('category', 'N/A')}
-
-Create an engaging, educational page that includes:
-
-1. **Overview** (2-3 sentences): What is this concept and why is it important?
-
-2. **Key Ideas** (3-4 bullet points): The core principles students must understand
-
-3. **Intuitive Explanation**: Explain the concept in simple terms, as if teaching someone for the first time. Use analogies where helpful.
-
-4. **Mathematical Foundation** (if applicable): Present the key formulas or mathematical relationships using LaTeX notation. Inline math: $formula$, Display math: $$formula$$
-
-5. **Practical Example**: A concrete example showing how this concept is used, with step-by-step reasoning
-
-6. **Common Misconceptions**: 2-3 things students often get wrong about this concept
-
-7. **Connection to Other Topics**: How this concept relates to other areas (mention 2-3 related concepts)
-
-Format your response in markdown with proper headings, bullet points, and LaTeX for mathematical expressions. Make it engaging and accessible."""
-
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        content = message.content[0].text if message.content else "Failed to generate content"
-
-        result = {
+    if not page_result.data:
+        return jsonify({
             'concept_label': concept['label'],
-            'content': content
-        }
+            'content': '## Coming Soon\n\nLearning content for this concept is being prepared. Check back soon!'
+        }), 200
 
-        cache_set(cache_key, result, ttl_seconds=3600)  # Cache for 1 hour
-        return jsonify(result), 200
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({
+        'concept_label': concept['label'],
+        'content': page_result.data[0]['content']
+    }), 200
 
 
 @concepts.route('/api/concepts/<concept_id>/quiz', methods=['GET'])
 @optional_auth
-def generate_quiz(concept_id):
-    """Generate a 5-question quiz for a concept using Claude."""
-    cache_key = f"quiz:{concept_id}"
-    cached = cache_get(cache_key)
-    if cached:
-        return jsonify(cached), 200
-
+def get_quiz(concept_id):
+    """Get precomputed quiz questions for a concept from database."""
     # Get concept details
-    concept_result = supabase.table('concept_nodes').select('label, description, category').eq('id', concept_id).execute()
+    concept_result = supabase.table('concept_nodes').select('label').eq('id', concept_id).execute()
     if not concept_result.data:
         return jsonify({'error': 'Concept not found'}), 404
 
     concept = concept_result.data[0]
 
-    # Generate quiz using Claude
-    if not anthropic_client:
-        return jsonify({'error': 'AI service not configured'}), 503
+    # Get quiz questions from database
+    questions_result = supabase.table('concept_quiz_questions').select('*').eq('concept_id', concept_id).order('question_order').execute()
 
-    try:
-        prompt = f"""Generate a 5-question multiple choice quiz for the concept: **{concept['label']}**
+    if not questions_result.data:
+        return jsonify({
+            'concept_label': concept['label'],
+            'questions': []
+        }), 200
 
-Description: {concept.get('description', 'N/A')}
-Category: {concept.get('category', 'N/A')}
+    # Format questions for frontend
+    questions = []
+    for q in questions_result.data:
+        questions.append({
+            'question': q['question'],
+            'options': [
+                f"A) {q['option_a']}",
+                f"B) {q['option_b']}",
+                f"C) {q['option_c']}",
+                f"D) {q['option_d']}"
+            ],
+            'correct_answer': q['correct_answer'],
+            'explanation': q['explanation']
+        })
 
-Create 5 multiple choice questions that:
-- Progress from basic understanding to application
-- Test different aspects of the concept
-- Have 4 options each (A, B, C, D)
-- Include one clearly correct answer
-- Have plausible but incorrect distractors
-
-Return ONLY a valid JSON object (no markdown, no code blocks) in this exact format:
-{{
-  "questions": [
-    {{
-      "question": "Question text here",
-      "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-      "correct_answer": 0,
-      "explanation": "Why this is correct"
-    }}
-  ]
-}}
-
-The correct_answer field should be the index (0-3) of the correct option."""
-
-        message = anthropic_client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        content = message.content[0].text if message.content else "{}"
-
-        # Parse JSON from response
-        import json
-        try:
-            quiz_data = json.loads(content)
-            result = {
-                'concept_label': concept['label'],
-                'questions': quiz_data.get('questions', [])
-            }
-        except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
-            result = {
-                'concept_label': concept['label'],
-                'questions': []
-            }
-
-        cache_set(cache_key, result, ttl_seconds=3600)  # Cache for 1 hour
-        return jsonify(result), 200
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    return jsonify({
+        'concept_label': concept['label'],
+        'questions': questions
+    }), 200
 
 
 @concepts.route('/api/concepts/<concept_id>/quiz-submit', methods=['POST'])
