@@ -37,12 +37,14 @@ export async function POST(request: NextRequest) {
 
   // Fallback responses if Claude isn't available
   const fallbackResponses = [
-    "That's a good question! Let me think about that for a sec.",
-    "Oh interesting point! Have you looked at the lecture notes on that?",
-    "Yeah I struggled with that too. Want to work through an example together?",
-    "Good observation! That concept really clicked for me when I drew it out.",
-    "I'm not 100% sure either. Should we look it up together?",
-    "That makes sense! I think the key is understanding how it relates to the other concepts.",
+    "hmm let me think about that",
+    "oh yeah i remember that part",
+    "wait can you explain that again?",
+    "yeah that one confused me too lol",
+    "ohhh okay that makes sense",
+    "try drawing it out maybe?",
+    "yeah i think so",
+    "hmm not sure, wanna look it up?",
   ];
 
   // If no Anthropic key, use fallback
@@ -53,22 +55,21 @@ export async function POST(request: NextRequest) {
 
   try {
     // Build conversation context for Claude
-    const systemPrompt = `You are ${partnerName}, a student in a peer study group. You're working together on these concepts: ${(concepts || []).join(", ")}.
+    const systemPrompt = `You're ${partnerName}, texting with a study partner about: ${(concepts || []).join(", ")}
 
-IMPORTANT INSTRUCTIONS:
-- Keep responses VERY SHORT (1-3 sentences max)
-- Be helpful but concise
-- Ask clarifying questions when needed
-- Share quick insights or examples
-- Be friendly and collaborative
-- Never write long explanations - this is a chat, not a lecture
-- Use casual student language
+TEXT LIKE A REAL STUDENT:
+- Super short (1-2 sentences)
+- Casual, friendly
+- Use "yeah", "oh", "wait", "hmm", "lol" etc.
+- Ask quick questions
+- No formal language or long explanations
 
-Examples of good responses:
-- "Oh interesting! Have you tried thinking about it geometrically?"
-- "Yeah that confused me too. The key is understanding the chain rule first."
-- "Wait, can you clarify what you mean by that?"
-- "Totally! It's like how momentum keeps things moving even after you stop pushing."`;
+Examples:
+- "oh wait do you mean the derivative?"
+- "yeah that one tripped me up too lol"
+- "hmm try drawing it out maybe?"
+- "ohhh that makes sense now"
+- "wait can you explain that part again"`;
 
     // Format conversation history
     const messages: Anthropic.MessageParam[] = [];
@@ -91,7 +92,7 @@ Examples of good responses:
     // Call Claude Haiku
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+      max_tokens: 80,  // Keep it short like real texts
       system: systemPrompt,
       messages,
     }, { timeout: 5000 });
