@@ -228,7 +228,7 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
   });
 
   client.onJoinConfirm((reason: number) => {
-    diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}`);
+    diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}, clientId=${clientId.slice(0, 8)}...`);
     startTime = Date.now();
   });
 
@@ -240,21 +240,9 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     }
   });
 
-  // Set SDK env vars temporarily for this client's join call
-  // (the SDK's client.join() generates the signature internally from these)
-  const prevClient = process.env.ZM_RTMS_CLIENT;
-  const prevSecret = process.env.ZM_RTMS_SECRET;
-  process.env.ZM_RTMS_CLIENT = clientId;
-  process.env.ZM_RTMS_SECRET = clientSecret;
-
-  diag("join", `Calling client.join() with streamId=${streamId}`);
-  client.join(payload);
-
-  // Restore previous env vars
-  if (prevClient !== undefined) process.env.ZM_RTMS_CLIENT = prevClient;
-  else delete process.env.ZM_RTMS_CLIENT;
-  if (prevSecret !== undefined) process.env.ZM_RTMS_SECRET = prevSecret;
-  else delete process.env.ZM_RTMS_SECRET;
+  // Pass credentials directly to join() — avoids env var race conditions with multiple teachers
+  diag("join", `Calling client.join() with streamId=${streamId}, clientId=${clientId.slice(0, 8)}..., secretLen=${clientSecret.length}`);
+  client.join({ ...payload, client: clientId, secret: clientSecret });
 
   diag("join", "client.join() called — waiting for onJoinConfirm callback...");
 }
@@ -378,6 +366,10 @@ function handleOAuth(teacherId: string | null) {
 // --- Setup ---
 
 export function setupRTMS(app: Express): void {
+  // Enable SDK debug logging to diagnose auth failures
+  process.env.ZM_RTMS_LOG_LEVEL = "debug";
+  process.env.ZM_RTMS_LOG_ENABLED = "true";
+
   // --- Diagnostic endpoint ---
   app.get("/api/rtms/status", (_req, res) => {
     res.json({
