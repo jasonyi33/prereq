@@ -211,22 +211,19 @@ Return ONLY the markdown content, no additional commentary."""
 
     content = response.content[0].text
 
-    # Check if already exists (for general content, student_id is null)
-    existing = supabase.table('learning_pages').select('id').eq('concept_id', concept_id).is_('student_id', 'null').execute()
+    # Check if already exists
+    existing = supabase.table('concept_learning_pages').select('id').eq('concept_id', concept_id).execute()
 
     if existing.data:
         # Update existing
-        supabase.table('learning_pages').update({
+        supabase.table('concept_learning_pages').update({
             'content': content
-        }).eq('concept_id', concept_id).is_('student_id', 'null').execute()
+        }).eq('concept_id', concept_id).execute()
     else:
         # Insert new
-        supabase.table('learning_pages').insert({
-            'student_id': None,
+        supabase.table('concept_learning_pages').insert({
             'concept_id': concept_id,
-            'title': concept['label'],
-            'content': content,
-            'further_reading': None
+            'content': content
         }).execute()
 
     return {'concept_id': concept_id, 'concept_label': concept['label'], 'content': content}
