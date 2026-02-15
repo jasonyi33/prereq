@@ -75,7 +75,8 @@ Return ONLY valid JSON with this exact structure:
 
 Requirements:
 - 30-40 concept nodes (HARD LIMIT: never exceed 40)
-- Edges form a DAG (no cycles)
+- Edges form a connected DAG (no cycles)
+- EVERY node must have at least one edge (incoming or outgoing). No isolated nodes.
 - Use concise snake_case IDs (e.g., linear_reg, svm, k_means)
 - Each edge: source is prerequisite for target
 - Only include edges that represent genuine prerequisite relationships

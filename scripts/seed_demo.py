@@ -238,6 +238,9 @@ def main():
         ("Cross-Validation", "Bias-Variance Tradeoff"),
         ("Gradients", "Backpropagation"),
         ("Matrix Multiplication", "Forward Pass"),
+        # Connect probability cluster to main graph
+        ("Distributions", "Loss Functions"),
+        ("Bayes' Theorem", "Cross-Entropy"),
     ]
 
     print("Creating edges...")

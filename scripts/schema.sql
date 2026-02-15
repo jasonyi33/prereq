@@ -126,6 +126,17 @@ CREATE INDEX IF NOT EXISTS idx_teachers_auth_id ON teachers(auth_id);
 CREATE INDEX IF NOT EXISTS idx_students_auth_id ON students(auth_id);
 CREATE INDEX IF NOT EXISTS idx_courses_join_code ON courses(join_code);
 
+-- PDF upload cache (avoids re-processing duplicate uploads)
+CREATE TABLE pdf_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    file_hash VARCHAR(64) UNIQUE NOT NULL,
+    filename VARCHAR(255),
+    result JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS pdf_cache_hash VARCHAR(64);
+
 -- Study group tables for peer-to-peer matching
 CREATE TABLE study_group_pool (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

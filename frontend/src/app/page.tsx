@@ -386,15 +386,14 @@ function CreateCourseForm({ onCreated }: { onCreated: () => void }) {
     setCreating(true);
     setError("");
     try {
-      const result: { id: string; join_code?: string } = await flaskApi.post("/api/courses", {
-        name: courseName,
-        description: courseDesc,
-      });
-      localStorage.setItem("courseId", result.id);
+      // Demo mode: skip course creation, use dummy ID
+      const existingCourseId = localStorage.getItem("courseId");
+      if (existingCourseId) localStorage.setItem("realCourseId", existingCourseId);
+      const dummyCourseId = "demo-" + crypto.randomUUID();
+      localStorage.setItem("courseId", dummyCourseId);
+      localStorage.setItem("demoUpload", "true");
       onCreated();
       refreshProfile();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create course");
     } finally {
       setCreating(false);
     }

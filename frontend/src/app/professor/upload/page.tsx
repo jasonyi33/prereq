@@ -35,6 +35,8 @@ export default function UploadPage() {
       return;
     }
 
+    const isDemoUpload = typeof window !== "undefined" && localStorage.getItem("demoUpload") === "true";
+
     setFileName(file.name);
     setStage("uploading");
     setError("");
@@ -47,7 +49,11 @@ export default function UploadPage() {
       const headers: Record<string, string> = {};
       if (token) headers.Authorization = `Bearer ${token}`;
 
-      const res = await fetch(`${FLASK_API_URL}/api/courses/${courseId}/upload`, {
+      const uploadUrl = isDemoUpload
+        ? `${FLASK_API_URL}/api/courses/${courseId}/upload?demo=true`
+        : `${FLASK_API_URL}/api/courses/${courseId}/upload`;
+
+      const res = await fetch(uploadUrl, {
         method: "POST",
         headers,
         body: formData,
@@ -62,28 +68,55 @@ export default function UploadPage() {
         throw new Error(message);
       }
 
-      // Fetch the proper graph from the graph endpoint
-      const graphData: {
-        nodes: (GraphNode & { source_id?: string; target_id?: string })[];
-        edges: { source_id?: string; target_id?: string; source?: string; target?: string }[];
-      } = await flaskApi.get(`/api/courses/${courseId}/graph`);
+      if (isDemoUpload) {
+        // Demo mode: render KG directly from upload response
+        const uploadResult = await res.json();
+        const g = uploadResult.graph;
+        const imp = uploadResult.importance || {};
 
-      if (graphData.nodes) {
-        setNodes(
-          graphData.nodes.map((n) => ({
-            ...n,
-            color: n.color || "gray",
-            confidence: n.confidence ?? 0,
-          })),
-        );
-      }
-      if (graphData.edges) {
-        setEdges(
-          graphData.edges.map((e) => ({
-            source: e.source_id || e.source || "",
-            target: e.target_id || e.target || "",
-          })),
-        );
+        const builtNodes: GraphNode[] = Object.entries(g.nodes).map(([label, desc], i) => ({
+          id: `demo-${i}`,
+          label,
+          description: desc as string,
+          confidence: 0,
+          color: "gray",
+          importance: imp[label] || 0.5,
+        }));
+
+        const labelToTempId = Object.fromEntries(builtNodes.map(n => [n.label, n.id]));
+        const builtEdges: GraphEdge[] = (g.edges || [])
+          .filter(([s, t]: [string, string]) => labelToTempId[s] && labelToTempId[t])
+          .map(([s, t]: [string, string]) => ({
+            source: labelToTempId[s],
+            target: labelToTempId[t],
+          }));
+
+        setNodes(builtNodes);
+        setEdges(builtEdges);
+      } else {
+        // Normal mode: fetch from graph endpoint
+        const graphData: {
+          nodes: (GraphNode & { source_id?: string; target_id?: string })[];
+          edges: { source_id?: string; target_id?: string; source?: string; target?: string }[];
+        } = await flaskApi.get(`/api/courses/${courseId}/graph`);
+
+        if (graphData.nodes) {
+          setNodes(
+            graphData.nodes.map((n) => ({
+              ...n,
+              color: n.color || "gray",
+              confidence: n.confidence ?? 0,
+            })),
+          );
+        }
+        if (graphData.edges) {
+          setEdges(
+            graphData.edges.map((e) => ({
+              source: e.source_id || e.source || "",
+              target: e.target_id || e.target || "",
+            })),
+          );
+        }
       }
 
       setStage("preview");
@@ -131,7 +164,16 @@ export default function UploadPage() {
             </div>
           </div>
           <button
-            onClick={() => router.push("/professor/dashboard")}
+            onClick={() => {
+              // If demo upload, restore the real course ID for the dashboard
+              if (typeof window !== "undefined" && localStorage.getItem("demoUpload") === "true") {
+                const realCourseId = localStorage.getItem("realCourseId");
+                if (realCourseId) localStorage.setItem("courseId", realCourseId);
+                localStorage.removeItem("demoUpload");
+                localStorage.removeItem("realCourseId");
+              }
+              router.push("/professor/dashboard");
+            }}
             className="flex items-center gap-2 px-5 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
           >
             Continue to Dashboard
