@@ -101,7 +101,24 @@ def _find_match(student_id, course_id, concept_ids):
             })
 
     if not candidates:
-        return None
+        # FALLBACK: No good complementarity match found
+        # Pick ANY random student from pool for demo (always match someone)
+        if pool_entries:
+            import random
+            random_entry = random.choice(pool_entries)
+            # Find ANY overlapping concepts (or all if none overlap)
+            overlap = set(concept_ids) & set(random_entry['concept_ids'])
+            if not overlap:
+                overlap = set(concept_ids[:2])  # Use first 2 of student's concepts as fallback
+
+            candidates.append({
+                'pool_id': random_entry['id'],
+                'student_id': random_entry['student_id'],
+                'concept_ids': list(overlap),
+                'score': 0.3  # Minimum acceptable score
+            })
+        else:
+            return None
 
     # Select best match
     best = max(candidates, key=lambda c: c['score'])

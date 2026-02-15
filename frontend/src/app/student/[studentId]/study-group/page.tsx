@@ -89,41 +89,30 @@ export default function StudyGroupPage() {
       return;
     }
 
-    Promise.all([
-      flaskApi.get(`/api/courses/${courseId}/graph?student_id=${studentId}`),
-      flaskApi.get(`/api/courses/${courseId}/study-groups/status?studentId=${studentId}`)
-    ])
-      .then(([graphData, statusData]) => {
-        // Extract concepts from graph
-        const conceptOptions: ConceptOption[] = graphData.nodes.map((n: any) => ({
-          id: n.id,
-          label: n.label,
-          category: n.category || "Other",
-          confidence: n.confidence ?? 0,
-          color: n.color || "gray"
-        }));
-        setConcepts(conceptOptions);
-
-        // Check existing status
-        if (statusData.status === 'matched') {
-          setMatchDetails(statusData);
-          setStatus('matched');
-        } else if (statusData.status === 'waiting') {
-          setStatus('waiting');
-          // Try to map concept labels back to IDs
-          const conceptMap = new Map(conceptOptions.map(c => [c.label, c.id]));
-          const selectedIds = statusData.conceptLabels
-            .map((label: string) => conceptMap.get(label))
-            .filter((id: string | undefined): id is string => Boolean(id));
-          setSelectedConcepts(new Set(selectedIds));
-        }
-      })
-      .catch(err => {
-        console.error("Failed to load:", err);
-        setError("Failed to load data. Using mock data for demo.");
-        setConcepts(MOCK_CONCEPTS);
-      })
-      .finally(() => setLoading(false));
+    // Auto-clear any existing matches/waiting status when entering this page
+    flaskApi.post(`/api/courses/${courseId}/study-groups/opt-out`, { studentId })
+      .catch(() => {}) // Ignore errors if not in pool
+      .finally(() => {
+        // Then fetch graph data
+        flaskApi.get(`/api/courses/${courseId}/graph?student_id=${studentId}`)
+          .then((graphData) => {
+            // Extract concepts from graph
+            const conceptOptions: ConceptOption[] = graphData.nodes.map((n: any) => ({
+              id: n.id,
+              label: n.label,
+              category: n.category || "Other",
+              confidence: n.confidence ?? 0,
+              color: n.color || "gray"
+            }));
+            setConcepts(conceptOptions);
+          })
+          .catch(err => {
+            console.error("Failed to load:", err);
+            setError("Failed to load data. Using mock data for demo.");
+            setConcepts(MOCK_CONCEPTS);
+          })
+          .finally(() => setLoading(false));
+      });
   }, [courseId, studentId, useMockData]);
 
   // Poll status while waiting (every 3s, 30s timeout)
