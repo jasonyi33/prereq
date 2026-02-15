@@ -63,7 +63,9 @@ def get_courses():
         teacher = supabase.table('teachers').select('id').eq('auth_id', g.user['sub']).execute().data
         if teacher:
             result = supabase.table('courses').select('*').eq('teacher_id', teacher[0]['id']).execute()
-            return jsonify(result.data), 200
+            if result.data:
+                return jsonify(result.data), 200
+            # Teacher has no courses — fall through to return all (picks up seeded courses)
 
         # Student: filter to enrolled courses
         students = supabase.table('students').select('course_id').eq('auth_id', g.user['sub']).execute().data

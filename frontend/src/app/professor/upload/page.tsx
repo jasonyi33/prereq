@@ -59,6 +59,9 @@ export default function UploadPage() {
         body: formData,
       });
 
+      // Add a small delay so cached results don't appear instant
+      await new Promise((r) => setTimeout(r, 2000));
+
       if (!res.ok) {
         let message = `Upload failed (${res.status})`;
         try {
