@@ -192,122 +192,134 @@ def upload_course_pdf(course_id):
 
     demo_mode = request.args.get('demo') == 'true'
 
-    if not demo_mode:
-        # Update course
-        supabase.table('courses').update({
-            'pdf_cache_hash': file_hash
-        }).eq('id', course_id).execute()
+    # Demo mode: just return the graph data without touching DB (preserves seeded data)
+    if demo_mode:
+        return jsonify(graph_data), 200
 
-        # Clear old concepts before inserting (replace, not append)
-        supabase.table('concept_edges').delete().eq('course_id', course_id).execute()
-        supabase.table('concept_nodes').delete().eq('course_id', course_id).execute()
+    # --- Non-demo: persist to DB ---
 
-        # Insert nodes
-        node_id_map = {}
-        for label, description in graph_data['graph']['nodes'].items():
-            result = supabase.table('concept_nodes').insert({
+    # Update course
+    supabase.table('courses').update({
+        'pdf_cache_hash': file_hash
+    }).eq('id', course_id).execute()
+
+    # Clear old concepts before inserting (replace, not append)
+    supabase.table('concept_edges').delete().eq('course_id', course_id).execute()
+    # Delete mastery rows for old concepts
+    old_concepts = supabase.table('concept_nodes').select('id').eq('course_id', course_id).execute().data
+    if old_concepts:
+        old_ids = [c['id'] for c in old_concepts]
+        for i in range(0, len(old_ids), 100):
+            batch = old_ids[i:i+100]
+            supabase.table('student_mastery').delete().in_('concept_id', batch).execute()
+    supabase.table('concept_nodes').delete().eq('course_id', course_id).execute()
+
+    # Insert nodes
+    node_id_map = {}
+    for label, description in graph_data['graph']['nodes'].items():
+        result = supabase.table('concept_nodes').insert({
+            'course_id': course_id,
+            'label': label,
+            'description': description,
+        }).execute()
+        node_id_map[label] = result.data[0]['id']
+
+    # Insert edges
+    for source_label, target_label in graph_data['graph']['edges']:
+        if source_label in node_id_map and target_label in node_id_map:
+            supabase.table('concept_edges').insert({
                 'course_id': course_id,
-                'label': label,
-                'description': description,
+                'source_id': node_id_map[source_label],
+                'target_id': node_id_map[target_label]
             }).execute()
-            node_id_map[label] = result.data[0]['id']
 
-        # Insert edges
-        for source_label, target_label in graph_data['graph']['edges']:
-            if source_label in node_id_map and target_label in node_id_map:
-                supabase.table('concept_edges').insert({
-                    'course_id': course_id,
-                    'source_id': node_id_map[source_label],
-                    'target_id': node_id_map[target_label]
+    # Re-create eager mastery rows for all students in this course
+    students = supabase.table('students').select('id').eq('course_id', course_id).execute().data
+    if students and node_id_map:
+        mastery_rows = [
+            {'student_id': s['id'], 'concept_id': cid, 'confidence': 0.0}
+            for s in students for cid in node_id_map.values()
+        ]
+        for i in range(0, len(mastery_rows), 500):
+            supabase.table('student_mastery').insert(mastery_rows[i:i+500]).execute()
+
+    # Invalidate graph cache for this course
+    cache_delete_pattern(f"graph:{course_id}:*")
+
+    # Trigger async content generation for all concepts
+    def generate_content_async():
+        """Background thread to generate learning content"""
+        from ..services.generate_content import generate_learning_page, generate_practice_quiz, get_further_reading
+        import sys
+
+        print(f"[async] Starting content generation for course {course_id}", file=sys.stderr, flush=True)
+
+        concepts_result = supabase.table('concept_nodes').select('id, label, description').eq('course_id', course_id).execute()
+
+        for concept in concepts_result.data:
+            concept_id = concept['id']
+            label = concept['label']
+            description = concept.get('description', '')
+
+            try:
+                # Generate learning page
+                page_result = generate_learning_page(
+                    concept_label=label,
+                    concept_description=description,
+                    past_mistakes=[],
+                    current_confidence=0.5
+                )
+
+                further_reading = get_further_reading(label, description)
+
+                # Insert learning page
+                supabase.table('learning_pages').insert({
+                    'student_id': None,
+                    'concept_id': concept_id,
+                    'title': page_result['title'],
+                    'content': page_result['content'],
+                    'further_reading': further_reading
                 }).execute()
 
-        # Re-create eager mastery rows for all students in this course
-        students = supabase.table('students').select('id').eq('course_id', course_id).execute().data
-        if students and node_id_map:
-            mastery_rows = [
-                {'student_id': s['id'], 'concept_id': cid, 'confidence': 0.0}
-                for s in students for cid in node_id_map.values()
-            ]
-            for i in range(0, len(mastery_rows), 500):
-                supabase.table('student_mastery').insert(mastery_rows[i:i+500]).execute()
+                # Generate quiz
+                quiz_result = generate_practice_quiz(
+                    concept_label=label,
+                    concept_description=description,
+                    past_mistakes=[],
+                    current_confidence=0.5
+                )
 
-        # Invalidate graph cache for this course
-        cache_delete_pattern(f"graph:{course_id}:*")
+                # Create quiz
+                quiz_resp = supabase.table('practice_quizzes').insert({
+                    'student_id': None,
+                    'concept_id': concept_id,
+                    'page_id': None,
+                    'status': 'template'
+                }).execute()
 
-        # Trigger async content generation for all concepts
-        def generate_content_async():
-            """Background thread to generate learning content"""
-            from ..services.generate_content import generate_learning_page, generate_practice_quiz, get_further_reading
-            import sys
+                quiz_id = quiz_resp.data[0]['id']
 
-            print(f"[async] Starting content generation for course {course_id}", file=sys.stderr, flush=True)
-
-            concepts_result = supabase.table('concept_nodes').select('id, label, description').eq('course_id', course_id).execute()
-
-            for concept in concepts_result.data:
-                concept_id = concept['id']
-                label = concept['label']
-                description = concept.get('description', '')
-
-                try:
-                    # Generate learning page
-                    page_result = generate_learning_page(
-                        concept_label=label,
-                        concept_description=description,
-                        past_mistakes=[],
-                        current_confidence=0.5
-                    )
-
-                    further_reading = get_further_reading(label, description)
-
-                    # Insert learning page
-                    supabase.table('learning_pages').insert({
-                        'student_id': None,
-                        'concept_id': concept_id,
-                        'title': page_result['title'],
-                        'content': page_result['content'],
-                        'further_reading': further_reading
+                # Insert questions
+                for q_idx, q in enumerate(quiz_result['questions']):
+                    supabase.table('quiz_questions').insert({
+                        'quiz_id': quiz_id,
+                        'question_text': q['question_text'],
+                        'options': q['options'],
+                        'correct_answer': q['correct_answer'],
+                        'explanation': q['explanation'],
+                        'question_order': q_idx + 1
                     }).execute()
 
-                    # Generate quiz
-                    quiz_result = generate_practice_quiz(
-                        concept_label=label,
-                        concept_description=description,
-                        past_mistakes=[],
-                        current_confidence=0.5
-                    )
+                print(f"[async] ✓ Generated content for {label}", file=sys.stderr, flush=True)
 
-                    # Create quiz
-                    quiz_resp = supabase.table('practice_quizzes').insert({
-                        'student_id': None,
-                        'concept_id': concept_id,
-                        'page_id': None,
-                        'status': 'template'
-                    }).execute()
+            except Exception as e:
+                print(f"[async] ✗ Failed for {label}: {str(e)}", file=sys.stderr, flush=True)
 
-                    quiz_id = quiz_resp.data[0]['id']
+        print(f"[async] Content generation complete for course {course_id}", file=sys.stderr, flush=True)
 
-                    # Insert questions
-                    for q_idx, q in enumerate(quiz_result['questions']):
-                        supabase.table('quiz_questions').insert({
-                            'quiz_id': quiz_id,
-                            'question_text': q['question_text'],
-                            'options': q['options'],
-                            'correct_answer': q['correct_answer'],
-                            'explanation': q['explanation'],
-                            'question_order': q_idx + 1
-                        }).execute()
-
-                    print(f"[async] ✓ Generated content for {label}", file=sys.stderr, flush=True)
-
-                except Exception as e:
-                    print(f"[async] ✗ Failed for {label}: {str(e)}", file=sys.stderr, flush=True)
-
-            print(f"[async] Content generation complete for course {course_id}", file=sys.stderr, flush=True)
-
-        # Start background thread
-        thread = threading.Thread(target=generate_content_async, daemon=True)
-        thread.start()
-        print(f"[upload] Started async content generation for {len(node_id_map)} concepts", flush=True)
+    # Start background thread
+    thread = threading.Thread(target=generate_content_async, daemon=True)
+    thread.start()
+    print(f"[upload] Started async content generation for {len(node_id_map)} concepts", flush=True)
 
     return jsonify(graph_data), 200
