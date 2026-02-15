@@ -238,7 +238,15 @@ export default function StudyGroupPage() {
     }
   };
 
-  const partnerProfile = matchDetails ? STUDENT_PROFILES[matchDetails.partner.name] : undefined;
+  const partnerProfile = matchDetails
+    ? STUDENT_PROFILES[matchDetails.partner.name] ?? {
+        year: "Student",
+        bio: "",
+        strengths: [],
+        weaknesses: [],
+        availability: ["Mon 2-4pm", "Wed 10am-12pm", "Fri 3-5pm"],
+      }
+    : undefined;
   const studentName = profile?.name || "Student";
   const myProfile = STUDENT_PROFILES[studentName] ?? {
     year: "Student",
