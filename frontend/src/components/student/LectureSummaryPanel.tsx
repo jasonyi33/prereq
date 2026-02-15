@@ -1,0 +1,117 @@
+"use client";
+
+import { motion } from "motion/react";
+import { CheckCircle2, AlertCircle, GraduationCap, Sparkles } from "lucide-react";
+import { confidenceToNodeBorder } from "@/lib/colors";
+
+interface WeakConcept {
+  id: string;
+  label: string;
+  confidence: number;
+}
+
+interface LectureSummaryPanelProps {
+  bullets: string[];
+  titleSummary: string;
+  weakConcepts: WeakConcept[];
+  onStartTutoring: () => void;
+  loading?: boolean;
+}
+
+export default function LectureSummaryPanel({
+  bullets,
+  titleSummary,
+  weakConcepts,
+  onStartTutoring,
+  loading,
+}: LectureSummaryPanelProps) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+        <div className="w-12 h-12 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center mb-3">
+          <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
+        </div>
+        <p className="text-sm text-gray-500">Generating your lecture summary...</p>
+        <p className="text-xs text-gray-400 mt-1">This usually takes a few seconds</p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-5"
+    >
+      {/* Title */}
+      <div>
+        <span className="text-xs font-medium text-purple-500 uppercase tracking-wider block mb-1">
+          Lecture Complete
+        </span>
+        <h2 className="text-lg font-semibold text-gray-800">{titleSummary}</h2>
+      </div>
+
+      {/* Bullet points */}
+      <div className="space-y-2.5">
+        <h4 className="text-[10px] font-medium text-gray-700 uppercase tracking-wider">
+          What Was Covered
+        </h4>
+        <ul className="space-y-2">
+          {bullets.map((bullet, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm text-gray-600 leading-relaxed">
+              <CheckCircle2 className="text-green-400 shrink-0 mt-0.5" size={14} />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Weak topics */}
+      {weakConcepts.length > 0 && (
+        <div className="space-y-2.5">
+          <h4 className="text-[10px] font-medium text-gray-700 uppercase tracking-wider">
+            Topics to Review
+          </h4>
+          <div className="space-y-1.5">
+            {weakConcepts.map((concept) => {
+              const borderColor = confidenceToNodeBorder(concept.confidence);
+              const pct = Math.round(concept.confidence * 100);
+              return (
+                <div
+                  key={concept.id}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200"
+                >
+                  <AlertCircle size={14} style={{ color: borderColor }} className="shrink-0" />
+                  <span className="text-sm text-gray-700 flex-1">{concept.label}</span>
+                  <span className="text-xs font-mono" style={{ color: borderColor }}>
+                    {pct}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Encouragement */}
+      <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
+        <p className="text-sm text-purple-700 leading-relaxed">
+          {weakConcepts.length === 0
+            ? "Great work today! You have a solid grasp of the material covered."
+            : `Nice job attending! Focus on the ${weakConcepts.length} topic${weakConcepts.length > 1 ? "s" : ""} above to solidify your understanding.`}
+        </p>
+      </div>
+
+      {/* CTA */}
+      {weakConcepts.length > 0 && (
+        <button
+          onClick={onStartTutoring}
+          className="w-full py-3 px-4 rounded-lg bg-gray-800 hover:bg-gray-700 text-white font-medium text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
+        >
+          <GraduationCap size={16} />
+          <span>Start Tutoring</span>
+        </button>
+      )}
+    </motion.div>
+  );
+}

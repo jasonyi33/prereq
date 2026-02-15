@@ -81,6 +81,20 @@ def get_recent_concept(lecture_id):
     return jsonify({'concept_id': result.data[0]['concept_id']}), 200
 
 
+@lectures.route('/api/lectures/<lecture_id>/covered-concepts', methods=['GET'])
+@optional_auth
+def get_covered_concepts(lecture_id):
+    """Get unique concept IDs detected in a lecture's transcript."""
+    result = supabase.table('transcript_concepts').select(
+        'concept_id, transcript_chunks!inner(lecture_id)'
+    ).eq(
+        'transcript_chunks.lecture_id', lecture_id
+    ).execute()
+
+    concept_ids = list(set(row['concept_id'] for row in result.data))
+    return jsonify({'concept_ids': concept_ids}), 200
+
+
 @lectures.route('/api/lectures/<lecture_id>/transcript-excerpts', methods=['GET'])
 @optional_auth
 def get_transcript_excerpts(lecture_id):

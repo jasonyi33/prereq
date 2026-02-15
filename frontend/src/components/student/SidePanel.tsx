@@ -19,6 +19,7 @@ import { COLOR_HEX, confidenceToNodeBorder } from "@/lib/colors";
 import { flaskApi, nextApi } from "@/lib/api";
 import { formatTimestamp } from "@/lib/graph";
 import PerplexityDialog from "./PerplexityDialog";
+import LectureSummaryPanel from "./LectureSummaryPanel";
 
 interface TranscriptExcerpt {
   text: string;
@@ -32,6 +33,18 @@ interface Resource {
   snippet: string;
 }
 
+export interface LectureSummaryData {
+  bullets: string[];
+  title_summary: string;
+  covered_concept_ids: string[];
+}
+
+interface WeakConcept {
+  id: string;
+  label: string;
+  confidence: number;
+}
+
 interface SidePanelProps {
   activePoll: { pollId: string; question: string; conceptLabel: string } | null;
   studentId: string;
@@ -40,6 +53,10 @@ interface SidePanelProps {
   onDeselectNode: () => void;
   lectureId: string | null;
   courseId: string | null;
+  lectureEnded?: boolean;
+  lectureSummary?: LectureSummaryData | null;
+  weakConcepts?: WeakConcept[];
+  onStartTutoring?: () => void;
 }
 
 export default function SidePanel({
@@ -50,8 +67,12 @@ export default function SidePanel({
   onDeselectNode,
   lectureId,
   courseId,
+  lectureEnded,
+  lectureSummary,
+  weakConcepts,
+  onStartTutoring,
 }: SidePanelProps) {
-  const [activeTab, setActiveTab] = useState<"poll" | "transcript">("poll");
+  const [activeTab, setActiveTab] = useState<"poll" | "transcript" | "summary">("poll");
 
   // Poll state
   const [pollAnswer, setPollAnswer] = useState("");
@@ -77,6 +98,13 @@ export default function SidePanel({
     setPollSubmitted(false);
     setPollFeedback(null);
   }, [activePoll?.pollId]);
+
+  // Auto-switch to summary tab when lecture ends
+  useEffect(() => {
+    if (lectureEnded) {
+      setActiveTab("summary");
+    }
+  }, [lectureEnded]);
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -347,6 +375,20 @@ export default function SidePanel({
             <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-800" />
           )}
         </button>
+        {lectureEnded && (
+          <button
+            onClick={() => setActiveTab("summary")}
+            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${
+              activeTab === "summary" ? "text-gray-800" : "text-gray-400 hover:text-gray-500"
+            }`}
+          >
+            <BookOpen size={15} />
+            <span>Summary</span>
+            {activeTab === "summary" && (
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -354,6 +396,21 @@ export default function SidePanel({
         <AnimatePresence mode="wait">
           {selectedNode ? (
             renderNodeContent()
+          ) : activeTab === "summary" ? (
+            <motion.div
+              key="summary"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <LectureSummaryPanel
+                loading={!lectureSummary}
+                bullets={lectureSummary?.bullets ?? []}
+                titleSummary={lectureSummary?.title_summary ?? "Lecture Summary"}
+                weakConcepts={weakConcepts ?? []}
+                onStartTutoring={onStartTutoring ?? (() => {})}
+              />
+            </motion.div>
           ) : activeTab === "poll" ? (
             <motion.div
               key="poll"
