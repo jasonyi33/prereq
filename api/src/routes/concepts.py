@@ -49,8 +49,8 @@ def get_learning_page(concept_id):
 
     concept = concept_result.data[0]
 
-    # Get learning page content from database (student_id is null for general content)
-    page_result = supabase.table('concept_learning_pages.').select('content').eq('concept_id', concept_id).is_('student_id', 'null').execute()
+    # Get learning page content from database
+    page_result = supabase.table('concept_learning_pages').select('content').eq('concept_id', concept_id).execute()
 
     if not page_result.data:
         return jsonify({
@@ -76,7 +76,7 @@ def get_quiz(concept_id):
     concept = concept_result.data[0]
 
     # Get quiz questions from database
-    questions_result = supabase.table('quiz_questions').select('*').eq('concept_id', concept_id).order('question_order').execute()
+    questions_result = supabase.table('concept_quiz_questions').select('*').eq('concept_id', concept_id).order('question_order').execute()
 
     if not questions_result.data:
         return jsonify({
