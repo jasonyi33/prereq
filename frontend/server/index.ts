@@ -11,6 +11,7 @@ import { Server } from "socket.io";
 import { setupSocket } from "./socket";
 import transcriptRoute from "./transcript-route";
 import chatRoute from "./chat-route";
+import pollGenerateRoute from "./poll-generate-route";
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT || "3000", 10);
 
@@ -59,6 +60,9 @@ nextApp.prepare().then(async () => {
 
   // Chat route runs in Express context to avoid body parsing issues
   app.use(chatRoute);
+
+  // Poll generation route runs in Express to ensure env vars work
+  app.use(pollGenerateRoute);
 
   // Pass all other requests to Next.js
   app.use((req, res) => {
