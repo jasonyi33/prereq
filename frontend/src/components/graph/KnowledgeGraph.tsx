@@ -106,7 +106,10 @@ export default function KnowledgeGraph({
         ...(cached ? { x: cached.x, y: cached.y } : {}),
       };
     });
-    const linksCopy: SimLink[] = edges.map((e) => ({ source: e.source, target: e.target }));
+    const nodeIds = new Set(nodesCopy.map((n) => n.id));
+    const linksCopy: SimLink[] = edges
+      .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
+      .map((e) => ({ source: e.source, target: e.target }));
 
     // Build adjacency and compute levels via relaxed edge propagation
     const levels: Record<string, number> = {};
@@ -213,13 +216,16 @@ export default function KnowledgeGraph({
     };
   }, [bounds.width, bounds.height, simNodes.length]);
 
-  // Compute x-range for the reveal sweep
-  const xRange = useMemo(() => {
-    const xs = simNodes.filter((n) => n.x != null).map((n) => n.x!);
-    if (xs.length === 0) return { min: 0, max: 1, range: 1 };
-    const min = Math.min(...xs);
-    const max = Math.max(...xs);
-    return { min, max, range: max - min || 1 };
+  // Rank-based reveal: sort nodes by x, assign evenly-spaced thresholds
+  const revealRank = useMemo(() => {
+    const positioned = simNodes.filter((n) => n.x != null);
+    if (positioned.length === 0) return new Map<string, number>();
+    const sorted = [...positioned].sort((a, b) => a.x! - b.x!);
+    const map = new Map<string, number>();
+    sorted.forEach((n, i) => {
+      map.set(n.id, sorted.length > 1 ? i / (sorted.length - 1) : 0);
+    });
+    return map;
   }, [simNodes]);
 
   // Zoom handler (wheel)
@@ -353,10 +359,10 @@ export default function KnowledgeGraph({
               const cdx = tx - sx;
               const d = `M${sx},${sy} C${sx + cdx / 2},${sy} ${tx - cdx / 2},${ty} ${tx},${ty}`;
 
-              // Edge reveals based on its leftmost x position
-              const edgeX = Math.min(source.x, target.x);
-              const edgeNorm = (edgeX - xRange.min) / xRange.range;
-              const edgeRevealed = revealProgress > edgeNorm;
+              // Edge reveals after both endpoint nodes
+              const sourceRank = revealRank.get(source.id) ?? 0;
+              const targetRank = revealRank.get(target.id) ?? 0;
+              const edgeRevealed = revealProgress > Math.max(sourceRank, targetRank);
               const particleColor = isPath ? "#3b82f6" : "#94a3b8";
 
               return (
@@ -407,9 +413,9 @@ export default function KnowledgeGraph({
             // 4-bucket fill matching heatmap: orange / yellow / green / gray
             const baseFill = confidenceToNodeFill(node.confidence ?? 0);
 
-            // Node reveals based on its x position in the sweep
-            const nodeNorm = (node.x - xRange.min) / xRange.range;
-            const nodeRevealed = revealProgress > nodeNorm;
+            // Node reveals based on its rank in the left-to-right order
+            const nodeRank = revealRank.get(node.id) ?? 0;
+            const nodeRevealed = revealProgress > nodeRank;
             const targetOpacity = nodeRevealed ? (isDimmed ? 0.2 : 1) : 0;
             const targetScale = nodeRevealed
               ? (isActive ? 1.25 : isInSet && !isDimmed ? 1.08 : 1)

@@ -40,6 +40,14 @@ export async function POST(
       `/api/lectures/${lectureId}/covered-concepts`
     );
 
+    // Determine lecture number (chronological order)
+    const allLectures = await flaskGet<{ id: string; started_at: string }[]>(
+      `/api/courses/${lecture.course_id}/lectures`
+    );
+    // API returns desc order, reverse for chronological
+    const chronologicalLectures = [...allLectures].reverse();
+    const lectureNumber = chronologicalLectures.findIndex((l) => l.id === lectureId) + 1;
+
     // Generate summary via Claude
     const { bullets, titleSummary } = await generateLectureSummary(
       fullTranscript,
@@ -50,7 +58,7 @@ export async function POST(
     const summary = {
       bullets,
       covered_concept_ids: coveredConceptIds,
-      title_summary: titleSummary,
+      title_summary: `Lecture ${lectureNumber || "?"}: ${titleSummary}`,
     };
 
     await flaskPut(`/api/lectures/${lectureId}`, { summary });

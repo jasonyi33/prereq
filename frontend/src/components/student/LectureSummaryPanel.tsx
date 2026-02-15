@@ -15,6 +15,7 @@ interface LectureSummaryPanelProps {
   titleSummary: string;
   weakConcepts: WeakConcept[];
   onStartTutoring: () => void;
+  onConceptClick?: (conceptId: string) => void;
   loading?: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function LectureSummaryPanel({
   titleSummary,
   weakConcepts,
   onStartTutoring,
+  onConceptClick,
   loading,
 }: LectureSummaryPanelProps) {
   if (loading) {
@@ -31,8 +33,8 @@ export default function LectureSummaryPanel({
         <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center mb-3">
           <Sparkles className="w-5 h-5 text-gray-400 animate-pulse" />
         </div>
-        <p className="text-sm text-gray-500">Generating your lecture summary...</p>
-        <p className="text-xs text-gray-400 mt-1">This usually takes a few seconds</p>
+        <p className="text-base font-medium text-gray-600">Generating your lecture summary...</p>
+        <p className="text-sm text-gray-400 mt-1">This usually takes a few seconds</p>
       </div>
     );
   }
@@ -77,16 +79,17 @@ export default function LectureSummaryPanel({
               const borderColor = confidenceToNodeBorder(concept.confidence);
               const pct = Math.round(concept.confidence * 100);
               return (
-                <div
+                <button
                   key={concept.id}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200"
+                  onClick={() => onConceptClick?.(concept.id)}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200 w-full text-left hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <AlertCircle size={14} style={{ color: borderColor }} className="shrink-0" />
                   <span className="text-sm text-gray-700 flex-1">{concept.label}</span>
                   <span className="text-xs font-mono" style={{ color: borderColor }}>
                     {pct}%
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>

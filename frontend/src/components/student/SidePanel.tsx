@@ -58,6 +58,7 @@ interface SidePanelProps {
   lectureSummary?: LectureSummaryData | null;
   weakConcepts?: WeakConcept[];
   onStartTutoring?: () => void;
+  onConceptClick?: (conceptId: string) => void;
 }
 
 export default function SidePanel({
@@ -72,6 +73,7 @@ export default function SidePanel({
   lectureSummary,
   weakConcepts,
   onStartTutoring,
+  onConceptClick,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<"poll" | "transcript" | "summary">("poll");
 
@@ -434,6 +436,7 @@ export default function SidePanel({
                 titleSummary={lectureSummary?.title_summary ?? "Lecture Summary"}
                 weakConcepts={weakConcepts ?? []}
                 onStartTutoring={onStartTutoring ?? (() => {})}
+                onConceptClick={onConceptClick}
               />
             </motion.div>
           ) : activeTab === "poll" ? (
