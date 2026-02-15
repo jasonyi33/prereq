@@ -30,7 +30,9 @@
       "Bash(git show:*)",
       "Bash(node:*)",
       "Bash(curl:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git reset:*)",
+      "Bash(python3:*)"
     ]
   }
 }

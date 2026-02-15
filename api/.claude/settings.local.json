@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)"
+    ]
+  }
+}

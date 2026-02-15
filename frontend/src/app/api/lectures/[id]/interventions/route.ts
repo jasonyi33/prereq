@@ -62,8 +62,8 @@ Return ONLY valid JSON (no markdown):
 { "suggestion": "your one-sentence suggestion here" }`;
 
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 200,
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 150,
       messages: [{ role: "user", content: prompt }],
     });
 

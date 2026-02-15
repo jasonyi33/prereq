@@ -45,15 +45,14 @@ export default function InterventionPanel({
   const fetchSuggestions = useCallback(
     async (isAuto: boolean) => {
       if (!lectureId) return;
-      const ids = strugglingConceptIds.length > 0 ? strugglingConceptIds : timelineConceptIds;
-      if (ids.length === 0) return;
+      // No longer need concepts - just call the endpoint
       if (isAuto) setAutoLoading(true);
       else setLoading(true);
       setError(null);
       try {
         const data = await nextApi.post(
           `/api/lectures/${lectureId}/interventions`,
-          { conceptIds: ids }
+          {} // Empty body - endpoint uses transcript only
         );
         if (data.suggestions) {
           setSuggestions(data.suggestions);
@@ -82,13 +81,13 @@ export default function InterventionPanel({
     if (!lectureId) return;
     const interval = setInterval(() => {
       const newChunks = transcriptChunkCount - lastGenChunkCountRef.current;
-      const hasConceptIds = strugglingConceptIds.length > 0 || timelineConceptIds.length > 0;
-      if (newChunks >= MIN_NEW_CHUNKS && hasConceptIds) {
+      // No longer need concepts - just check for new chunks
+      if (newChunks >= MIN_NEW_CHUNKS) {
         fetchSuggestions(true);
       }
     }, AUTO_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [lectureId, transcriptChunkCount, strugglingConceptIds, timelineConceptIds, fetchSuggestions]);
+  }, [lectureId, transcriptChunkCount, fetchSuggestions]);
 
   // Tick every 30s to update "Updated Xm ago"
   useEffect(() => {
@@ -128,14 +127,14 @@ export default function InterventionPanel({
       <div className="space-y-3">
         <button
           onClick={handleGetSuggestions}
-          disabled={loading || !lectureId}
+          disabled={loading || !lectureId || transcriptChunkCount === 0}
           className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loading ? "Loading..." : "Get Suggestions"}
         </button>
-        {strugglingConceptIds.length === 0 && timelineConceptIds.length === 0 && !loading && !autoLoading && (
+        {transcriptChunkCount === 0 && !loading && !autoLoading && (
           <p className="text-xs text-gray-400">
-            No concepts detected yet
+            Waiting for transcript...
           </p>
         )}
         {isLiveNoSuggestions && strugglingConceptIds.length > 0 && (
