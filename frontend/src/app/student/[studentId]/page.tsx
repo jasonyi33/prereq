@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Users } from "lucide-react";
 import type { GraphNode, GraphEdge } from "@/components/graph/KnowledgeGraph";
 import SidePanel from "@/components/student/SidePanel";
 import { type TranscriptChunk } from "@/components/dashboard/TranscriptFeed";
@@ -227,6 +227,13 @@ export default function StudentView() {
           >
             <GraduationCap size={15} />
             <span>Start Tutoring</span>
+          </button>
+          <button
+            onClick={() => router.push(`/student/${studentId}/study-group`)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all active:scale-[0.97]"
+          >
+            <Users size={15} />
+            <span>Find Study Partner</span>
           </button>
           {user && (
             <button
