@@ -19,9 +19,22 @@ const AUTO_INTERVAL_MS = 120_000; // 2 minutes
 const MIN_NEW_CHUNKS = 1;
 const GLOW_DURATION_MS = 3000;
 
-// TODO: Replace with real content from user
 const MOCK_SUGGESTIONS: Suggestion[] = [
-  { conceptId: "1", conceptLabel: "Placeholder Concept", suggestion: "Placeholder suggestion text" },
+  {
+    conceptId: "1",
+    conceptLabel: "Gradient Descent",
+    suggestion: "Several students are struggling with the intuition behind gradient descent. Try using a 2D loss surface visualization — show how the algorithm 'walks downhill' by following the steepest slope. The compass analogy is great; reinforce it by asking students which direction the gradient points relative to the minimum.",
+  },
+  {
+    conceptId: "2",
+    conceptLabel: "Loss Functions",
+    suggestion: "Students may be confused about what 'minimizing the error' means concretely. Consider pausing to show a simple MSE computation on 3–4 data points so they can see the loss value shrink as weights improve.",
+  },
+  {
+    conceptId: "3",
+    conceptLabel: "Weight Updates",
+    suggestion: "The connection between gradients and weight adjustments isn't clicking for some students. Walk through one manual weight update step: pick a weight, compute the gradient, apply the learning rate, and show the new weight. Concrete numbers help.",
+  },
 ];
 
 function formatTimeAgo(ts: number): string {
