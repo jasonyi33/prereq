@@ -2,10 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { User, Send, Loader2, MessageCircle, Video, VideoOff, ArrowRight, ArrowLeft, Clock } from "lucide-react";
+import { User, Send, Loader2, MessageCircle, ExternalLink, ArrowRight, ArrowLeft, Clock } from "lucide-react";
 import { nextApi } from "@/lib/api";
 import { COLOR_HEX } from "@/lib/colors";
-import ZoomVideoCallWrapper from "./ZoomVideoCallWrapper";
 
 interface ConceptComparison {
   conceptId: string;
@@ -72,7 +71,6 @@ export default function MatchedCard({ matchDetails, partnerProfile, studentName,
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showChat, setShowChat] = useState(true);
-  const [showVideo, setShowVideo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -436,39 +434,14 @@ export default function MatchedCard({ matchDetails, partnerProfile, studentName,
         </div>
       )}
 
-      {/* Video call section */}
-      {showVideo ? (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Video className="w-4 h-4 text-gray-400" />
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                Video Call
-              </span>
-            </div>
-            <button
-              onClick={() => setShowVideo(false)}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
-            >
-              <VideoOff className="w-3.5 h-3.5" />
-              End Call
-            </button>
-          </div>
-          <ZoomVideoCallWrapper
-            topic={matchDetails.matchId}
-            userName={studentName || "Student"}
-            onLeave={() => setShowVideo(false)}
-          />
-        </div>
-      ) : (
-        <Button
-          onClick={() => setShowVideo(true)}
-          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 flex items-center justify-center gap-2"
-        >
-          <Video className="w-5 h-5" />
-          Start Video Call
-        </Button>
-      )}
+      {/* Join Zoom call */}
+      <Button
+        onClick={() => window.open(matchDetails.zoomLink, '_blank', 'noopener,noreferrer')}
+        className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 flex items-center justify-center gap-2"
+      >
+        <ExternalLink className="w-5 h-5" />
+        Join Zoom Call
+      </Button>
     </div>
   );
 }
