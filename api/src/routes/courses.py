@@ -192,6 +192,10 @@ def upload_course_pdf(course_id):
         'pdf_cache_hash': file_hash
     }).eq('id', course_id).execute()
 
+    # Clear old concepts before inserting (replace, not append)
+    supabase.table('concept_edges').delete().eq('course_id', course_id).execute()
+    supabase.table('concept_nodes').delete().eq('course_id', course_id).execute()
+
     # Insert nodes
     node_id_map = {}
     for label, description in graph_data['graph']['nodes'].items():

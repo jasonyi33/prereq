@@ -32,64 +32,53 @@ def create_kg(file_path: str) -> str:
         timeout=120.0,
     )
 
-    prompt = """Analyze this CS229 Machine Learning course document and create a prerequisite knowledge graph with 20-30 nodes.
+    prompt = """Analyze this course document and create a prerequisite knowledge graph.
 
-COURSE STRUCTURE (for context):
-- Part I: Supervised Learning (Linear Regression → Logistic Regression → GLMs → Generative Models → Kernels → SVMs)
-- Part II: Deep Learning (Neural Networks, Backpropagation)
-- Part III: Generalization & Regularization (Bias-Variance, Overfitting, Cross-Validation)
-- Part IV: Unsupervised Learning (K-Means, EM, PCA, ICA, Self-Supervised Learning)
-- Part V: Reinforcement Learning (MDPs, Value/Policy Iteration, LQR, Policy Gradient)
+STRICT CONSTRAINT: Produce exactly 30-40 concept nodes. NEVER exceed 40 nodes.
+
+Each node should represent a MAJOR TOPIC that would take 1-3 lectures to cover, NOT a single definition, formula, or minor subtopic. Aggressively group related subtopics into a single node. For example:
+- GOOD: "Regularization Techniques" (covers L1, L2, dropout, early stopping)
+- BAD: Separate nodes for "L1 Regularization", "L2 Regularization", "Dropout", "Early Stopping"
+- GOOD: "Matrix Operations" (covers multiplication, transpose, inverse)
+- BAD: Separate nodes for "Matrix Multiplication", "Matrix Transpose", "Matrix Inverse"
 
 TASK:
 Create a DAG where:
-1. Each node = major concept/algorithm/technique from the course
+1. Each node = a broad topic or family of techniques from the course
 2. Each edge = "A is a prerequisite for B" (A must be learned before B)
 3. Nodes should follow temporal/conceptual dependencies
-4. ~20-30 nodes total (cover all major topics, but group related subtopics)
-5. Write a short extended explanation for each node (< 1 sentence)
 
 NODE SELECTION GUIDELINES:
-- Include: Major algorithms (Linear Regression, Logistic Regression, Neural Networks, SVM, K-Means, PCA, etc.)
-- Include: Foundational concepts (Gradient Descent, MLE, Regularization, Kernels, Backprop)
-- Combine: Related subtopics into single nodes (e.g., "Normal Equations & Matrix Calculus" vs separate nodes)
-- Skip: Very specialized optional topics unless they're prerequisites for other concepts
+- Include: Major algorithms and technique families
+- Include: Foundational mathematical/conceptual building blocks
+- Combine: Always merge closely related subtopics into one node (e.g., "Optimization Methods" not separate nodes for SGD, Adam, momentum)
+- Skip: Specialized optional topics unless they're prerequisites for other concepts
+- If you find yourself creating more than 40 nodes, you are being too granular — merge related concepts
 
 EDGE GUIDELINES:
 - Only add edges for TRUE prerequisite relationships (concept A needed to understand B)
-- Linear Regression should be a prerequisite for most other supervised learning methods
-- Gradient Descent is a prerequisite for many optimization-based methods
-- Basic supervised learning concepts should precede deep learning
-- Generalization concepts can be learned after basic supervised learning
-- Unsupervised learning largely independent from supervised (except foundational math)
-
-TEMPORAL ORDERING:
-- Early course topics (Ch 1-3) should generally come before later topics (Ch 7-17)
-- But only create edges where there's a genuine prerequisite relationship
-- - For example: gradient descent should come before back prop because you need to know gradient descent for backprop
-- A topic from Ch 2 can have no incoming edges if it doesn't require Ch 1 concepts
+- Foundational math/concepts should precede applied techniques
+- Basic methods should precede advanced methods that build on them
+- Only create edges where there's a genuine dependency, not just topical similarity
 
 Return ONLY valid JSON with this exact structure:
 {
   "nodes": {
     "linear_reg": "Statistical method for modeling relationships between variables using linear equations",
     "gradient_descent": "Iterative optimization algorithm that minimizes functions by moving in the direction of steepest descent"
-    ...
   },
   "edges": [
     ["gradient_descent", "linear_reg"],
-    ["linear_reg", "logistic_reg"],
-    ...
+    ["linear_reg", "logistic_reg"]
   ]
 }
 
 Requirements:
-- 20-30 concept nodes covering all major topics
+- 30-40 concept nodes (HARD LIMIT: never exceed 40)
 - Edges form a DAG (no cycles)
 - Use concise snake_case IDs (e.g., linear_reg, svm, k_means)
 - Each edge: source is prerequisite for target
 - Only include edges that represent genuine prerequisite relationships
-- Difficulty: 1-5 scale
 
 Return ONLY the JSON object.
 """
