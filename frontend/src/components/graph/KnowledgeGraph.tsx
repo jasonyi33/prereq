@@ -5,7 +5,7 @@ import * as d3 from "d3-force";
 import { motion } from "motion/react";
 import useMeasure from "react-use-measure";
 import { COLOR_HEX, confidenceToNodeFill, confidenceToNodeBorder } from "@/lib/colors";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
 
 export interface GraphNode {
   id: string;
@@ -56,6 +56,7 @@ const MAX_ZOOM = 2.5;
 const REVEAL_DURATION_MS = 2000;
 const REVEAL_INITIAL_DELAY = 300;
 const REVEAL_FPS = 30;
+const DRAG_THRESHOLD = 8; // px of movement before a pointer-down becomes a drag
 
 /** Compute the node radius so the longest word fits without breaking */
 function getNodeRadius(label: string, relevance: number): number {
@@ -79,9 +80,10 @@ export default function KnowledgeGraph({
   const [simLinks, setSimLinks] = useState<SimLink[]>([]);
   const [ready, setReady] = useState(false);
   const positionCacheRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const originalPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Zoom & pan state
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.75);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
@@ -93,6 +95,16 @@ export default function KnowledgeGraph({
   // Stable refs for callbacks
   const onNodeClickRef = useRef(onNodeClick);
   onNodeClickRef.current = onNodeClick;
+
+  // Drag state — refs so callbacks stay stable across renders
+  const draggingNodeId = useRef<string | null>(null);
+  const dragStartPointer = useRef({ x: 0, y: 0 });
+  const dragStartNodePos = useRef({ x: 0, y: 0 });
+  const hasDraggedPastThreshold = useRef(false);
+  const simNodesRef = useRef(simNodes);
+  simNodesRef.current = simNodes;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // Initialize data and compute topological levels for left-to-right layout
   useEffect(() => {
@@ -200,10 +212,14 @@ export default function KnowledgeGraph({
       simulation.tick();
     }
 
-    // Cache final positions
+    // Cache final positions and save originals (first run only)
+    const isFirstLayout = originalPositionsRef.current.size === 0;
     for (const node of simNodes) {
       if (node.x !== undefined && node.y !== undefined) {
         positionCacheRef.current.set(node.id, { x: node.x, y: node.y });
+        if (isFirstLayout) {
+          originalPositionsRef.current.set(node.id, { x: node.x, y: node.y });
+        }
       }
     }
 
@@ -237,9 +253,22 @@ export default function KnowledgeGraph({
     });
   }, []);
 
-  // Pan handlers (mouse drag on background)
+  // Pan handlers (mouse drag on background) + node drag
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("[data-graph-node]")) return;
+    const nodeEl = (e.target as HTMLElement).closest("[data-graph-node]");
+    if (nodeEl) {
+      // Start tracking a potential node drag
+      const nodeId = nodeEl.getAttribute("data-node-id");
+      if (!nodeId) return;
+      const node = simNodesRef.current.find((n) => n.id === nodeId);
+      if (!node || node.x === undefined || node.y === undefined) return;
+      draggingNodeId.current = nodeId;
+      dragStartPointer.current = { x: e.clientX, y: e.clientY };
+      dragStartNodePos.current = { x: node.x, y: node.y };
+      hasDraggedPastThreshold.current = false;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
     isPanning.current = true;
     panStart.current = { x: e.clientX, y: e.clientY };
     panOffset.current = { x: pan.x, y: pan.y };
@@ -247,6 +276,25 @@ export default function KnowledgeGraph({
   }, [pan]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Node dragging
+    if (draggingNodeId.current) {
+      const dx = e.clientX - dragStartPointer.current.x;
+      const dy = e.clientY - dragStartPointer.current.y;
+      if (!hasDraggedPastThreshold.current) {
+        if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+        hasDraggedPastThreshold.current = true;
+      }
+      const z = zoomRef.current;
+      const newX = dragStartNodePos.current.x + dx / z;
+      const newY = dragStartNodePos.current.y + dy / z;
+      const id = draggingNodeId.current;
+      positionCacheRef.current.set(id, { x: newX, y: newY });
+      setSimNodes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, x: newX, y: newY } : n)),
+      );
+      return;
+    }
+    // Background panning
     if (!isPanning.current) return;
     setPan({
       x: panOffset.current.x + (e.clientX - panStart.current.x),
@@ -255,17 +303,41 @@ export default function KnowledgeGraph({
   }, []);
 
   const handlePointerUp = useCallback(() => {
+    if (draggingNodeId.current) {
+      if (!hasDraggedPastThreshold.current) {
+        // Pointer barely moved — treat as a click
+        const node = simNodesRef.current.find((n) => n.id === draggingNodeId.current);
+        if (node) onNodeClickRef.current?.(node);
+      }
+      draggingNodeId.current = null;
+      hasDraggedPastThreshold.current = false;
+      return;
+    }
     isPanning.current = false;
   }, []);
 
   const handleReset = useCallback(() => {
-    setZoom(1);
+    setZoom(0.75);
     setPan({ x: 0, y: 0 });
+    // Restore nodes to their original simulation positions
+    if (originalPositionsRef.current.size > 0) {
+      const originals = originalPositionsRef.current;
+      positionCacheRef.current = new Map(originals);
+      setSimNodes((prev) =>
+        prev.map((n) => {
+          const pos = originals.get(n.id);
+          return pos ? { ...n, x: pos.x, y: pos.y } : n;
+        }),
+      );
+    }
   }, []);
 
-  const handleNodeClick = useCallback((node: SimNode) => {
-    if (onNodeClickRef.current) onNodeClickRef.current(node);
-  }, []);
+  // Fast node lookup — edges use this to read current positions after drags
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, SimNode>();
+    simNodes.forEach((n) => map.set(n.id, n));
+    return map;
+  }, [simNodes]);
 
   // Determine which nodes/links are in the ancestor path
   const activeSet = useMemo(() => {
@@ -320,9 +392,12 @@ export default function KnowledgeGraph({
 
           <g>
             {simLinks.map((link, i) => {
-              const source = link.source as SimNode;
-              const target = link.target as SimNode;
-              if (source.x == null || target.x == null || source.y == null || target.y == null) return null;
+              // Resolve from nodeMap so edges follow dragged nodes
+              const srcId = typeof link.source === "object" ? (link.source as SimNode).id : link.source;
+              const tgtId = typeof link.target === "object" ? (link.target as SimNode).id : link.target;
+              const source = nodeMap.get(srcId);
+              const target = nodeMap.get(tgtId);
+              if (!source || !target || source.x == null || target.x == null || source.y == null || target.y == null) return null;
 
               const isSourceRel = activeSet.has(source.id);
               const isTargetRel = activeSet.has(target.id);
@@ -434,10 +509,11 @@ export default function KnowledgeGraph({
                 transition={{
                   opacity: { duration: 0.4 },
                   scale: { duration: 0.3 },
-                  x: { duration: 0.4 },
-                  y: { duration: 0.4 },
+                  x: { duration: draggingNodeId.current === node.id ? 0.06 : 0.4 },
+                  y: { duration: draggingNodeId.current === node.id ? 0.06 : 0.4 },
                 }}
                 data-graph-node
+                data-node-id={node.id}
                 className="absolute rounded-full flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-500 ease-out"
                 style={{
                   width: size * 2,
@@ -456,7 +532,6 @@ export default function KnowledgeGraph({
                       ? `0 0 20px ${COLOR_HEX.active}35, 0 4px 12px ${COLOR_HEX.active}15`
                       : `0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)`,
                 }}
-                onClick={() => handleNodeClick(node)}
               >
                 {/* Glossy top highlight */}
                 <div
@@ -493,8 +568,22 @@ export default function KnowledgeGraph({
         </div>{/* close zoom/pan wrapper */}
       </div>
 
-      {/* Reset button */}
-      <div className="absolute bottom-4 right-4 flex gap-2">
+      {/* Zoom controls + reset */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-1.5">
+        <button
+          onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z * 1.25))}
+          className="p-2 rounded-lg bg-white/70 hover:bg-gray-100 text-gray-400 border border-gray-200/80 backdrop-blur-md transition-colors"
+          title="Zoom In"
+        >
+          <ZoomIn size={16} />
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z * 0.8))}
+          className="p-2 rounded-lg bg-white/70 hover:bg-gray-100 text-gray-400 border border-gray-200/80 backdrop-blur-md transition-colors"
+          title="Zoom Out"
+        >
+          <ZoomOut size={16} />
+        </button>
         <button
           onClick={handleReset}
           className="p-2 rounded-lg bg-white/70 hover:bg-gray-100 text-gray-400 border border-gray-200/80 backdrop-blur-md transition-colors"

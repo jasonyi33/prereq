@@ -68,30 +68,45 @@ export default function StudentView() {
     return counts;
   }, [nodes]);
 
-  // Fetch real graph data
+  // Fetch real graph data (with retry on failure)
   useEffect(() => {
     if (!courseId) return;
-    flaskApi
-      .get(`/api/courses/${courseId}/graph?student_id=${studentId}`)
-      .then((data: { nodes: GraphNode[]; edges: { source_id?: string; target_id?: string; source?: string; target?: string }[] }) => {
-        if (data.nodes && data.nodes.length > 0) {
-          setNodes(
-            data.nodes.map((n: GraphNode) => ({
-              ...n,
-              color: n.color || confidenceToColor(n.confidence ?? 0),
-            })),
-          );
-        }
-        if (data.edges) {
-          setEdges(
-            data.edges.map((e) => ({
-              source: e.source_id || e.source || "",
-              target: e.target_id || e.target || "",
-            })),
-          );
-        }
-      })
-      .catch(() => {});
+    let cancelled = false;
+    let attempt = 0;
+
+    const fetchGraph = () => {
+      flaskApi
+        .get(`/api/courses/${courseId}/graph?student_id=${studentId}`)
+        .then((data: { nodes: GraphNode[]; edges: { source_id?: string; target_id?: string; source?: string; target?: string }[] }) => {
+          if (cancelled) return;
+          if (data.nodes && data.nodes.length > 0) {
+            setNodes(
+              data.nodes.map((n: GraphNode) => ({
+                ...n,
+                color: n.color || confidenceToColor(n.confidence ?? 0),
+              })),
+            );
+          }
+          if (data.edges) {
+            setEdges(
+              data.edges.map((e) => ({
+                source: e.source_id || e.source || "",
+                target: e.target_id || e.target || "",
+              })),
+            );
+          }
+        })
+        .catch(() => {
+          if (cancelled) return;
+          attempt++;
+          if (attempt < 5) {
+            setTimeout(fetchGraph, 1500 * attempt);
+          }
+        });
+    };
+
+    fetchGraph();
+    return () => { cancelled = true; };
   }, [courseId, studentId]);
 
   // Poll for the latest live lecture every 5s so we auto-join when RTMS creates one

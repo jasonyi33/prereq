@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import uitoolkit from "@zoom/videosdk-ui-toolkit";
-import "@zoom/videosdk-ui-toolkit/dist/style.css";
+import "@zoom/videosdk-ui-toolkit/dist/videosdk-ui-toolkit.css";
 
 interface Props {
   topic: string;

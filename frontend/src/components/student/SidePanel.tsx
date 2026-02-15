@@ -75,7 +75,8 @@ export default function SidePanel({
   onStartTutoring,
   onConceptClick,
 }: SidePanelProps) {
-  const [activeTab, setActiveTab] = useState<"poll" | "transcript" | "summary">("poll");
+  const [activeTab, setActiveTab] = useState<"poll" | "transcript" | "summary" | "concept">("poll");
+  const prevTabRef = useRef<"poll" | "transcript" | "summary">("poll");
 
   // Poll state
   const [pollAnswer, setPollAnswer] = useState("");
@@ -111,6 +112,18 @@ export default function SidePanel({
       setActiveTab("summary");
     }
   }, [lectureEnded]);
+
+  // Auto-switch to concept tab when a node is selected
+  useEffect(() => {
+    if (selectedNode) {
+      if (activeTab !== "concept") {
+        prevTabRef.current = activeTab as "poll" | "transcript" | "summary";
+      }
+      setActiveTab("concept");
+    } else if (activeTab === "concept") {
+      setActiveTab(prevTabRef.current);
+    }
+  }, [selectedNode?.id]);
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -416,12 +429,37 @@ export default function SidePanel({
             )}
           </button>
         )}
+        {selectedNode && (
+          <div className="flex-1 relative flex items-center">
+            <button
+              onClick={() => setActiveTab("concept")}
+              className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                activeTab === "concept" ? "text-gray-800" : "text-gray-400 hover:text-gray-500"
+              }`}
+            >
+              <BookOpen size={15} />
+              <span className="truncate max-w-[80px]">{selectedNode.label}</span>
+            </button>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={onDeselectNode}
+              onKeyDown={(e) => { if (e.key === "Enter") onDeselectNode(); }}
+              className="absolute right-1.5 p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer text-gray-400 hover:text-gray-600"
+            >
+              <X size={12} />
+            </span>
+            {activeTab === "concept" && (
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-800" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         <AnimatePresence mode="wait">
-          {selectedNode ? (
+          {activeTab === "concept" && selectedNode ? (
             renderNodeContent()
           ) : activeTab === "summary" ? (
             <motion.div
