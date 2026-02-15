@@ -512,7 +512,7 @@ export default function ConceptHeatmap({
                   totalStudents={totalStudents}
                 />
               }
-              isAnimationActive={true}
+              isAnimationActive={false}
               animationDuration={500}
             >
               <Tooltip

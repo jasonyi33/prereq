@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { nextApi } from "@/lib/api";
 
 interface Suggestion {
   conceptId: string;
@@ -19,6 +18,11 @@ interface InterventionPanelProps {
 const AUTO_INTERVAL_MS = 120_000; // 2 minutes
 const MIN_NEW_CHUNKS = 1;
 const GLOW_DURATION_MS = 3000;
+
+// TODO: Replace with real content from user
+const MOCK_SUGGESTIONS: Suggestion[] = [
+  { conceptId: "1", conceptLabel: "Placeholder Concept", suggestion: "Placeholder suggestion text" },
+];
 
 function formatTimeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -45,35 +49,23 @@ export default function InterventionPanel({
   const fetchSuggestions = useCallback(
     async (isAuto: boolean) => {
       if (!lectureId) return;
-      // No longer need concepts - just call the endpoint
       if (isAuto) setAutoLoading(true);
       else setLoading(true);
       setError(null);
-      try {
-        const data = await nextApi.post(
-          `/api/lectures/${lectureId}/interventions`,
-          {} // Empty body - endpoint uses transcript only
-        );
-        if (data.suggestions) {
-          setSuggestions(data.suggestions);
-          setLastGenTime(Date.now());
-          lastGenChunkCountRef.current = transcriptChunkCount;
-          // Trigger glow
-          setGlowing(true);
-          setTimeout(() => setGlowing(false), GLOW_DURATION_MS);
-        }
-      } catch (err: unknown) {
-        if (!isAuto) {
-          const message =
-            err instanceof Error ? err.message : "Failed to get suggestions";
-          setError(message);
-        }
-      } finally {
-        if (isAuto) setAutoLoading(false);
-        else setLoading(false);
-      }
+
+      // Small delay for UX feel
+      await new Promise(r => setTimeout(r, 500));
+
+      setSuggestions(MOCK_SUGGESTIONS);
+      setLastGenTime(Date.now());
+      lastGenChunkCountRef.current = transcriptChunkCount;
+      setGlowing(true);
+      setTimeout(() => setGlowing(false), GLOW_DURATION_MS);
+
+      if (isAuto) setAutoLoading(false);
+      else setLoading(false);
     },
-    [lectureId, strugglingConceptIds, timelineConceptIds, transcriptChunkCount]
+    [lectureId, transcriptChunkCount]
   );
 
   // Auto-timer: every 2 minutes, generate if enough new chunks
