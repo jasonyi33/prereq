@@ -12,6 +12,7 @@ from src.routes.transcripts import transcripts
 from src.routes.concepts import concepts
 from src.routes.polls import polls
 from src.routes.tutoring import tutoring
+from src.routes.study_groups import study_groups
 from src.routes.auth import auth
 
 app = Flask(__name__)
@@ -28,6 +29,7 @@ app.register_blueprint(transcripts)
 app.register_blueprint(concepts)
 app.register_blueprint(polls)
 app.register_blueprint(tutoring)
+app.register_blueprint(study_groups)
 app.register_blueprint(pages)
 
 
