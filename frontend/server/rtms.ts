@@ -2,7 +2,8 @@
 // Supports both global env-var credentials (legacy/demo) and per-teacher credentials
 
 import { createHmac } from "crypto";
-import { existsSync, mkdirSync, readdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
+import https from "https";
 import type { Express } from "express";
 import { supabase } from "./db";
 
@@ -373,10 +374,54 @@ function handleOAuth(teacherId: string | null) {
 
 // --- Setup ---
 
+async function ensureCaCert(): Promise<void> {
+  // Check common CA cert paths
+  const knownPaths = [
+    "/etc/ssl/cert.pem",
+    "/etc/ssl/certs/ca-certificates.crt",
+    "/etc/pki/tls/certs/ca-bundle.crt",
+    "/etc/ssl/ca-bundle.pem",
+  ];
+  for (const p of knownPaths) {
+    if (existsSync(p)) {
+      process.env.ZM_RTMS_CA_CERT = p;
+      console.log(`[RTMS] Found CA cert at ${p}`);
+      return;
+    }
+  }
+  // No system CA certs found — download Mozilla's bundle
+  const dest = "/app/cacert.pem";
+  if (existsSync(dest)) {
+    process.env.ZM_RTMS_CA_CERT = dest;
+    console.log(`[RTMS] Using cached CA cert at ${dest}`);
+    return;
+  }
+  console.log("[RTMS] No CA certs found — downloading Mozilla CA bundle...");
+  return new Promise((resolve) => {
+    https.get("https://curl.se/ca/cacert.pem", (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (d: Buffer) => chunks.push(d));
+      res.on("end", () => {
+        const buf = Buffer.concat(chunks);
+        writeFileSync(dest, buf);
+        process.env.ZM_RTMS_CA_CERT = dest;
+        console.log(`[RTMS] Downloaded CA cert to ${dest} (${buf.length} bytes)`);
+        resolve();
+      });
+    }).on("error", (err) => {
+      console.error(`[RTMS] Failed to download CA cert: ${err.message}`);
+      resolve(); // continue without — SDK will warn
+    });
+  });
+}
+
 export function setupRTMS(app: Express): void {
   // Enable SDK debug logging to diagnose auth failures
   process.env.ZM_RTMS_LOG_LEVEL = "debug";
   process.env.ZM_RTMS_LOG_ENABLED = "true";
+
+  // Download CA certs if missing (needed for RTMS native SDK on Render)
+  ensureCaCert().catch(() => {});
 
   // --- Diagnostic endpoint ---
   app.get("/api/rtms/status", (_req, res) => {
