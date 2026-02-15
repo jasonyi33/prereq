@@ -40,7 +40,7 @@ cp .env.example .env
 
 Edit `.env` with `SUPABASE_URL`, `SUPABASE_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`, and `FLASK_API_URL` (your Flask API base URL). Zoom keys for live RTMS with their SDK.
 
-Create the database tables in Supabase (SQL Editor). Full schema is in **CLAUDE.md**.
+Create the database tables in Supabase (SQL Editor).
 
 ## Running locally
 
