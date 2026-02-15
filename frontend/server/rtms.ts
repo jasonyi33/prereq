@@ -227,9 +227,17 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     diag("handshake", "Sent handshake with HMAC signature");
   });
 
-  ws.on("message", (raw: Buffer) => {
+  ws.on("message", (raw: Buffer | string, isBinary: boolean) => {
+    if (isBinary) {
+      // Log binary message info for debugging
+      const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+      diag("ws_binary", `len=${buf.length}, first4bytes=${buf.slice(0, 4).toString("hex")}`);
+      return;
+    }
+
+    const text_raw = raw.toString();
     try {
-      const msg = JSON.parse(raw.toString());
+      const msg = JSON.parse(text_raw);
 
       if (msg.msg_type === MSG_HANDSHAKE_RESP) {
         diag("handshake_resp", `status=${msg.status_code}, reason=${msg.reason || "none"}`);
@@ -250,7 +258,10 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
         return;
       }
 
-      // Transcript data comes as msg_type 6 with content, or direct transcript fields
+      // Log ALL JSON messages for debugging
+      diag("ws_json", `type=${msg.msg_type}, full=${JSON.stringify(msg).slice(0, 500)}`);
+
+      // Transcript data — try multiple possible field locations
       const text = msg.data?.transcript || msg.transcript || msg.content || msg.text;
       const speakerName = msg.data?.user_name || msg.user_name || msg.userName || "Unknown";
       if (text) {
@@ -258,12 +269,10 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
         const elapsedSec = (Date.now() - startTime) / 1000;
         diag("transcript", `#${transcriptCount} [${elapsedSec.toFixed(1)}s] ${speakerName}: ${text.slice(0, 100)}`);
         postTranscript(lectureId, text, elapsedSec, speakerName);
-      } else if (msg.msg_type !== 5 && msg.msg_type !== 6) {
-        // Log unknown message types for debugging
-        diag("ws_msg", `type=${msg.msg_type}, keys=${Object.keys(msg).join(",")}`);
       }
     } catch {
-      // Binary media data we don't need — ignore
+      // Non-JSON text message
+      diag("ws_text", `len=${text_raw.length}, preview=${text_raw.slice(0, 200)}`);
     }
   });
 
