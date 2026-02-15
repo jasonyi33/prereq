@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 
 interface ConceptOption {
   id: string;
@@ -52,8 +51,8 @@ export default function ConceptSelector({
         key={concept.id}
         className={`block p-3 rounded-lg border cursor-pointer transition-all ${
           isSelected
-            ? "border-blue-500 bg-blue-50/50"
-            : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+            ? "border-gray-400 bg-gray-50"
+            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
         }`}
       >
         <div className="flex items-start gap-3">
@@ -61,18 +60,18 @@ export default function ConceptSelector({
             type="checkbox"
             checked={isSelected}
             onChange={() => toggleConcept(concept.id)}
-            className="mt-0.5 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 flex-shrink-0"
+            className="mt-0.5 w-4 h-4 text-gray-800 rounded focus:ring-2 focus:ring-gray-400 flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-3 mb-1.5">
-              <span className="text-sm font-medium text-slate-700">
+              <span className="text-sm font-medium text-gray-700">
                 {concept.label}
               </span>
-              <span className="text-xs text-slate-400 font-mono tabular-nums flex-shrink-0">
+              <span className="text-xs text-gray-400 font-mono tabular-nums flex-shrink-0">
                 {percentage}%
               </span>
             </div>
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{
@@ -88,12 +87,12 @@ export default function ConceptSelector({
   };
 
   return (
-    <Card className="p-6 bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg">
+    <div className="bg-white/70 backdrop-blur-2xl border border-gray-200/80 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.08)] rounded-2xl p-6">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-800 mb-1.5">
+        <h2 className="text-xl font-semibold text-gray-800 mb-1.5">
           What do you want to work on?
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-gray-500">
           Pick topics where you need help. We'll find someone who can teach you.
         </p>
       </div>
@@ -103,7 +102,7 @@ export default function ConceptSelector({
           <div>
             <div className="flex items-center gap-2 mb-2.5">
               <div className="h-2 w-2 rounded-full bg-red-400" />
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
                 Need help with
               </p>
             </div>
@@ -117,7 +116,7 @@ export default function ConceptSelector({
           <div>
             <div className="flex items-center gap-2 mb-2.5">
               <div className="h-2 w-2 rounded-full bg-yellow-400" />
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
                 Still learning
               </p>
             </div>
@@ -131,7 +130,7 @@ export default function ConceptSelector({
           <div>
             <div className="flex items-center gap-2 mb-2.5">
               <div className="h-2 w-2 rounded-full bg-green-400" />
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
                 Comfortable with
               </p>
             </div>
@@ -145,10 +144,10 @@ export default function ConceptSelector({
       <Button
         onClick={onFindPartner}
         disabled={selectedConcepts.size === 0 || loading}
-        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 disabled:opacity-50"
+        className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3 disabled:opacity-50"
       >
         {loading ? "Searching..." : `Find Study Partner${selectedConcepts.size > 0 ? ` (${selectedConcepts.size})` : ""}`}
       </Button>
-    </Card>
+    </div>
   );
 }
