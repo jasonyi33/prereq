@@ -413,15 +413,15 @@ export default function KnowledgeGraph({
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#a3e635" }} />
-              <span>Good</span>
+              <span>On Track</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#facc15" }} />
-              <span>Partial</span>
+              <span>Building</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#fb923c" }} />
-              <span>Struggling</span>
+              <span>Developing</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#94a3b8" }} />

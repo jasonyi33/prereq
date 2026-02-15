@@ -16,9 +16,11 @@ def confidence_to_color(confidence):
     if confidence == 0.0:
         return "gray"
     elif confidence < 0.4:
-        return "red"
-    elif confidence < 0.7:
+        return "orange"
+    elif confidence < 0.55:
         return "yellow"
+    elif confidence < 0.7:
+        return "lime"
     else:
         return "green"
 
@@ -57,7 +59,7 @@ def get_students_summary(course_id):
     result = []
     for s in students_data:
         confidences = by_student.get(s['id'], [])
-        dist = {'green': 0, 'yellow': 0, 'red': 0, 'gray': 0}
+        dist = {'green': 0, 'lime': 0, 'yellow': 0, 'orange': 0, 'gray': 0}
         for conf in confidences:
             dist[confidence_to_color(conf)] += 1
         result.append({

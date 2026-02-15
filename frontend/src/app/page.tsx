@@ -177,15 +177,15 @@ export default function LandingPage() {
           >
             Get Started
           </button>
-            <div className="flex items-center gap-8 mt-16 animate-[fadeInUp_0.7s_ease-out_0.55s_both]">
-          <span className="text-sm text-gray-500 uppercase tracking-wider">Works with</span>
-          <img src="/zoom-logo.png" alt="Zoom" className="h-10 opacity-80" />
-          <img src="/perplexity-logo.png" alt="Perplexity" className="h-10 opacity-80" />
-          <img src="/render-logo.png" alt="Render" className="h-10 opacity-80" />
-          <img src="/anthropic-logo.png" alt="Anthropic" className="h-12 opacity-80" />
-          <img src="/purdue-logo.png" alt="Purdue" className="h-12 opacity-80" />
-          <img src="/berkeley-logo.png" alt="Berkeley" className="h-12 opacity-80" />
-        </div>
+          <div className="flex items-center gap-8 mt-16 animate-[fadeInUp_0.7s_ease-out_0.55s_both]">
+            <span className="text-sm text-gray-500 uppercase tracking-wider">Works with</span>
+            <img src="/zoom-logo.png" alt="Zoom" className="h-10 opacity-80" />
+            <img src="/perplexity-logo.png" alt="Perplexity" className="h-10 opacity-80" />
+            <img src="/render-logo.png" alt="Render" className="h-10 opacity-80" />
+            <img src="/anthropic-logo.png" alt="Anthropic" className="h-12 opacity-80" />
+            <img src="/purdue-logo.png" alt="Purdue" className="h-12 opacity-80" />
+            <img src="/berkeley-logo.png" alt="Berkeley" className="h-12 opacity-80" />
+          </div>
         </div>
         <style jsx>{`
           @keyframes fadeInUp {
