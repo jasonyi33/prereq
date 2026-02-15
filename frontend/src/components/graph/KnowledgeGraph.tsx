@@ -61,8 +61,8 @@ export default function KnowledgeGraph({
   const [containerRef, bounds] = useMeasure();
   const [simNodes, setSimNodes] = useState<SimNode[]>([]);
   const [simLinks, setSimLinks] = useState<SimLink[]>([]);
-  const [tick, setTick] = useState(0);
-  const simulationRef = useRef<d3.Simulation<SimNode, SimLink> | null>(null);
+  const [ready, setReady] = useState(false);
+  const positionCacheRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Zoom & pan state
   const [zoom, setZoom] = useState(1);
@@ -79,10 +79,14 @@ export default function KnowledgeGraph({
   useEffect(() => {
     if (nodes.length === 0) return;
 
-    const nodesCopy: SimNode[] = nodes.map((n) => ({
-      ...n,
-      relevance: (n.difficulty || 3) / 5,
-    }));
+    const nodesCopy: SimNode[] = nodes.map((n) => {
+      const cached = positionCacheRef.current.get(n.id);
+      return {
+        ...n,
+        relevance: (n.difficulty || 3) / 5,
+        ...(cached ? { x: cached.x, y: cached.y } : {}),
+      };
+    });
     const linksCopy: SimLink[] = edges.map((e) => ({ source: e.source, target: e.target }));
 
     // Build adjacency and compute levels via relaxed edge propagation
@@ -109,9 +113,15 @@ export default function KnowledgeGraph({
     setSimLinks(linksCopy);
   }, [nodes, edges]);
 
-  // Run d3 force simulation
+  // Run d3 force simulation synchronously to pre-stabilize layout
   useEffect(() => {
     if (!bounds.width || !bounds.height || simNodes.length === 0) return;
+
+    // If positions are already cached (mastery update), skip re-simulation
+    const allCached = simNodes.every((n) => n.x !== undefined && n.y !== undefined);
+    if (allCached && ready) {
+      return;
+    }
 
     const paddingX = 100;
     const availableWidth = bounds.width - paddingX * 2;
@@ -142,11 +152,22 @@ export default function KnowledgeGraph({
       )
       .force("y", d3.forceY(bounds.height / 2).strength(0.1));
 
-    simulation.on("tick", () => {
-      setTick((t) => t + 1);
-    });
+    // Pre-stabilize synchronously — no async tick callbacks
+    simulation.stop();
+    for (let i = 0; i < 300; i++) {
+      simulation.tick();
+    }
 
-    simulationRef.current = simulation;
+    // Cache final positions
+    for (const node of simNodes) {
+      if (node.x !== undefined && node.y !== undefined) {
+        positionCacheRef.current.set(node.id, { x: node.x, y: node.y });
+      }
+    }
+
+    // Single render with settled layout
+    setSimNodes([...simNodes]);
+    setReady(true);
 
     return () => {
       simulation.stop();
@@ -186,9 +207,6 @@ export default function KnowledgeGraph({
   const handleReset = useCallback(() => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-    if (simulationRef.current) {
-      simulationRef.current.alpha(1).restart();
-    }
   }, []);
 
   const handleNodeClick = useCallback((node: SimNode) => {
@@ -204,13 +222,10 @@ export default function KnowledgeGraph({
     return set;
   }, [highlightedNodeIds]);
 
-  const selectedNodeId = useMemo(() => {
+  void useMemo(() => {
     if (!highlightedNodeIds || highlightedNodeIds.size === 0) return null;
     return null;
   }, [highlightedNodeIds]);
-
-  void tick;
-  void selectedNodeId;
 
   return (
     <div
@@ -307,7 +322,7 @@ export default function KnowledgeGraph({
 
         {/* DOM layer for nodes */}
         <div className="absolute inset-0 pointer-events-none" data-graph-nodes>
-          {simNodes.map((node) => {
+          {simNodes.map((node, index) => {
             if (node.x === undefined || node.y === undefined) return null;
             const size = (node.relevance || 0.6) * 20 + NODE_BASE_RADIUS;
             const borderColor = confidenceToNodeBorder(node.confidence ?? 0);
@@ -323,14 +338,19 @@ export default function KnowledgeGraph({
             return (
               <motion.div
                 key={node.id}
-                initial={{ opacity: 0, scale: 0 }}
+                initial={{ opacity: 0, scale: 0.85 }}
                 animate={{
                   opacity: isDimmed ? 0.2 : 1,
                   scale: isActive ? 1.25 : isInSet && !isDimmed ? 1.08 : 1,
                   x: node.x - size,
                   y: node.y - size,
                 }}
-                transition={{ duration: 0.4, type: "spring", bounce: 0.3 }}
+                transition={{
+                  opacity: { duration: 0.4, delay: ready ? index * 0.02 : 0 },
+                  scale: { duration: 0.3 },
+                  x: { duration: 0.4 },
+                  y: { duration: 0.4 },
+                }}
                 data-graph-node
                 className="absolute rounded-full flex items-center justify-center cursor-pointer pointer-events-auto transition-all duration-500 ease-out"
                 style={{
