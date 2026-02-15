@@ -44,21 +44,38 @@ router.post("/api/lectures/:id/poll/:pollId/activate", async (req, res) => {
 
     console.log(`[poll-activate] Activating poll ${pollId} for lecture ${lectureId}`);
 
-    // Update poll status to active
-    const poll = await flaskPut<{ id: string; status: string; question: string; concept_id: string }>(
-      `/api/polls/${pollId}/status`,
-      { status: "active" }
-    );
+    // Fetch poll first to get question and concept
+    let poll: { id: string; question: string; concept_id: string; status: string };
+    try {
+      poll = await flaskGet<{ id: string; question: string; concept_id: string; status: string }>(
+        `/api/polls/${pollId}`
+      );
+      console.log(`[poll-activate] Found poll: ${poll.question.slice(0, 50)}...`);
+    } catch (err) {
+      console.error("[poll-activate] Failed to fetch poll:", err);
+      return res.status(404).json({ error: "Poll not found" });
+    }
 
-    console.log(`[poll-activate] Poll activated: ${poll.question.slice(0, 50)}...`);
+    // Update poll status to active
+    try {
+      await flaskPut(`/api/polls/${pollId}/status`, { status: "active" });
+      console.log(`[poll-activate] Status updated to active`);
+    } catch (err) {
+      console.error("[poll-activate] Failed to update status:", err);
+      // Continue anyway - poll data is what matters for Socket.IO
+    }
 
     // Get concept label for the Socket.IO event
     let conceptLabel = "";
-    try {
-      const concept = await flaskGet<{ id: string; label: string }>(`/api/concepts/${poll.concept_id}`);
-      conceptLabel = concept.label;
-    } catch (err) {
-      console.warn("[poll-activate] Could not fetch concept label:", err);
+    if (poll.concept_id) {
+      try {
+        const concept = await flaskGet<{ id: string; label: string }>(`/api/concepts/${poll.concept_id}`);
+        conceptLabel = concept.label;
+        console.log(`[poll-activate] Concept label: ${conceptLabel}`);
+      } catch (err) {
+        console.warn("[poll-activate] Could not fetch concept label:", err);
+        conceptLabel = "Unknown Concept";
+      }
     }
 
     // Emit to ALL students in the lecture room

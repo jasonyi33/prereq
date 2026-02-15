@@ -3,6 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Loader2, Sparkles, User, MessageCircle, Lightbulb } from "lucide-react";
 import { nextApi } from "@/lib/api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 export interface ChatMessage {
   id: string;
@@ -57,13 +62,68 @@ function MessageBubble({ role, content, timestamp, isLatest }: { role: string; c
           {isUser ? "You" : "Tutor"}
         </span>
         <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
             isUser
               ? "bg-slate-800 text-white rounded-tr-sm"
               : "bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm text-slate-700 rounded-tl-sm"
           }`}
         >
-          {content}
+          {isUser ? (
+            <div className="whitespace-pre-wrap">{content}</div>
+          ) : (
+            <div className="prose prose-sm prose-slate max-w-none markdown-tutor">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+                components={{
+                  p: ({ children }) => (
+                    <p className="text-sm text-slate-700 leading-relaxed mb-2 last:mb-0">{children}</p>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="text-sm text-slate-700 space-y-1 my-2 ml-4 list-disc">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="text-sm text-slate-700 space-y-1 my-2 ml-4 list-decimal">{children}</ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-sm text-slate-700 leading-relaxed">{children}</li>
+                  ),
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-slate-800">{children}</strong>
+                  ),
+                  em: ({ children }) => (
+                    <em className="italic text-slate-700">{children}</em>
+                  ),
+                  code: ({ children }) => (
+                    <code className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs font-mono text-blue-600">
+                      {children}
+                    </code>
+                  ),
+                  pre: ({ children }) => (
+                    <pre className="bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto my-2">
+                      {children}
+                    </pre>
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-3 border-blue-300 pl-3 italic text-slate-600 my-2">
+                      {children}
+                    </blockquote>
+                  ),
+                  h1: ({ children }) => (
+                    <h1 className="text-base font-semibold text-slate-800 mb-2 mt-3 first:mt-0">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-sm font-semibold text-slate-800 mb-1.5 mt-2.5 first:mt-0">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-sm font-semibold text-slate-700 mb-1.5 mt-2 first:mt-0">{children}</h3>
+                  ),
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
         {timestamp && (
           <span className="text-xs text-slate-400 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -202,6 +262,7 @@ export default function ChatInterface({
   }
 
   return (
+    <>
     <div className="flex h-full flex-col rounded-2xl bg-white/60 backdrop-blur-sm border border-slate-200 shadow-sm overflow-hidden">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -280,5 +341,45 @@ export default function ChatInterface({
         </form>
       </div>
     </div>
+
+    {/* Custom styles for KaTeX math rendering */}
+    <style jsx global>{`
+      .markdown-tutor .katex {
+        font-size: 1.05em;
+      }
+      .markdown-tutor .katex-display {
+        margin: 0.75rem 0;
+        padding: 0.75rem;
+        background: linear-gradient(to bottom right, rgb(248 250 252), rgb(241 245 249));
+        border: 1px solid rgb(226 232 240);
+        border-radius: 0.5rem;
+        overflow-x: auto;
+      }
+      .markdown-tutor .katex-display > .katex {
+        margin: 0;
+      }
+      .markdown-tutor .katex-html {
+        color: rgb(51 65 85);
+      }
+      .markdown-tutor .katex .mord.text {
+        color: rgb(51 65 85);
+      }
+      .markdown-tutor p .katex {
+        padding: 0 0.125rem;
+      }
+      .markdown-tutor .katex .vlist-t {
+        color: rgb(51 65 85);
+      }
+      .markdown-tutor .katex .mop,
+      .markdown-tutor .katex .mbin,
+      .markdown-tutor .katex .mrel {
+        color: rgb(59 130 246);
+      }
+      .markdown-tutor .katex .mopen,
+      .markdown-tutor .katex .mclose {
+        color: rgb(100 116 139);
+      }
+    `}</style>
+    </>
   );
 }
