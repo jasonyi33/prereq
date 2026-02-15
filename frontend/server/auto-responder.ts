@@ -13,12 +13,16 @@ async function getAutoResponderStudents(courseId?: string): Promise<typeof cache
 
   try {
     // Fetch all courses, find the first one (demo has one course)
-    const coursesRes = await fetch(`${FLASK_API_URL}/api/courses`);
+    const coursesRes = await fetch(`${FLASK_API_URL}/api/courses`, {
+      headers: { "ngrok-skip-browser-warning": "1" },
+    });
     const courses = await coursesRes.json();
     const cId = courseId || courses[0]?.id;
     if (!cId) return null;
 
-    const studentsRes = await fetch(`${FLASK_API_URL}/api/courses/${cId}/students`);
+    const studentsRes = await fetch(`${FLASK_API_URL}/api/courses/${cId}/students`, {
+      headers: { "ngrok-skip-browser-warning": "1" },
+    });
     const students = await studentsRes.json();
 
     // Match by name (seed data uses Alex, Jordan, Taylor, Sam)

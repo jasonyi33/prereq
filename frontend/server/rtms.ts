@@ -84,7 +84,9 @@ async function getTeacherCourseId(teacherId: string): Promise<string | null> {
 const DEMO_COURSE_ID = process.env.DEMO_COURSE_ID || null;
 
 function getFlaskUrl(): string {
-  return (process.env.FLASK_API_URL || "http://localhost:5000").replace(/\/+$/, "");
+  const url = (process.env.FLASK_API_URL || "http://localhost:5000").replace(/\/+$/, "");
+  console.log(`[RTMS] getFlaskUrl() => ${url}`);
+  return url;
 }
 function getLocalUrl(): string {
   return `http://localhost:${process.env.PORT || 3000}`;
@@ -93,7 +95,9 @@ function getLocalUrl(): string {
 async function getDefaultCourseId(): Promise<string | null> {
   if (DEMO_COURSE_ID) return DEMO_COURSE_ID;
   try {
-    const res = await fetch(`${getFlaskUrl()}/api/courses`);
+    const res = await fetch(`${getFlaskUrl()}/api/courses`, {
+      headers: { "ngrok-skip-browser-warning": "1" },
+    });
     const courses = await res.json();
     if (courses.length > 0) return courses[0].id;
   } catch (err) {
@@ -106,7 +110,7 @@ async function createLecture(courseId: string): Promise<string | null> {
   try {
     const res = await fetch(`${getFlaskUrl()}/api/lectures`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
       body: JSON.stringify({
         course_id: courseId,
         title: `Live Lecture — ${new Date().toLocaleString()}`,
