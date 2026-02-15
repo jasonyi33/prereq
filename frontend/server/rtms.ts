@@ -297,6 +297,24 @@ async function startRtmsConnection(payload: any, teacherId: string | null, exist
     if (teacherId) {
       teacherLectures.delete(teacherId);
     }
+
+    // Trigger lecture-end flow here since onLeave fires before the webhook
+    if (lectureId) {
+      diag("leave", `Lecture ${lectureId} ended — triggering summary generation`);
+
+      fetch(`${getFlaskUrl()}/api/lectures/${lectureId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
+        body: JSON.stringify({ status: "completed", ended_at: new Date().toISOString() }),
+      }).catch((err) => diag("leave", `Failed to update lecture status: ${err}`));
+
+      emitToLectureRoom(lectureId, "lecture:ended", { lectureId });
+
+      fetch(`${getLocalUrl()}/api/lectures/${lectureId}/summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch((err) => diag("leave", `Summary generation request failed: ${err}`));
+    }
   });
 
   // Check if CA cert is available — if not, disable verification as fallback
