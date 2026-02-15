@@ -100,30 +100,24 @@ export default function TutoringView() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+      <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center animate-pulse">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <p className="text-sm text-slate-500">Starting tutoring session...</p>
+          <p className="text-sm text-gray-500">Starting tutoring session...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 relative overflow-hidden">
-      {/* Background blur blobs */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-emerald-200/15 blur-[100px] rounded-full" />
-      </div>
-
+    <div className="flex h-screen flex-col bg-gray-50 relative overflow-hidden font-sans">
       {/* Header */}
-      <header className="relative z-10 flex items-center gap-3 bg-white/70 backdrop-blur-sm border-b border-slate-200 px-4 py-3">
+      <header className="relative z-10 h-14 flex items-center gap-3 bg-white/80 backdrop-blur-sm border-b border-gray-200/80 px-4">
         <button
           onClick={() => router.back()}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -131,8 +125,8 @@ export default function TutoringView() {
           <Sparkles className="w-4.5 h-4.5 text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-slate-800 tracking-tight leading-tight">AI Tutor</h1>
-          <p className="text-xs text-slate-500">Personalized learning session</p>
+          <h1 className="font-[family-name:var(--font-instrument-serif)] text-xl text-gray-800 tracking-tight leading-tight">Aaron</h1>
+          <p className="text-xs text-gray-400">Personalized learning session</p>
         </div>
       </header>
 
@@ -149,7 +143,7 @@ export default function TutoringView() {
       )}
 
       {/* Main content */}
-      <div className="relative z-10 flex flex-1 overflow-hidden gap-3 p-3">
+      <div className="relative z-10 flex flex-1 overflow-hidden gap-4 p-4">
         {/* Left: Weak concepts sidebar */}
         <div className="w-[280px] shrink-0">
           <WeakConceptsSidebar concepts={weakConcepts} />

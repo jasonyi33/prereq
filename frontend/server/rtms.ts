@@ -136,12 +136,24 @@ async function createLecture(courseId: string): Promise<string | null> {
 }
 
 async function postTranscript(lectureId: string, text: string, timestamp: number, speakerName: string) {
+  // Emit transcript immediately so dashboards get it in real-time
+  emitToLectureRoom(lectureId, "transcript:chunk", {
+    text,
+    timestamp,
+    detectedConcepts: [],
+  });
+
+  // Then do concept detection + DB storage async (non-blocking)
   try {
-    await fetch(`${getLocalUrl()}/api/lectures/${lectureId}/transcript`, {
+    const res = await fetch(`${getLocalUrl()}/api/lectures/${lectureId}/transcript`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, timestamp, speakerName }),
     });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.warn(`[RTMS] Transcript route returned ${res.status}: ${body.slice(0, 200)}`);
+    }
   } catch (err) {
     console.warn("[RTMS] Failed to post transcript chunk:", err);
   }

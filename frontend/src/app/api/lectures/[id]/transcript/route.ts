@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { flaskPost } from "@/lib/flask";
 import { detectConcepts } from "@/lib/prompts/concept-detection";
 import { getConceptMap } from "@/lib/concept-cache";
-import { emitToLectureRoom, getStudentsInLecture } from "@server/socket-helpers";
+import { getStudentsInLecture } from "@server/socket-helpers";
 
 interface TranscriptChunk {
   id: string;
@@ -57,26 +57,8 @@ export async function POST(
     }
   }
 
-  // Step 5: Emit Socket.IO events (may fail if called outside Express server context)
-  try {
-    emitToLectureRoom(lectureId, "transcript:chunk", {
-      text,
-      timestamp,
-      detectedConcepts,
-    });
-
-    for (const concept of detectedConcepts) {
-      emitToLectureRoom(lectureId, "lecture:concept-detected", {
-        conceptId: concept.id,
-        label: concept.label,
-      });
-    }
-  } catch (err) {
-    // Next.js API routes run in a separate context from the Express server,
-    // so Socket.IO may not be available here. Events will still reach clients
-    // if they poll or reconnect.
-    console.warn("Socket emit skipped (not in Express server context)");
-  }
+  // Socket.IO events are emitted by rtms.ts (Express context) after this route responds.
+  // Next.js API routes don't have access to the Socket.IO server instance.
 
   return NextResponse.json({
     chunkId: chunk.id,
