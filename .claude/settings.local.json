@@ -22,9 +22,14 @@
       "Bash(npx eslint:*)",
       "mcp__filesystem__read_text_file",
       "mcp__filesystem__read_multiple_files",
-      "mcp__filesystem__list_directory",
-      "Bash(find:*)",
-      "Bash(curl:*)"
+      "Bash(pip install:*)",
+      "Bash(python main.py:*)",
+      "Bash(npm run dev:*)",
+      "Bash(python app.py:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(python3:*)",
+      "Bash(pkill:*)"
     ]
   }
 }
