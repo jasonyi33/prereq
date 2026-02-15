@@ -12,11 +12,12 @@ interface Suggestion {
 interface InterventionPanelProps {
   lectureId: string | null;
   strugglingConceptIds: string[];
+  timelineConceptIds: string[];
   transcriptChunkCount: number;
 }
 
-const AUTO_INTERVAL_MS = 240_000; // 4 minutes
-const MIN_NEW_CHUNKS = 3;
+const AUTO_INTERVAL_MS = 120_000; // 2 minutes
+const MIN_NEW_CHUNKS = 1;
 const GLOW_DURATION_MS = 3000;
 
 function formatTimeAgo(ts: number): string {
@@ -29,6 +30,7 @@ function formatTimeAgo(ts: number): string {
 export default function InterventionPanel({
   lectureId,
   strugglingConceptIds,
+  timelineConceptIds,
   transcriptChunkCount,
 }: InterventionPanelProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -42,14 +44,16 @@ export default function InterventionPanel({
 
   const fetchSuggestions = useCallback(
     async (isAuto: boolean) => {
-      if (!lectureId || strugglingConceptIds.length === 0) return;
+      if (!lectureId) return;
+      const ids = strugglingConceptIds.length > 0 ? strugglingConceptIds : timelineConceptIds;
+      if (ids.length === 0) return;
       if (isAuto) setAutoLoading(true);
       else setLoading(true);
       setError(null);
       try {
         const data = await nextApi.post(
           `/api/lectures/${lectureId}/interventions`,
-          { conceptIds: strugglingConceptIds }
+          { conceptIds: ids }
         );
         if (data.suggestions) {
           setSuggestions(data.suggestions);
@@ -70,20 +74,21 @@ export default function InterventionPanel({
         else setLoading(false);
       }
     },
-    [lectureId, strugglingConceptIds, transcriptChunkCount]
+    [lectureId, strugglingConceptIds, timelineConceptIds, transcriptChunkCount]
   );
 
-  // Auto-timer: every 4 minutes, generate if enough new chunks
+  // Auto-timer: every 2 minutes, generate if enough new chunks
   useEffect(() => {
     if (!lectureId) return;
     const interval = setInterval(() => {
       const newChunks = transcriptChunkCount - lastGenChunkCountRef.current;
-      if (newChunks >= MIN_NEW_CHUNKS && strugglingConceptIds.length > 0) {
+      const hasConceptIds = strugglingConceptIds.length > 0 || timelineConceptIds.length > 0;
+      if (newChunks >= MIN_NEW_CHUNKS && hasConceptIds) {
         fetchSuggestions(true);
       }
     }, AUTO_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [lectureId, transcriptChunkCount, strugglingConceptIds, fetchSuggestions]);
+  }, [lectureId, transcriptChunkCount, strugglingConceptIds, timelineConceptIds, fetchSuggestions]);
 
   // Tick every 30s to update "Updated Xm ago"
   useEffect(() => {
@@ -123,14 +128,14 @@ export default function InterventionPanel({
       <div className="space-y-3">
         <button
           onClick={handleGetSuggestions}
-          disabled={loading || !lectureId || strugglingConceptIds.length === 0}
+          disabled={loading || !lectureId}
           className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-800 text-white hover:bg-gray-700 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loading ? "Loading..." : "Get Suggestions"}
         </button>
-        {strugglingConceptIds.length === 0 && !loading && !autoLoading && (
+        {strugglingConceptIds.length === 0 && timelineConceptIds.length === 0 && !loading && !autoLoading && (
           <p className="text-xs text-gray-400">
-            No struggling concepts detected yet
+            No concepts detected yet
           </p>
         )}
         {isLiveNoSuggestions && strugglingConceptIds.length > 0 && (

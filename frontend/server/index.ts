@@ -14,6 +14,7 @@ import chatRoute from "./chat-route";
 import pollGenerateRoute from "./poll-generate-route";
 import pollActivateRoute from "./poll-activate-route";
 import pollRespondRoute from "./poll-respond-route";
+import interventionRoute from "./intervention-route";
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT || "3000", 10);
 
@@ -67,6 +68,9 @@ nextApp.prepare().then(async () => {
   app.use(pollGenerateRoute);
   app.use(pollActivateRoute);
   app.use(pollRespondRoute);
+
+  // Intervention route runs in Express to ensure env vars work
+  app.use(interventionRoute);
 
   // Pass all other requests to Next.js
   app.use((req, res) => {
