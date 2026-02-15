@@ -191,22 +191,22 @@ export default function ConceptLearning({
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="w-full max-w-4xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] font-sans">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
+              <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                      <BookOpen className="text-blue-600" size={20} />
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center border border-gray-200">
+                      <BookOpen className="text-gray-700" size={20} />
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-slate-800">{conceptLabel}</h2>
-                      <p className="text-xs text-slate-500">Interactive Learning</p>
+                      <h2 className="text-xl font-[family-name:var(--font-instrument-serif)] text-gray-800 tracking-tight">{conceptLabel}</h2>
+                      <p className="text-xs text-gray-500 font-medium">Interactive Learning</p>
                     </div>
                   </div>
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
                   >
                     <X size={18} />
                   </button>
@@ -218,8 +218,8 @@ export default function ConceptLearning({
                     onClick={() => setViewMode("learning")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === "learning"
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        ? "bg-gray-800 text-white hover:bg-gray-700"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
                     <BookOpen className="w-4 h-4 inline mr-1.5" />
@@ -229,8 +229,8 @@ export default function ConceptLearning({
                     onClick={() => setViewMode("quiz")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === "quiz" || viewMode === "results"
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        ? "bg-gray-800 text-white hover:bg-gray-700"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
                     <Trophy className="w-4 h-4 inline mr-1.5" />
@@ -245,50 +245,50 @@ export default function ConceptLearning({
                   <div>
                     {loadingLearning ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
                       </div>
                     ) : (
-                      <div className="prose prose-slate max-w-none markdown-learning">
+                      <div className="prose max-w-none markdown-learning">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[rehypeKatex]}
                           components={{
                             h1: ({ children }) => (
-                              <h1 className="text-2xl font-bold text-slate-800 mb-4 mt-6 first:mt-0">{children}</h1>
+                              <h1 className="text-3xl font-bold font-[family-name:var(--font-instrument-serif)] text-gray-800 tracking-tight mb-4 mt-6 first:mt-0">{children}</h1>
                             ),
                             h2: ({ children }) => (
-                              <h2 className="text-xl font-semibold text-slate-800 mb-3 mt-5 first:mt-0">{children}</h2>
+                              <h2 className="text-xl font-semibold text-gray-800 mb-3 mt-5 first:mt-0">{children}</h2>
                             ),
                             h3: ({ children }) => (
-                              <h3 className="text-lg font-semibold text-slate-700 mb-2 mt-4 first:mt-0">{children}</h3>
+                              <h3 className="text-lg font-semibold text-gray-700 mb-2 mt-4 first:mt-0">{children}</h3>
                             ),
                             p: ({ children }) => (
-                              <p className="text-slate-700 leading-relaxed mb-4">{children}</p>
+                              <p className="text-gray-700 leading-relaxed mb-4">{children}</p>
                             ),
                             ul: ({ children }) => (
-                              <ul className="text-slate-700 space-y-2 mb-4 ml-6 list-disc">{children}</ul>
+                              <ul className="text-gray-700 space-y-2 mb-4 ml-6 list-disc">{children}</ul>
                             ),
                             ol: ({ children }) => (
-                              <ol className="text-slate-700 space-y-2 mb-4 ml-6 list-decimal">{children}</ol>
+                              <ol className="text-gray-700 space-y-2 mb-4 ml-6 list-decimal">{children}</ol>
                             ),
                             li: ({ children }) => (
-                              <li className="text-slate-700 leading-relaxed">{children}</li>
+                              <li className="text-gray-700 leading-relaxed">{children}</li>
                             ),
                             strong: ({ children }) => (
-                              <strong className="font-semibold text-slate-900">{children}</strong>
+                              <strong className="font-semibold text-gray-900">{children}</strong>
                             ),
                             code: ({ children }) => (
-                              <code className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-sm font-mono text-blue-600">
+                              <code className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-sm font-mono text-gray-800">
                                 {children}
                               </code>
                             ),
                             pre: ({ children }) => (
-                              <pre className="bg-slate-50 border border-slate-200 rounded-lg p-4 overflow-x-auto mb-4">
+                              <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto mb-4 text-gray-800">
                                 {children}
                               </pre>
                             ),
                             blockquote: ({ children }) => (
-                              <blockquote className="border-l-4 border-blue-300 pl-4 italic text-slate-600 my-4 bg-blue-50 py-2 rounded-r">
+                              <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4 bg-gray-50 py-2 rounded-r">
                                 {children}
                               </blockquote>
                             ),
@@ -305,10 +305,10 @@ export default function ConceptLearning({
                   <div>
                     {loadingQuiz ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
                       </div>
                     ) : quizQuestions.length === 0 ? (
-                      <div className="text-center py-12 text-slate-500">
+                      <div className="text-center py-12 text-gray-500">
                         Failed to load quiz questions. Please try again.
                       </div>
                     ) : (
@@ -316,16 +316,16 @@ export default function ConceptLearning({
                         {/* Progress */}
                         <div className="mb-6">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-slate-600">
+                            <span className="text-sm font-medium text-gray-600">
                               Question {currentQuestion + 1} of {quizQuestions.length}
                             </span>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-gray-400">
                               {selectedAnswers.filter((a, i) => a === quizQuestions[i]?.correct_answer).length} correct
                             </span>
                           </div>
-                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-blue-600 transition-all duration-300"
+                              className="h-full bg-gray-800 transition-all duration-300"
                               style={{ width: `${((currentQuestion + 1) / quizQuestions.length) * 100}%` }}
                             />
                           </div>
@@ -333,7 +333,7 @@ export default function ConceptLearning({
 
                         {/* Question */}
                         <div className="mb-6">
-                          <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-4">
                             {currentQ?.question}
                           </h3>
 
@@ -355,12 +355,12 @@ export default function ConceptLearning({
                                       : showCorrectness && isSelected && !isCorrect
                                         ? "border-red-500 bg-red-50"
                                         : isSelected
-                                          ? "border-blue-500 bg-blue-50"
-                                          : "border-slate-200 hover:border-slate-300 bg-white"
+                                          ? "border-gray-800 bg-gray-50"
+                                          : "border-gray-200 hover:border-gray-300 bg-white"
                                   } ${showExplanation ? "cursor-default" : "cursor-pointer"}`}
                                 >
                                   <div className="flex items-center justify-between">
-                                    <span className="text-slate-700">{option}</span>
+                                    <span className="text-gray-700">{option}</span>
                                     {showCorrectness && isCorrect && (
                                       <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
                                     )}
@@ -397,7 +397,7 @@ export default function ConceptLearning({
                                 }`}>
                                   {isAnswerCorrect ? "Correct!" : "Not quite"}
                                 </p>
-                                <p className="text-sm text-slate-600 leading-relaxed">
+                                <p className="text-sm text-gray-600 leading-relaxed">
                                   {currentQ.explanation}
                                 </p>
                               </div>
@@ -411,14 +411,14 @@ export default function ConceptLearning({
                             <button
                               onClick={handleCheckAnswer}
                               disabled={selectedAnswers[currentQuestion] === undefined}
-                              className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                              className="flex-1 py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                               Check Answer
                             </button>
                           ) : (
                             <button
                               onClick={handleNextQuestion}
-                              className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all"
+                              className="flex-1 py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium transition-all"
                             >
                               {currentQuestion < quizQuestions.length - 1 ? "Next Question" : "Finish Quiz"}
                             </button>
@@ -431,25 +431,25 @@ export default function ConceptLearning({
 
                 {viewMode === "results" && quizScore && (
                   <div className="max-w-2xl mx-auto text-center py-8">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center mx-auto mb-6">
+                    <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-6">
                       <Trophy className="w-10 h-10 text-white" />
                     </div>
 
-                    <h3 className="text-2xl font-bold text-slate-800 mb-2">Quiz Complete!</h3>
-                    <p className="text-slate-600 mb-6">
+                    <h3 className="text-2xl font-bold font-[family-name:var(--font-instrument-serif)] text-gray-800 tracking-tight mb-2">Quiz Complete!</h3>
+                    <p className="text-gray-600 mb-6">
                       You scored {quizScore.correct} out of {quizScore.total} questions correctly
                     </p>
 
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-6">
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
                       <div className="flex items-center justify-center gap-3 mb-3">
-                        <TrendingUp className="text-blue-600" size={24} />
-                        <span className="text-3xl font-bold text-slate-800">
+                        <TrendingUp className="text-gray-600" size={24} />
+                        <span className="text-3xl font-bold text-gray-800">
                           {Math.round((quizScore.correct / quizScore.total) * 100)}%
                         </span>
                       </div>
                       {confidenceBoost > 0 && (
-                        <p className="text-sm text-slate-600">
-                          Confidence increased by <strong className="text-blue-600">+{Math.round(confidenceBoost * 100)}%</strong>
+                        <p className="text-sm text-gray-600">
+                          Confidence increased by <strong className="text-gray-800">+{Math.round(confidenceBoost * 100)}%</strong>
                         </p>
                       )}
                     </div>
@@ -457,13 +457,13 @@ export default function ConceptLearning({
                     <div className="flex gap-3 justify-center">
                       <button
                         onClick={resetQuiz}
-                        className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-all"
+                        className="px-6 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-all"
                       >
                         Try Again
                       </button>
                       <button
                         onClick={() => setViewMode("learning")}
-                        className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all"
+                        className="px-6 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium transition-all"
                       >
                         Review Concept
                       </button>
@@ -474,7 +474,7 @@ export default function ConceptLearning({
             </div>
           </motion.div>
 
-          {/* Custom styles for KaTeX math rendering */}
+          {/* Custom styles for KaTeX math rendering — aligned with Prereq gray palette */}
           <style jsx global>{`
             .markdown-learning .katex {
               font-size: 1.1em;
@@ -482,8 +482,8 @@ export default function ConceptLearning({
             .markdown-learning .katex-display {
               margin: 1.5rem 0;
               padding: 1rem;
-              background: linear-gradient(to bottom right, rgb(248 250 252), rgb(241 245 249));
-              border: 1px solid rgb(226 232 240);
+              background: rgb(249 250 251);
+              border: 1px solid rgb(229 231 235);
               border-radius: 0.75rem;
               overflow-x: auto;
             }
@@ -491,10 +491,10 @@ export default function ConceptLearning({
               margin: 0;
             }
             .markdown-learning .katex-html {
-              color: rgb(51 65 85);
+              color: rgb(31 41 55);
             }
             .markdown-learning .katex .mord.text {
-              color: rgb(51 65 85);
+              color: rgb(31 41 55);
             }
             .markdown-learning p .katex {
               padding: 0 0.25rem;
@@ -502,7 +502,7 @@ export default function ConceptLearning({
             .markdown-learning .katex .mop,
             .markdown-learning .katex .mbin,
             .markdown-learning .katex .mrel {
-              color: rgb(37 99 235);
+              color: rgb(55 65 81);
             }
           `}</style>
         </>

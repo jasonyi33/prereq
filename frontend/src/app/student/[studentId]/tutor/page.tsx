@@ -2,12 +2,24 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowLeft, TrendingUp } from "lucide-react";
 import WeakConceptsSidebar, { type WeakConcept } from "@/components/tutor/WeakConceptsSidebar";
 import ChatInterface, { type ChatMessage } from "@/components/tutor/ChatInterface";
 import { useSocketEvent } from "@/lib/socket";
 import { nextApi } from "@/lib/api";
 import { confidenceToColor } from "@/lib/colors";
+
+/** Aaron logo — cute "A" in Instrument Serif, aligned with landing page style */
+function AaronLogo({ className = "w-9 h-9 text-xl" }: { className?: string }) {
+  return (
+    <div
+      className={`rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 font-[family-name:var(--font-instrument-serif)] font-normal text-gray-800 ${className}`}
+      style={{ lineHeight: 1 }}
+    >
+      A
+    </div>
+  );
+}
 
 // Mock weak concepts until tutoring session endpoint is available
 const MOCK_WEAK_CONCEPTS: WeakConcept[] = [
@@ -100,50 +112,40 @@ export default function TutoringView() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+      <div className="flex h-screen items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center animate-pulse">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <p className="text-sm text-slate-500">Starting tutoring session...</p>
+          <AaronLogo className="w-12 h-12 text-2xl animate-pulse" />
+          <p className="text-sm text-gray-500 font-medium">Starting tutoring session...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 relative overflow-hidden">
-      {/* Background blur blobs */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[500px] bg-emerald-200/15 blur-[100px] rounded-full" />
-      </div>
-
-      {/* Header */}
-      <header className="relative z-10 flex items-center gap-3 bg-white/70 backdrop-blur-sm border-b border-slate-200 px-4 py-3">
+    <div className="flex h-screen flex-col bg-gray-50 relative overflow-hidden font-sans">
+      {/* Header — aligned with landing page */}
+      <header className="relative z-10 flex items-center gap-3 bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 py-3">
         <button
           onClick={() => router.back()}
-          className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-700"
+          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-          <Sparkles className="w-4.5 h-4.5 text-white" />
-        </div>
+        <AaronLogo />
         <div>
-          <h1 className="text-lg font-semibold text-slate-800 tracking-tight leading-tight">AI Tutor</h1>
-          <p className="text-xs text-slate-500">Personalized learning session</p>
+          <h1 className="text-xl font-[family-name:var(--font-instrument-serif)] text-gray-800 tracking-tight leading-tight">Aaron - AI Tutor</h1>
+          <p className="text-xs text-gray-500 font-medium">Personalized learning session</p>
         </div>
       </header>
 
       {/* Notification toast */}
       {notification && (
         <div className="absolute top-16 right-4 z-50 animate-in fade-in-0 slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 shadow-lg shadow-emerald-100/50">
-            <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-white border border-gray-200 shadow-lg shadow-gray-100/50">
+            <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-3.5 h-3.5 text-gray-600" />
             </div>
-            <span className="text-sm font-medium text-emerald-700">{notification}</span>
+            <span className="text-sm font-medium text-gray-800">{notification}</span>
           </div>
         </div>
       )}

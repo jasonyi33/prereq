@@ -105,25 +105,29 @@ export default function PerplexityDialog({
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <motion.div
+          key="perplexity-dialog-root"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50"
+        >
           {/* Backdrop */}
           <motion.div
-            key="perplexity-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm"
           />
 
           {/* Dialog */}
           <motion.div
-            key="perplexity-dialog"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", duration: 0.3 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden">
@@ -338,7 +342,7 @@ export default function PerplexityDialog({
               )}
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
 
       {/* Custom styles for KaTeX math rendering */}

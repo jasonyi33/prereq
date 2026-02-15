@@ -1,8 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Sparkles, User, MessageCircle, Lightbulb } from "lucide-react";
+import { Send, Loader2, User, Lightbulb } from "lucide-react";
 import { nextApi } from "@/lib/api";
+
+/** Aaron avatar — matches tutor page logo (Instrument Serif "A") */
+function AaronAvatar() {
+  return (
+    <div
+      className="w-8 h-8 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 font-[family-name:var(--font-instrument-serif)] text-gray-800 text-base"
+      style={{ lineHeight: 1 }}
+    >
+      A
+    </div>
+  );
+}
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -50,22 +62,21 @@ function MessageBubble({ role, content, timestamp, isLatest }: { role: string; c
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4 group ${isLatest ? "animate-in fade-in-0 slide-in-from-bottom-2 duration-300" : ""}`}>
-      {/* Tutor avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shrink-0 mr-2.5 mt-5">
-          <Sparkles className="w-4 h-4 text-white" />
+        <div className="mr-2.5 mt-5">
+          <AaronAvatar />
         </div>
       )}
 
       <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[75%]`}>
-        <span className="text-xs text-slate-400 mb-1 px-1">
-          {isUser ? "You" : "Tutor"}
+        <span className="text-xs text-gray-500 mb-1 px-1 font-medium">
+          {isUser ? "You" : "Aaron - AI Tutor"}
         </span>
         <div
           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
             isUser
-              ? "bg-slate-800 text-white rounded-tr-sm"
-              : "bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm text-slate-700 rounded-tl-sm"
+              ? "bg-gray-800 text-white rounded-tr-sm"
+              : "bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm text-gray-700 rounded-tl-sm"
           }`}
         >
           {isUser ? (
@@ -77,46 +88,46 @@ function MessageBubble({ role, content, timestamp, isLatest }: { role: string; c
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   p: ({ children }) => (
-                    <p className="text-sm text-slate-700 leading-relaxed mb-2 last:mb-0">{children}</p>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-2 last:mb-0">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="text-sm text-slate-700 space-y-1 my-2 ml-4 list-disc">{children}</ul>
+                    <ul className="text-sm text-gray-700 space-y-1 my-2 ml-4 list-disc">{children}</ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="text-sm text-slate-700 space-y-1 my-2 ml-4 list-decimal">{children}</ol>
+                    <ol className="text-sm text-gray-700 space-y-1 my-2 ml-4 list-decimal">{children}</ol>
                   ),
                   li: ({ children }) => (
-                    <li className="text-sm text-slate-700 leading-relaxed">{children}</li>
+                    <li className="text-sm text-gray-700 leading-relaxed">{children}</li>
                   ),
                   strong: ({ children }) => (
-                    <strong className="font-semibold text-slate-800">{children}</strong>
+                    <strong className="font-semibold text-gray-800">{children}</strong>
                   ),
                   em: ({ children }) => (
-                    <em className="italic text-slate-700">{children}</em>
+                    <em className="italic text-gray-700">{children}</em>
                   ),
                   code: ({ children }) => (
-                    <code className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs font-mono text-blue-600">
+                    <code className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono text-gray-800">
                       {children}
                     </code>
                   ),
                   pre: ({ children }) => (
-                    <pre className="bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto my-2">
+                    <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto my-2 text-gray-800">
                       {children}
                     </pre>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-3 border-blue-300 pl-3 italic text-slate-600 my-2">
+                    <blockquote className="border-l-3 border-gray-300 pl-3 italic text-gray-600 my-2">
                       {children}
                     </blockquote>
                   ),
                   h1: ({ children }) => (
-                    <h1 className="text-base font-semibold text-slate-800 mb-2 mt-3 first:mt-0">{children}</h1>
+                    <h1 className="text-base font-semibold text-gray-800 mb-2 mt-3 first:mt-0">{children}</h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-sm font-semibold text-slate-800 mb-1.5 mt-2.5 first:mt-0">{children}</h2>
+                    <h2 className="text-sm font-semibold text-gray-800 mb-1.5 mt-2.5 first:mt-0">{children}</h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="text-sm font-semibold text-slate-700 mb-1.5 mt-2 first:mt-0">{children}</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-1.5 mt-2 first:mt-0">{children}</h3>
                   ),
                 }}
               >
@@ -126,15 +137,14 @@ function MessageBubble({ role, content, timestamp, isLatest }: { role: string; c
           )}
         </div>
         {timestamp && (
-          <span className="text-xs text-slate-400 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-xs text-gray-400 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {formatTime(timestamp)}
           </span>
         )}
       </div>
 
-      {/* User avatar */}
       {isUser && (
-        <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center shrink-0 ml-2.5 mt-5">
+        <div className="w-8 h-8 rounded-xl bg-gray-800 flex items-center justify-center shrink-0 ml-2.5 mt-5">
           <User className="w-4 h-4 text-white" />
         </div>
       )}
@@ -145,16 +155,16 @@ function MessageBubble({ role, content, timestamp, isLatest }: { role: string; c
 function TypingIndicator() {
   return (
     <div className="flex justify-start mb-4">
-      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shrink-0 mr-2.5 mt-5">
-        <Sparkles className="w-4 h-4 text-white" />
+      <div className="mr-2.5 mt-5">
+        <AaronAvatar />
       </div>
       <div className="flex flex-col items-start">
-        <span className="text-xs text-slate-400 mb-1 px-1">Tutor</span>
-        <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+        <span className="text-xs text-gray-500 mb-1 px-1 font-medium">Aaron - AI Tutor</span>
+        <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
           <div className="flex space-x-1.5">
-            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
         </div>
       </div>
@@ -169,9 +179,9 @@ function SuggestedPrompts({ onSelect }: { onSelect: (prompt: string) => void }) 
         <button
           key={prompt}
           onClick={() => onSelect(prompt)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white/80 text-xs text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-all duration-150"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white/80 text-xs text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800 transition-all duration-150"
         >
-          <Lightbulb className="w-3 h-3" />
+          <Lightbulb className="w-3 h-3 text-gray-500" />
           {prompt}
         </button>
       ))}
@@ -263,18 +273,21 @@ export default function ChatInterface({
 
   return (
     <>
-    <div className="flex h-full flex-col rounded-2xl bg-white/60 backdrop-blur-sm border border-slate-200 shadow-sm overflow-hidden">
+    <div className="flex h-full flex-col rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200 shadow-sm overflow-hidden">
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-md">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="w-8 h-8 text-white" />
+              <div
+                className="w-16 h-16 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center mx-auto mb-4 font-[family-name:var(--font-instrument-serif)] text-gray-800 text-3xl"
+                style={{ lineHeight: 1 }}
+              >
+                A
               </div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-2">Ready to learn!</h3>
-              <p className="text-sm text-slate-500">
-                Your tutor will help you strengthen concepts you&apos;re struggling with.
+              <h3 className="text-xl font-[family-name:var(--font-instrument-serif)] text-gray-800 tracking-tight mb-2">Ready to learn!</h3>
+              <p className="text-sm text-gray-500">
+                Aaron - AI Tutor will help you strengthen concepts you&apos;re struggling with.
                 Ask questions and explain your thinking.
               </p>
               <SuggestedPrompts onSelect={handleSuggestedPrompt} />
@@ -306,7 +319,7 @@ export default function ChatInterface({
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}
           className="max-w-3xl mx-auto"
         >
-          <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all duration-150">
+          <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-100 transition-all duration-150">
             <textarea
               ref={textareaRef}
               value={input}
@@ -315,7 +328,7 @@ export default function ChatInterface({
               placeholder="Type your response..."
               disabled={loading}
               rows={1}
-              className="w-full resize-none bg-transparent px-4 py-3 pr-14 text-sm placeholder:text-slate-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto leading-relaxed"
+              className="w-full resize-none bg-transparent px-4 py-3 pr-14 text-sm placeholder:text-gray-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto leading-relaxed text-gray-800"
               style={{ minHeight: "44px", maxHeight: "160px" }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -326,7 +339,7 @@ export default function ChatInterface({
             <button
               type="submit"
               disabled={!input.trim() || loading}
-              className="absolute right-2 bottom-2 w-9 h-9 rounded-xl bg-slate-800 text-white flex items-center justify-center hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 transition-all duration-150"
+              className="absolute right-2 bottom-2 w-9 h-9 rounded-xl bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 transition-all duration-150"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -335,7 +348,7 @@ export default function ChatInterface({
               )}
             </button>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5 text-center">
+          <p className="text-[11px] text-gray-400 mt-1.5 text-center">
             Press Enter to send, Shift+Enter for new line
           </p>
         </form>
