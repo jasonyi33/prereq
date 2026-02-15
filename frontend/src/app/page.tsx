@@ -265,7 +265,7 @@ export default function LandingPage() {
                 required
               />
             </div>
-            div>
+            <div>
               <label className="block text-sm font-medium text-gray-500 mb-1.5">Password</label>
               <input
                 type="password"

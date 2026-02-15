@@ -1,30 +1,31 @@
-// Zoom RTMS integration — receives live meeting transcripts via pure JS WebSocket
+// Zoom RTMS integration — receives live meeting transcripts via Zoom's RTMS SDK
 // Supports both global env-var credentials (legacy/demo) and per-teacher credentials
 
 import { createHmac } from "crypto";
 import type { Express } from "express";
-import WebSocket from "ws";
 import { supabase } from "./db";
+
+// Lazy-load @zoom/rtms SDK — only needed when actually connecting to a meeting.
+// Webhook validation and OAuth work without it, so routes register even if SDK is missing.
+let rtms: any = null;
+async function getRtmsSdk(): Promise<any> {
+  if (!rtms) {
+    try {
+      rtms = (await import("@zoom/rtms")).default;
+    } catch (err: any) {
+      throw new Error(`@zoom/rtms SDK not installed — ${err?.message || err}`);
+    }
+  }
+  return rtms;
+}
 
 const RTMS_EVENTS = ["meeting.rtms_started", "webinar.rtms_started", "session.rtms_started"];
 const RTMS_STOP_EVENTS = ["meeting.rtms_stopped", "webinar.rtms_stopped", "session.rtms_stopped"];
 
-// --- RTMS signaling protocol constants ---
-const MSG_HANDSHAKE = 1;
-const MSG_HANDSHAKE_RESP = 2;
-const MSG_KEEP_ALIVE_REQ = 12;
-const MSG_KEEP_ALIVE_RESP = 13;
-
-function generateSignature(clientId: string, clientSecret: string, meetingUuid: string, streamId: string): string {
-  return createHmac("sha256", clientSecret)
-    .update(`${clientId},${meetingUuid},${streamId}`)
-    .digest("hex");
-}
-
 // --- Multi-tenant state ---
 
 interface ActiveStream {
-  ws: WebSocket;
+  client: any;
   teacherId: string | null;
   lectureId: string;
 }
@@ -204,84 +205,50 @@ async function startRtmsConnection(payload: any, teacherId: string | null): Prom
     teacherLectures.set(teacherId, lectureId);
   }
 
-  // --- Pure JS WebSocket connection (bypasses native SDK) ---
-  const meetingUuid = payload.meeting_uuid;
-  const serverUrl = payload.server_urls;
-  const signature = generateSignature(clientId, clientSecret, meetingUuid, streamId);
+  let sdk: any;
+  try {
+    sdk = await getRtmsSdk();
+    diag("sdk", "@zoom/rtms SDK loaded successfully");
+  } catch (err: any) {
+    diag("ABORT", `SDK load failed: ${err.message}`);
+    return;
+  }
 
-  diag("connect", `WebSocket to ${serverUrl}, clientId=${clientId.slice(0, 8)}..., secretLen=${clientSecret.length}`);
-
-  const ws = new WebSocket(serverUrl);
-  activeStreams.set(streamId, { ws, teacherId, lectureId });
+  const client = new sdk.Client();
+  activeStreams.set(streamId, { client, teacherId, lectureId });
+  diag("client", `Created RTMS Client, activeStreams count=${activeStreams.size}`);
 
   let startTime = Date.now();
   let transcriptCount = 0;
 
-  ws.on("open", () => {
-    diag("ws_open", `Connected to ${serverUrl}`);
-    const handshake = JSON.stringify({
-      msg_type: MSG_HANDSHAKE,
-      protocol_version: 1,
-      meeting_uuid: meetingUuid,
-      rtms_stream_id: streamId,
-      signature,
-      sequence: Math.floor(Math.random() * 1e9),
-    });
-    ws.send(handshake);
-    diag("handshake", "Sent handshake with HMAC signature");
+  client.onTranscriptData((data: Buffer, size: number, timestamp: number, metadata: any) => {
+    transcriptCount++;
+    const text = data.toString("utf8");
+    const elapsedSec = (Date.now() - startTime) / 1000;
+    const speakerName = metadata?.userName || "Unknown";
+
+    diag("transcript", `#${transcriptCount} [${elapsedSec.toFixed(1)}s] ${speakerName}: ${text.slice(0, 100)}`);
+    postTranscript(lectureId, text, elapsedSec, speakerName);
   });
 
-  ws.on("message", (raw: Buffer | string) => {
-    const text_raw = raw.toString();
-    try {
-      const msg = JSON.parse(text_raw);
+  client.onJoinConfirm((reason: number) => {
+    diag("joinConfirm", `reason=${reason}, teacher=${teacherId || "global"}, clientId=${clientId.slice(0, 8)}...`);
+    startTime = Date.now();
+  });
 
-      if (msg.msg_type === MSG_HANDSHAKE_RESP) {
-        diag("handshake_resp", `status=${msg.status_code}, reason=${msg.reason || "none"}`);
-        if (msg.status_code === 0) {
-          diag("joined", "RTMS stream authenticated successfully");
-          startTime = Date.now();
-        } else {
-          diag("AUTH_FAIL", `Handshake rejected: status=${msg.status_code}`);
-          ws.close();
-        }
-        return;
-      }
-
-      if (msg.msg_type === MSG_KEEP_ALIVE_REQ) {
-        ws.send(JSON.stringify({ msg_type: MSG_KEEP_ALIVE_RESP, timestamp: msg.timestamp }));
-        return;
-      }
-
-      // Log ALL JSON messages for debugging
-      diag("ws_json", `type=${msg.msg_type}, full=${JSON.stringify(msg).slice(0, 500)}`);
-
-      // Transcript data — try multiple possible field locations
-      const text = msg.data?.transcript || msg.transcript || msg.content || msg.text;
-      const speakerName = msg.data?.user_name || msg.user_name || msg.userName || "Unknown";
-      if (text) {
-        transcriptCount++;
-        const elapsedSec = (Date.now() - startTime) / 1000;
-        diag("transcript", `#${transcriptCount} [${elapsedSec.toFixed(1)}s] ${speakerName}: ${text.slice(0, 100)}`);
-        postTranscript(lectureId, text, elapsedSec, speakerName);
-      }
-    } catch {
-      // Non-JSON text message
-      diag("ws_text", `len=${text_raw.length}, preview=${text_raw.slice(0, 200)}`);
+  client.onLeave((reason: number) => {
+    diag("leave", `reason=${reason}, streamId=${streamId}`);
+    activeStreams.delete(streamId);
+    if (teacherId) {
+      teacherLectures.delete(teacherId);
     }
   });
 
-  ws.on("close", (code: number, reason: Buffer) => {
-    diag("ws_close", `code=${code}, reason=${reason.toString()}, streamId=${streamId}`);
-    activeStreams.delete(streamId);
-    if (teacherId) teacherLectures.delete(teacherId);
-  });
+  // Pass credentials directly to join() — avoids env var race conditions with multiple teachers
+  diag("join", `Calling client.join() with streamId=${streamId}, clientId=${clientId.slice(0, 8)}..., secretLen=${clientSecret.length}`);
+  client.join({ ...payload, client: clientId, secret: clientSecret });
 
-  ws.on("error", (err: Error) => {
-    diag("ws_error", `${err.message}, streamId=${streamId}`);
-  });
-
-  diag("connect", "WebSocket connection initiated — waiting for handshake response...");
+  diag("join", "client.join() called — waiting for onJoinConfirm callback...");
 }
 
 // --- Webhook handler factory ---
@@ -314,8 +281,8 @@ function handleWebhook(teacherId: string | null, secret: string) {
     if (RTMS_STOP_EVENTS.includes(event)) {
       const stream = activeStreams.get(streamId);
       if (stream) {
-        diag("stop", `Closing WebSocket for streamId=${streamId}`);
-        try { stream.ws.close(); } catch {}
+        diag("stop", `Calling client.leave() for streamId=${streamId}`);
+        try { stream.client.leave(); } catch {}
         activeStreams.delete(streamId);
         if (teacherId) teacherLectures.delete(teacherId);
       } else {
@@ -403,6 +370,10 @@ function handleOAuth(teacherId: string | null) {
 // --- Setup ---
 
 export function setupRTMS(app: Express): void {
+  // Enable SDK debug logging to diagnose auth failures
+  process.env.ZM_RTMS_LOG_LEVEL = "debug";
+  process.env.ZM_RTMS_LOG_ENABLED = "true";
+
   // --- Diagnostic endpoint ---
   app.get("/api/rtms/status", (_req, res) => {
     res.json({
@@ -413,9 +384,18 @@ export function setupRTMS(app: Express): void {
       })),
       teacherLectures: Object.fromEntries(teacherLectures),
       recentEvents: diagLog.slice(-30),
+      sdkLoaded: rtms !== null,
       hasGlobalCreds: !!(process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET),
     });
   });
+
+  // Legacy global env var setup (for backward compat / demo mode)
+  if (process.env.ZOOM_CLIENT_ID) {
+    process.env.ZM_RTMS_CLIENT = process.env.ZOOM_CLIENT_ID;
+  }
+  if (process.env.ZOOM_CLIENT_SECRET) {
+    process.env.ZM_RTMS_SECRET = process.env.ZOOM_CLIENT_SECRET;
+  }
 
   // --- Legacy global routes (backward compat) ---
   if (process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET) {
