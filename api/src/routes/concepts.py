@@ -49,8 +49,8 @@ def get_learning_page(concept_id):
 
     concept = concept_result.data[0]
 
-    # Get learning page content from database
-    page_result = supabase.table('concept_learning_pages').select('content').eq('concept_id', concept_id).execute()
+    # Get learning page content from database (student_id is null for general content)
+    page_result = supabase.table('learning_pages').select('content').eq('concept_id', concept_id).is_('student_id', 'null').execute()
 
     if not page_result.data:
         return jsonify({
@@ -76,7 +76,7 @@ def get_quiz(concept_id):
     concept = concept_result.data[0]
 
     # Get quiz questions from database
-    questions_result = supabase.table('concept_quiz_questions').select('*').eq('concept_id', concept_id).order('question_order').execute()
+    questions_result = supabase.table('quiz_questions').select('*').eq('concept_id', concept_id).order('question_order').execute()
 
     if not questions_result.data:
         return jsonify({
@@ -211,19 +211,22 @@ Return ONLY the markdown content, no additional commentary."""
 
     content = response.content[0].text
 
-    # Check if already exists
-    existing = supabase.table('concept_learning_pages').select('id').eq('concept_id', concept_id).execute()
+    # Check if already exists (for general content, student_id is null)
+    existing = supabase.table('learning_pages').select('id').eq('concept_id', concept_id).is_('student_id', 'null').execute()
 
     if existing.data:
         # Update existing
-        supabase.table('concept_learning_pages').update({
+        supabase.table('learning_pages').update({
             'content': content
-        }).eq('concept_id', concept_id).execute()
+        }).eq('concept_id', concept_id).is_('student_id', 'null').execute()
     else:
         # Insert new
-        supabase.table('concept_learning_pages').insert({
+        supabase.table('learning_pages').insert({
+            'student_id': None,
             'concept_id': concept_id,
-            'content': content
+            'title': concept['label'],
+            'content': content,
+            'further_reading': None
         }).execute()
 
     return {'concept_id': concept_id, 'concept_label': concept['label'], 'content': content}
@@ -302,11 +305,11 @@ Return ONLY the JSON array, no additional text."""
         raise ValueError('Invalid response format from Claude')
 
     # Delete existing questions for this concept
-    supabase.table('concept_quiz_questions').delete().eq('concept_id', concept_id).execute()
+    supabase.table('quiz_questions').delete().eq('concept_id', concept_id).execute()
 
     # Insert new questions
     for idx, q in enumerate(questions):
-        supabase.table('concept_quiz_questions').insert({
+        supabase.table('quiz_questions').insert({
             'concept_id': concept_id,
             'question': q['question'],
             'option_a': q['option_a'],

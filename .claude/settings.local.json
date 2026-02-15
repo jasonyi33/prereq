@@ -22,13 +22,14 @@
       "Bash(npx eslint:*)",
       "mcp__filesystem__read_text_file",
       "mcp__filesystem__read_multiple_files",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(python:*)",
       "Bash(pip install:*)",
-      "Bash(python main.py:*)",
-      "Bash(npm run dev:*)",
-      "Bash(python app.py:*)",
-      "Bash(lsof:*)",
-      "Bash(xargs kill:*)",
-      "Bash(python3:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(git show:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
       "Bash(pkill:*)"
     ]
   }

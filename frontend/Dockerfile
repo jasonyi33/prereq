@@ -15,7 +15,7 @@ RUN mkdir -p /app/logs
 
 # Install dependencies
 COPY package.json package-lock.json* ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 # Copy source
 COPY . .

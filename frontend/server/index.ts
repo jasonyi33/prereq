@@ -16,7 +16,6 @@ import pollActivateRoute from "./poll-activate-route";
 import pollRespondRoute from "./poll-respond-route";
 import pollCloseRoute from "./poll-close-route";
 import interventionRoute from "./intervention-route";
-import videosdkTokenRoute from "./videosdk-token-route";
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT || "3000", 10);
 
@@ -74,9 +73,6 @@ nextApp.prepare().then(async () => {
 
   // Intervention route runs in Express to ensure env vars work
   app.use(interventionRoute);
-
-  // Zoom Video SDK token route
-  app.use(videosdkTokenRoute);
 
   // Pass all other requests to Next.js
   app.use((req, res) => {

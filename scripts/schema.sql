@@ -153,3 +153,28 @@ CREATE TABLE study_group_matches (
 CREATE INDEX IF NOT EXISTS idx_pool_course_status ON study_group_pool(course_id, status);
 CREATE INDEX IF NOT EXISTS idx_pool_student ON study_group_pool(student_id);
 CREATE INDEX IF NOT EXISTS idx_matches_students ON study_group_matches(student1_id, student2_id);
+
+-- Learning content tables (precomputed)
+CREATE TABLE concept_learning_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    concept_id UUID REFERENCES concept_nodes(id) ON DELETE CASCADE UNIQUE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE concept_quiz_questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    concept_id UUID REFERENCES concept_nodes(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    option_a TEXT NOT NULL,
+    option_b TEXT NOT NULL,
+    option_c TEXT NOT NULL,
+    option_d TEXT NOT NULL,
+    correct_answer INT NOT NULL,
+    explanation TEXT NOT NULL,
+    question_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_learning_pages_concept ON concept_learning_pages(concept_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_questions_concept ON concept_quiz_questions(concept_id);
