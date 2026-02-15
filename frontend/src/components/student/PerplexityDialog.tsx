@@ -18,6 +18,36 @@ interface PerplexityDialogProps {
   lectureContext?: string;
 }
 
+// Component to render text with timestamps as styled badges
+function TextWithTimestamps({ children }: { children: React.ReactNode }) {
+  if (typeof children !== "string") return <>{children}</>;
+
+  const text = children as string;
+  // Match patterns like [10:00], [0:31], [12:45]
+  const parts = text.split(/(\[\d{1,2}:\d{2}\])/g);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = part.match(/\[(\d{1,2}):(\d{2})\]/);
+        if (match) {
+          const [, minutes, seconds] = match;
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded text-xs font-mono font-medium cursor-default hover:bg-blue-200 transition-colors"
+              title={`Lecture timestamp: ${minutes}:${seconds}`}
+            >
+              {minutes}:{seconds}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export default function PerplexityDialog({
   isOpen,
   onClose,
@@ -202,7 +232,9 @@ export default function PerplexityDialog({
                                       <h3 className="text-sm font-semibold text-gray-700 mb-2 mt-2 first:mt-0">{children}</h3>
                                     ),
                                     p: ({ children }) => (
-                                      <p className="text-sm text-gray-700 leading-relaxed mb-3 last:mb-0">{children}</p>
+                                      <p className="text-sm text-gray-700 leading-relaxed mb-3 last:mb-0">
+                                        <TextWithTimestamps>{children}</TextWithTimestamps>
+                                      </p>
                                     ),
                                     ul: ({ children }) => (
                                       <ul className="text-sm text-gray-700 space-y-1 mb-3 ml-4 list-disc">{children}</ul>
@@ -211,7 +243,9 @@ export default function PerplexityDialog({
                                       <ol className="text-sm text-gray-700 space-y-1 mb-3 ml-4 list-decimal">{children}</ol>
                                     ),
                                     li: ({ children }) => (
-                                      <li className="text-sm text-gray-700 leading-relaxed">{children}</li>
+                                      <li className="text-sm text-gray-700 leading-relaxed">
+                                        <TextWithTimestamps>{children}</TextWithTimestamps>
+                                      </li>
                                     ),
                                     strong: ({ children }) => (
                                       <strong className="font-semibold text-gray-800">{children}</strong>

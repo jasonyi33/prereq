@@ -54,11 +54,20 @@ ${conceptDescription ? `CONCEPT DESCRIPTION:\n${conceptDescription}\n\n` : ""}${
   }STUDENT'S QUESTION:
 ${question}
 
+FORMATTING INSTRUCTIONS:
+- Use proper markdown formatting
+- For mathematical equations, ALWAYS use LaTeX with dollar signs:
+  - Inline math: $E = mc^2$
+  - Display equations: $$\\frac{\\partial L}{\\partial w} = x \\cdot \\delta$$
+- Write all formulas, variables, and symbols using LaTeX notation
+- Examples: $\\theta$, $\\alpha$, $\\sum_{i=1}^n$, $\\nabla$, $\\sigma(x)$
+
 Provide a clear, concise explanation that:
 1. Directly answers their question
 2. Uses examples and analogies where helpful
-3. Connects to the lecture material if provided
-4. Suggests next steps for deeper understanding
+3. Uses proper LaTeX syntax for ALL math (variables, equations, symbols)
+4. Connects to the lecture material if provided
+5. Suggests next steps for deeper understanding
 
 Keep your response under 300 words and use a friendly, encouraging tone.`;
 
