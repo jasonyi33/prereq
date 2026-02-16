@@ -6,3 +6,5 @@ api/src/__pycache__/
 api/src/routes/__pycache__/
 .playwright-mcp/
 frontend/.next/
+.idea/
+*.tsbuildinfo
